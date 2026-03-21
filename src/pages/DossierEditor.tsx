@@ -59,8 +59,9 @@ const DossierEditor = () => {
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(() => {
       saveDossier(dossier);
+      if (!isOnline) markPendingSync(dossier.id);
       setHasChanges(false);
-      toast.success('נשמר אוטומטית', { duration: 1500 });
+      toast.success(isOnline ? 'נשמר אוטומטית' : 'נשמר מקומית — יסונכרן בחזרה לרשת', { duration: 2000 });
     }, 3000);
     return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); };
   }, [dossier, hasChanges]);
