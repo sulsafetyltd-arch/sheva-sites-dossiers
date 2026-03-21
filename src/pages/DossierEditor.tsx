@@ -331,7 +331,13 @@ const DossierEditor = () => {
             <SectionPhotoGallery
               sectionTitle={currentSection.title}
               photos={dossier.data[`${currentSection.id}_photos`] ?? []}
-              onChange={photos => updateSectionData(currentSection.id.replace(/_photos$/, ''), `${currentSection.id}_photos` === `${currentSection.id}_photos` ? '_photos_placeholder' : '', photos)}
+              onChange={photos => {
+                setDossier(prev => {
+                  if (!prev) return prev;
+                  return { ...prev, data: { ...prev.data, [`${currentSection.id}_photos`]: photos } };
+                });
+                setHasChanges(true);
+              }}
             />
           </div>
         </main>
