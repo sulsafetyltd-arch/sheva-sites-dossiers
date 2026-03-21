@@ -23,6 +23,7 @@ import RiskMatrix from '@/components/dossier/RiskMatrix';
 import ContentLibraryDialog from '@/components/dossier/ContentLibraryDialog';
 import ValidationPanel from '@/components/dossier/ValidationPanel';
 import TaskManager from '@/components/dossier/TaskManager';
+import SectionPhotoGallery from '@/components/dossier/SectionPhotoGallery';
 
 const iconMap: Record<string, any> = {
   FileText, Building2, Phone, History, Map, Route, Users, Droplets,
