@@ -22,8 +22,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { getAllDossiers, createDossier, deleteDossier, duplicateDossier } from '@/lib/dossier-store';
+import { getAllDossiers, createDossier, createDossierFromTemplate, deleteDossier, duplicateDossier } from '@/lib/dossier-store';
 import { DossierMeta } from '@/types/dossier';
+import { buildingTemplates, BuildingTemplate } from '@/data/building-templates';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ const Index = () => {
   const [search, setSearch] = useState('');
   const [newName, setNewName] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<BuildingTemplate | null>(null);
 
   const filtered = useMemo(
     () => dossiers.filter(d => d.name.includes(search) || d.status.includes(search)),
@@ -45,9 +47,12 @@ const Index = () => {
 
   const handleCreate = () => {
     if (!newName.trim()) return;
-    const d = createDossier(newName.trim());
+    const d = selectedTemplate
+      ? createDossierFromTemplate(newName.trim(), selectedTemplate)
+      : createDossier(newName.trim());
     setDossiers(getAllDossiers());
     setNewName('');
+    setSelectedTemplate(null);
     setDialogOpen(false);
     navigate(`/editor/${d.id}`);
   };
@@ -76,14 +81,14 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">ניהול תיקי שטח לבטיחות אש</p>
             </div>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setSelectedTemplate(null); }}>
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus className="w-4 h-4" />
                 תיק חדש
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>יצירת תיק שטח חדש</DialogTitle>
               </DialogHeader>
@@ -94,8 +99,33 @@ const Index = () => {
                   onChange={e => setNewName(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleCreate()}
                 />
+
+                {/* Template selection */}
+                <div>
+                  <p className="text-sm font-medium mb-2">בחר תבנית מבנה (אופציונלי)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {buildingTemplates.map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => setSelectedTemplate(selectedTemplate?.id === t.id ? null : t)}
+                        className={`text-right p-3 rounded-lg border text-sm transition-colors ${
+                          selectedTemplate?.id === t.id
+                            ? 'border-primary bg-primary/5'
+                            : 'hover:bg-muted/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-lg">{t.icon}</span>
+                          <span className="font-medium">{t.name}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{t.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <Button onClick={handleCreate} disabled={!newName.trim()}>
-                  צור תיק
+                  {selectedTemplate ? `צור תיק (${selectedTemplate.name})` : 'צור תיק ריק'}
                 </Button>
               </div>
             </DialogContent>
@@ -155,28 +185,13 @@ const Index = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => navigate(`/editor/${d.id}`)}
-                    title="עריכה"
-                  >
+                  <Button variant="ghost" size="icon" onClick={() => navigate(`/editor/${d.id}`)} title="עריכה">
                     <Edit className="w-4 h-4" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => navigate(`/preview/${d.id}`)}
-                    title="תצוגה מקדימה"
-                  >
+                  <Button variant="ghost" size="icon" onClick={() => navigate(`/preview/${d.id}`)} title="תצוגה מקדימה">
                     <Eye className="w-4 h-4" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDuplicate(d.id)}
-                    title="שכפול"
-                  >
+                  <Button variant="ghost" size="icon" onClick={() => handleDuplicate(d.id)} title="שכפול">
                     <Copy className="w-4 h-4" />
                   </Button>
                   <AlertDialog>

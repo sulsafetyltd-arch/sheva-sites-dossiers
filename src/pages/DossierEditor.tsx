@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowRight, Save, Eye, CheckCircle, FileText, Building2, Phone, History,
@@ -10,12 +10,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { getDossier, saveDossier } from '@/lib/dossier-store';
 import { sectionConfigs } from '@/data/section-config';
 import { Dossier, SectionConfig, FieldConfig } from '@/types/dossier';
 import RepeatableTable from '@/components/dossier/RepeatableTable';
+import ScenarioLibrary from '@/components/dossier/ScenarioLibrary';
+import RiskMatrix from '@/components/dossier/RiskMatrix';
 
 const iconMap: Record<string, any> = {
   FileText, Building2, Phone, History, Map, Route, Users, Droplets,
@@ -28,6 +31,7 @@ const DossierEditor = () => {
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [activeSection, setActiveSection] = useState(sectionConfigs[0].id);
   const [hasChanges, setHasChanges] = useState(false);
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -36,6 +40,18 @@ const DossierEditor = () => {
       else navigate('/');
     }
   }, [id, navigate]);
+
+  // Autosave after 3 seconds of inactivity
+  useEffect(() => {
+    if (!dossier || !hasChanges) return;
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => {
+      saveDossier(dossier);
+      setHasChanges(false);
+      toast.success('נשמר אוטומטית', { duration: 1500 });
+    }, 3000);
+    return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); };
+  }, [dossier, hasChanges]);
 
   const updateSectionData = useCallback((sectionId: string, key: string, value: any) => {
     setDossier(prev => {
@@ -59,6 +75,7 @@ const DossierEditor = () => {
 
   const handleSave = useCallback(() => {
     if (!dossier) return;
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     saveDossier(dossier);
     setHasChanges(false);
     toast.success('התיק נשמר בהצלחה');
@@ -76,6 +93,27 @@ const DossierEditor = () => {
   if (!dossier) return null;
 
   const currentSection = sectionConfigs.find(s => s.id === activeSection)!;
+
+  // Section completion calculation
+  const getSectionProgress = (section: SectionConfig): number => {
+    const data = dossier.data[section.id];
+    if (!data) return 0;
+    if (section.repeatable) {
+      return Array.isArray(data) && data.length > 0 ? 100 : 0;
+    }
+    if (section.fields) {
+      const filled = section.fields.filter(f => {
+        const val = data[f.key];
+        return val !== undefined && val !== '';
+      }).length;
+      return Math.round((filled / section.fields.length) * 100);
+    }
+    return 0;
+  };
+
+  const totalProgress = Math.round(
+    sectionConfigs.reduce((sum, s) => sum + getSectionProgress(s), 0) / sectionConfigs.length
+  );
 
   const renderField = (section: SectionConfig, field: FieldConfig) => {
     const value = dossier.data[section.id]?.[field.key] ?? '';
@@ -149,8 +187,9 @@ const DossierEditor = () => {
                 <Badge variant={dossier.status === 'complete' ? 'default' : 'secondary'} className="text-xs">
                   {dossier.status === 'complete' ? 'הושלם' : 'טיוטה'}
                 </Badge>
+                <span className="text-xs text-muted-foreground">{totalProgress}% הושלם</span>
                 {hasChanges && (
-                  <span className="text-xs text-warning">שינויים שלא נשמרו</span>
+                  <span className="text-xs text-warning">שומר...</span>
                 )}
               </div>
             </div>
@@ -170,15 +209,18 @@ const DossierEditor = () => {
             </Button>
           </div>
         </div>
+        {/* Global progress bar */}
+        <Progress value={totalProgress} className="h-1 rounded-none" />
       </header>
 
       <div className="flex-1 flex flex-col md:flex-row">
         {/* Sidebar - section nav */}
-        <nav className="border-b md:border-b-0 md:border-l md:w-60 shrink-0 bg-card no-print">
+        <nav className="border-b md:border-b-0 md:border-l md:w-64 shrink-0 bg-card no-print">
           <div className="flex md:flex-col overflow-x-auto md:overflow-x-visible py-2 md:py-4 px-2 gap-1">
             {sectionConfigs.map(section => {
               const Icon = iconMap[section.icon] || FileText;
               const isActive = activeSection === section.id;
+              const progress = getSectionProgress(section);
               return (
                 <button
                   key={section.id}
@@ -190,7 +232,12 @@ const DossierEditor = () => {
                   }`}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
-                  <span>{section.title}</span>
+                  <span className="flex-1 text-right">{section.title}</span>
+                  {progress > 0 && (
+                    <span className={`text-xs tabular-nums ${progress === 100 ? 'text-success' : 'text-muted-foreground'}`}>
+                      {progress}%
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -200,7 +247,16 @@ const DossierEditor = () => {
         {/* Content */}
         <main className="flex-1 p-4 md:p-8 max-w-4xl">
           <div className="animate-reveal">
-            <h2 className="text-xl font-bold mb-1">{currentSection.title}</h2>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-xl font-bold">{currentSection.title}</h2>
+              {/* Scenario library button for scenarios section */}
+              {currentSection.id === 'scenarios' && (
+                <ScenarioLibrary
+                  existingScenarios={dossier.data.scenarios ?? []}
+                  onAdd={rows => updateRepeatableData('scenarios', rows)}
+                />
+              )}
+            </div>
             {currentSection.description && (
               <p className="text-sm text-muted-foreground mb-6">{currentSection.description}</p>
             )}
@@ -217,6 +273,11 @@ const DossierEditor = () => {
                 rows={dossier.data[currentSection.id] ?? []}
                 onChange={rows => updateRepeatableData(currentSection.id, rows)}
               />
+            )}
+
+            {/* Risk matrix visualization */}
+            {currentSection.id === 'risks' && (
+              <RiskMatrix risks={dossier.data.risks ?? []} />
             )}
           </div>
         </main>
