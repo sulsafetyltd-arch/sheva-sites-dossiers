@@ -107,6 +107,7 @@ const DossierPreview = () => {
         {/* Sections */}
         {sectionsWithContent.map((section, idx) => {
           const data = dossier.data[section.id];
+          const photos = dossier.data[`${section.id}_photos`] as any[] | undefined;
 
           return (
             <div key={section.id} className="bg-card border rounded-lg p-6 md:p-8 mb-4 page-break avoid-break shadow-sm">
@@ -151,7 +152,6 @@ const DossierPreview = () => {
                           <td className="border-b py-2 px-2 text-muted-foreground">{i + 1}</td>
                           {section.repeatable!.columns.map(col => {
                             const cellVal = row[col.key] || '—';
-                            // Color-code risk scores
                             let cellClass = 'border-b py-2 px-2';
                             if (section.id === 'risks' && col.key === 'riskScore') {
                               if (cellVal === 'גבוה' || cellVal === 'קריטי') cellClass += ' text-destructive font-medium';
@@ -170,9 +170,61 @@ const DossierPreview = () => {
                   </table>
                 </div>
               )}
+
+              {/* Section photos */}
+              {photos && photos.length > 0 && (
+                <div className="mt-6 pt-4 border-t">
+                  <h3 className="text-sm font-semibold mb-3">תמונות — {section.title}</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {photos.map((photo: any) => (
+                      <div key={photo.id} className="space-y-1">
+                        <img
+                          src={photo.dataUrl}
+                          alt={photo.caption || section.title}
+                          className="w-full rounded border object-cover"
+                          style={{ maxHeight: 200 }}
+                        />
+                        {photo.caption && (
+                          <p className="text-xs text-muted-foreground text-center">{photo.caption}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
+
+        {/* Signatures */}
+        {dossier.data.signatures && Object.keys(dossier.data.signatures).length > 0 && (
+          <div className="bg-card border rounded-lg p-6 md:p-8 mb-4 page-break avoid-break shadow-sm">
+            <h2 className="text-lg font-bold mb-4 pb-2 border-b">חתימות</h2>
+            <div className="grid grid-cols-2 gap-6">
+              {[
+                { key: 'preparer', label: 'מכין התיק' },
+                { key: 'checker', label: 'בודק' },
+                { key: 'approver', label: 'מאשר' },
+                { key: 'client', label: 'לקוח' },
+              ].map(role => {
+                const sig = dossier.data.signatures[role.key];
+                if (!sig) return null;
+                return (
+                  <div key={role.key} className="border rounded p-4 space-y-2">
+                    <p className="font-medium text-sm">{role.label}</p>
+                    {sig.signatureDataUrl && (
+                      <img src={sig.signatureDataUrl} alt={`חתימת ${role.label}`} className="max-h-16 mx-auto" />
+                    )}
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{sig.name}</span>
+                      <span>{sig.date}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Footer disclaimer */}
         <div className="text-center text-xs text-muted-foreground py-8 print-only">
