@@ -208,3 +208,10 @@
 .animate-reveal-delay-1 { animation-delay: 80ms; }
 .animate-reveal-delay-2 { animation-delay: 160ms; }
 .animate-reveal-delay-3 { animation-delay: 240ms; }
+
+/* PDF capture mode — hide non-content elements */
+.pdf-capturing .no-print,
+.pdf-capturing .print-running-header,
+.pdf-capturing .print-running-footer {
+  display: none !important;
+}

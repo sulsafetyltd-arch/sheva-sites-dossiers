@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, Printer, Flame, Shield } from 'lucide-react';
+import { ArrowRight, Printer, Flame, Shield, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getDossier } from '@/lib/dossier-store';
 import { sectionConfigs } from '@/data/section-config';
 import { Dossier, SectionConfig } from '@/types/dossier';
+import { exportToPdf } from '@/lib/pdf-export';
+import { toast } from 'sonner';
 
 const buildingTypeLabels: Record<string, string> = {
   residential: 'מגורים',
@@ -19,6 +21,22 @@ const DossierPreview = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [dossier, setDossier] = useState<Dossier | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleExportPdf = useCallback(async () => {
+    if (!contentRef.current || !dossier) return;
+    setExporting(true);
+    try {
+      const fileName = `תיק_שטח_${dossier.name.replace(/\s+/g, '_')}.pdf`;
+      await exportToPdf(contentRef.current, fileName);
+      toast.success('הקובץ הורד בהצלחה');
+    } catch (err) {
+      console.error('PDF export error:', err);
+      toast.error('שגיאה בייצוא PDF');
+    }
+    setExporting(false);
+  }, [dossier]);
 
   useEffect(() => {
     if (id) {
@@ -60,14 +78,24 @@ const DossierPreview = () => {
             </Button>
             <h1 className="font-bold">תצוגה מקדימה</h1>
           </div>
-          <Button onClick={() => window.print()} className="gap-1.5">
-            <Printer className="w-4 h-4" />
-            הדפסה / PDF
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExportPdf}
+              disabled={exporting}
+              className="gap-1.5"
+            >
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {exporting ? 'מייצא...' : 'הורד PDF'}
+            </Button>
+            <Button onClick={() => window.print()} className="gap-1.5">
+              <Printer className="w-4 h-4" />
+              הדפסה
+            </Button>
+          </div>
         </div>
       </header>
 
-      {/* Fixed running header for print */}
       <div className="print-running-header">
         <div className="flex justify-between items-center">
           <span>{projectTitle}</span>
@@ -81,7 +109,7 @@ const DossierPreview = () => {
       </div>
 
       {/* Printable content */}
-      <div className="container max-w-4xl py-8 space-y-0">
+      <div ref={contentRef} className="container max-w-4xl py-8 space-y-0">
 
         {/* ═══ COVER PAGE ═══ */}
         <div className="print-cover bg-card border rounded-lg p-8 md:p-16 text-center mb-8 shadow-sm">
