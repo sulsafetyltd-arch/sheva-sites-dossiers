@@ -43,6 +43,7 @@ const DossierEditor = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [sidePanel, setSidePanel] = useState<SidePanel>('none');
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { isOnline, markPendingSync } = useOnlineStatus();
 
   useEffect(() => {
     if (id) {
