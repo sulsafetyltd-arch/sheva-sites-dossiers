@@ -49,9 +49,10 @@ const DossierEditor = () => {
 
   useEffect(() => {
     if (id) {
-      const d = getDossier(id);
-      if (d) setDossier(d);
-      else navigate('/');
+      getDossier(id).then(d => {
+        if (d) setDossier(d);
+        else navigate('/');
+      });
     }
   }, [id, navigate]);
 
@@ -59,18 +60,14 @@ const DossierEditor = () => {
   useEffect(() => {
     if (!dossier || !hasChanges) return;
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-    autosaveTimer.current = setTimeout(() => {
+    autosaveTimer.current = setTimeout(async () => {
       try {
-        saveDossier(dossier);
+        await saveDossier(dossier);
         if (!isOnline) markPendingSync(dossier.id);
         setHasChanges(false);
         toast.success(isOnline ? 'נשמר אוטומטית' : 'נשמר מקומית — יסונכרן בחזרה לרשת', { duration: 2000 });
       } catch (e: any) {
-        if (e.message === 'QUOTA_EXCEEDED') {
-          toast.error('נפח האחסון המקומי מלא — נסה להקטין את מספר התמונות או לייצא ולמחוק תיקים ישנים', { duration: 5000 });
-        } else {
-          toast.error('שגיאה בשמירה');
-        }
+        toast.error('שגיאה בשמירה');
       }
     }, 3000);
     return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); };
@@ -98,27 +95,23 @@ const DossierEditor = () => {
     setHasChanges(true);
   }, []);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!dossier) return;
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     try {
-      saveDossier(dossier);
+      await saveDossier(dossier);
       setHasChanges(false);
       toast.success('התיק נשמר בהצלחה');
-    } catch (e: any) {
-      if (e.message === 'QUOTA_EXCEEDED') {
-        toast.error('נפח האחסון המקומי מלא — הקטן מספר תמונות או מחק תיקים ישנים', { duration: 5000 });
-      } else {
-        toast.error('שגיאה בשמירה');
-      }
+    } catch {
+      toast.error('שגיאה בשמירה');
     }
   }, [dossier]);
 
-  const handleMarkComplete = useCallback(() => {
+  const handleMarkComplete = useCallback(async () => {
     if (!dossier) return;
     const updated = { ...dossier, status: dossier.status === 'complete' ? 'draft' as const : 'complete' as const };
     setDossier(updated);
-    saveDossier(updated);
+    await saveDossier(updated);
     setHasChanges(false);
     toast.success(updated.status === 'complete' ? 'התיק סומן כהושלם' : 'התיק הוחזר לטיוטה');
   }, [dossier]);

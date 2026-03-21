@@ -14,7 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      dossier_tasks: {
+        Row: {
+          assignee: string | null
+          created_at: string
+          deadline: string | null
+          dossier_id: string
+          id: string
+          status: string
+          title: string
+        }
+        Insert: {
+          assignee?: string | null
+          created_at?: string
+          deadline?: string | null
+          dossier_id: string
+          id?: string
+          status?: string
+          title: string
+        }
+        Update: {
+          assignee?: string | null
+          created_at?: string
+          deadline?: string | null
+          dossier_id?: string
+          id?: string
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dossier_tasks_dossier_id_fkey"
+            columns: ["dossier_id"]
+            isOneToOne: false
+            referencedRelation: "dossiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dossiers: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

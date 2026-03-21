@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, FileText, Trash2, Copy, Eye, Edit, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,11 +28,18 @@ import { buildingTemplates, BuildingTemplate } from '@/data/building-templates';
 
 const Index = () => {
   const navigate = useNavigate();
-  const [dossiers, setDossiers] = useState<DossierMeta[]>(getAllDossiers);
+  const [dossiers, setDossiers] = useState<DossierMeta[]>([]);
   const [search, setSearch] = useState('');
   const [newName, setNewName] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<BuildingTemplate | null>(null);
+
+  const loadDossiers = useCallback(async () => {
+    const data = await getAllDossiers();
+    setDossiers(data);
+  }, []);
+
+  useEffect(() => { loadDossiers(); }, [loadDossiers]);
 
   const filtered = useMemo(
     () => dossiers.filter(d => d.name.includes(search) || d.status.includes(search)),
@@ -45,26 +52,25 @@ const Index = () => {
     complete: dossiers.filter(d => d.status === 'complete').length,
   }), [dossiers]);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!newName.trim()) return;
     const d = selectedTemplate
-      ? createDossierFromTemplate(newName.trim(), selectedTemplate)
-      : createDossier(newName.trim());
-    setDossiers(getAllDossiers());
+      ? await createDossierFromTemplate(newName.trim(), selectedTemplate)
+      : await createDossier(newName.trim());
     setNewName('');
     setSelectedTemplate(null);
     setDialogOpen(false);
     navigate(`/editor/${d.id}`);
   };
 
-  const handleDelete = (id: string) => {
-    deleteDossier(id);
-    setDossiers(getAllDossiers());
+  const handleDelete = async (id: string) => {
+    await deleteDossier(id);
+    loadDossiers();
   };
 
-  const handleDuplicate = (id: string) => {
-    duplicateDossier(id);
-    setDossiers(getAllDossiers());
+  const handleDuplicate = async (id: string) => {
+    await duplicateDossier(id);
+    loadDossiers();
   };
 
   return (
