@@ -361,6 +361,7 @@ const DossierEditor = () => {
             {currentSection.id === 'drawings' && (
               <PlanAnnotator
                 plans={dossier.data.drawings_plans ?? []}
+                dossierId={dossier.id}
                 onChange={plans => {
                   setDossier(prev => {
                     if (!prev) return prev;
@@ -386,6 +387,7 @@ const DossierEditor = () => {
 
             <SectionPhotoGallery
               sectionTitle={currentSection.title}
+              dossierId={dossier.id}
               photos={dossier.data[`${currentSection.id}_photos`] ?? []}
               onChange={photos => {
                 setDossier(prev => {
