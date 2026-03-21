@@ -1,4 +1,4 @@
-import { Dossier, SectionConfig } from '@/types/dossier';
+import { Dossier } from '@/types/dossier';
 import { sectionConfigs } from '@/data/section-config';
 
 export interface ValidationIssue {

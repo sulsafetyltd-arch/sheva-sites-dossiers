@@ -36,3 +36,12 @@ export interface SectionConfig {
   repeatable?: RepeatableConfig;
   description?: string;
 }
+
+export interface DossierTask {
+  id: string;
+  title: string;
+  status: 'open' | 'in_progress' | 'done';
+  assignee?: string;
+  deadline?: string;
+  createdAt: string;
+}

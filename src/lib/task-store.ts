@@ -1,4 +1,4 @@
-import { Dossier, DossierTask } from '@/types/dossier';
+import { DossierTask } from '@/types/dossier';
 
 const TASKS_KEY = 'fire-dossier-tasks';
 

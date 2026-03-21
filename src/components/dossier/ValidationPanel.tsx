@@ -1,5 +1,4 @@
-import { useMemo } from 'react';
-import { AlertTriangle, AlertCircle, CheckCircle2, Shield } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ValidationReport, readinessLabels } from '@/lib/validation-engine';
