@@ -93,8 +93,9 @@ const DossierPreview = () => {
               הדפסה
             </Button>
           </div>
+        </div>
+      </header>
 
-      {/* Fixed running header for print */}
       <div className="print-running-header">
         <div className="flex justify-between items-center">
           <span>{projectTitle}</span>
