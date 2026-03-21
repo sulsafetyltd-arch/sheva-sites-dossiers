@@ -22,9 +22,10 @@ const DossierPreview = () => {
 
   useEffect(() => {
     if (id) {
-      const d = getDossier(id);
-      if (d) setDossier(d);
-      else navigate('/');
+      getDossier(id).then(d => {
+        if (d) setDossier(d);
+        else navigate('/');
+      });
     }
   }, [id, navigate]);
 

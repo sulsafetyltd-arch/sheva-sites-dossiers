@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, CheckCircle2, Circle, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,16 +11,21 @@ interface Props {
 }
 
 const TaskManager = ({ dossierId }: Props) => {
-  const [tasks, setTasks] = useState<DossierTask[]>(() => getTasksForDossier(dossierId));
+  const [tasks, setTasks] = useState<DossierTask[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [newDeadline, setNewDeadline] = useState('');
   const [newAssignee, setNewAssignee] = useState('');
 
-  const refresh = () => setTasks(getTasksForDossier(dossierId));
+  const refresh = useCallback(async () => {
+    const data = await getTasksForDossier(dossierId);
+    setTasks(data);
+  }, [dossierId]);
 
-  const handleAdd = useCallback(() => {
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const handleAdd = useCallback(async () => {
     if (!newTitle.trim()) return;
-    addTask(dossierId, {
+    await addTask(dossierId, {
       title: newTitle.trim(),
       status: 'open',
       assignee: newAssignee.trim() || undefined,
@@ -30,17 +35,17 @@ const TaskManager = ({ dossierId }: Props) => {
     setNewDeadline('');
     setNewAssignee('');
     refresh();
-  }, [dossierId, newTitle, newDeadline, newAssignee]);
+  }, [dossierId, newTitle, newDeadline, newAssignee, refresh]);
 
-  const toggleStatus = (task: DossierTask) => {
-    updateTask(dossierId, task.id, {
+  const toggleStatus = async (task: DossierTask) => {
+    await updateTask(dossierId, task.id, {
       status: task.status === 'done' ? 'open' : 'done',
     });
     refresh();
   };
 
-  const handleDelete = (taskId: string) => {
-    deleteTask(dossierId, taskId);
+  const handleDelete = async (taskId: string) => {
+    await deleteTask(dossierId, taskId);
     refresh();
   };
 
@@ -76,7 +81,6 @@ const TaskManager = ({ dossierId }: Props) => {
         </Button>
       </div>
 
-      {/* Open tasks */}
       {openTasks.length === 0 && doneTasks.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-6">
           אין משימות. הוסף משימות לניהול עבודות תיק השטח.
@@ -110,7 +114,6 @@ const TaskManager = ({ dossierId }: Props) => {
         ))}
       </div>
 
-      {/* Done tasks */}
       {doneTasks.length > 0 && (
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground font-medium">הושלמו ({doneTasks.length})</p>
