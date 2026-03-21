@@ -1,13 +1,14 @@
 import { useState, useRef, useCallback } from 'react';
-import { Camera, ImagePlus, X, ZoomIn, Pencil } from 'lucide-react';
+import { Camera, ImagePlus, X, ZoomIn, Pencil, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { uploadImage, resizeImageToBlob, deleteStorageFile } from '@/lib/storage-utils';
 
 export interface SectionPhoto {
   id: string;
-  dataUrl: string;
+  dataUrl: string; // now holds a public URL from storage (or legacy base64)
   caption: string;
   timestamp: string;
 }
@@ -16,69 +17,58 @@ interface Props {
   photos: SectionPhoto[];
   onChange: (photos: SectionPhoto[]) => void;
   sectionTitle: string;
+  dossierId?: string;
 }
 
 const MAX_SIZE = 800;
 
-function resizeImage(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new window.Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let w = img.width;
-        let h = img.height;
-        if (w > MAX_SIZE || h > MAX_SIZE) {
-          const ratio = Math.min(MAX_SIZE / w, MAX_SIZE / h);
-          w = Math.round(w * ratio);
-          h = Math.round(h * ratio);
-        }
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d')!;
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.6));
-      };
-      img.onerror = reject;
-      img.src = reader.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-const SectionPhotoGallery = ({ photos, onChange, sectionTitle }: Props) => {
+const SectionPhotoGallery = ({ photos, onChange, sectionTitle, dossierId }: Props) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [previewPhoto, setPreviewPhoto] = useState<SectionPhoto | null>(null);
   const [editingCaption, setEditingCaption] = useState<{ id: string; value: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const folder = dossierId ? `photos/${dossierId}` : 'photos/unsorted';
 
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+    setUploading(true);
     const newPhotos: SectionPhoto[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!file.type.startsWith('image/')) continue;
       try {
-        const dataUrl = await resizeImage(file);
+        const blob = await resizeImageToBlob(file, MAX_SIZE, 0.6);
+        const photoId = crypto.randomUUID();
+        const publicUrl = await uploadImage(blob, folder, `${photoId}.jpg`);
         newPhotos.push({
-          id: crypto.randomUUID(),
-          dataUrl,
+          id: photoId,
+          dataUrl: publicUrl,
           caption: '',
           timestamp: new Date().toISOString(),
         });
-      } catch {
-        toast.error(`שגיאה בטעינת ${file.name}`);
+      } catch (err) {
+        console.error('Upload error:', err);
+        toast.error(`שגיאה בהעלאת ${file.name}`);
       }
     }
+    setUploading(false);
     if (newPhotos.length > 0) {
       onChange([...photos, ...newPhotos]);
-      toast.success(`${newPhotos.length} תמונות נוספו`);
+      toast.success(`${newPhotos.length} תמונות הועלו לענן`);
     }
-  }, [photos, onChange]);
+  }, [photos, onChange, folder]);
 
-  const removePhoto = useCallback((id: string) => {
+  const removePhoto = useCallback(async (id: string) => {
+    const photo = photos.find(p => p.id === id);
+    if (photo) {
+      try {
+        await deleteStorageFile(photo.dataUrl);
+      } catch {
+        // ignore delete errors for legacy base64
+      }
+    }
     onChange(photos.filter(p => p.id !== id));
   }, [photos, onChange]);
 
@@ -110,6 +100,7 @@ const SectionPhotoGallery = ({ photos, onChange, sectionTitle }: Props) => {
             size="sm"
             className="gap-1.5 text-xs"
             onClick={() => cameraInputRef.current?.click()}
+            disabled={uploading}
           >
             <Camera className="w-3.5 h-3.5" />
             צלם
@@ -127,21 +118,22 @@ const SectionPhotoGallery = ({ photos, onChange, sectionTitle }: Props) => {
             size="sm"
             className="gap-1.5 text-xs"
             onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
           >
-            <ImagePlus className="w-3.5 h-3.5" />
-            העלה
+            {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
+            {uploading ? 'מעלה...' : 'העלה'}
           </Button>
         </div>
       </div>
 
-      {photos.length === 0 ? (
+      {photos.length === 0 && !uploading ? (
         <div
           className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
           onClick={() => fileInputRef.current?.click()}
         >
           <ImagePlus className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">לחץ להעלאת תמונות או גרור לכאן</p>
-          <p className="text-xs text-muted-foreground mt-1">ניתן לצלם ישירות מהמכשיר</p>
+          <p className="text-xs text-muted-foreground mt-1">התמונות נשמרות בענן ללא מגבלת נפח</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -151,31 +143,17 @@ const SectionPhotoGallery = ({ photos, onChange, sectionTitle }: Props) => {
                 src={photo.dataUrl}
                 alt={photo.caption || 'תמונה'}
                 className="w-full aspect-square object-cover cursor-pointer"
+                loading="lazy"
                 onClick={() => setPreviewPhoto(photo)}
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="w-7 h-7"
-                  onClick={() => setPreviewPhoto(photo)}
-                >
+                <Button variant="secondary" size="icon" className="w-7 h-7" onClick={() => setPreviewPhoto(photo)}>
                   <ZoomIn className="w-3.5 h-3.5" />
                 </Button>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="w-7 h-7"
-                  onClick={() => setEditingCaption({ id: photo.id, value: photo.caption })}
-                >
+                <Button variant="secondary" size="icon" className="w-7 h-7" onClick={() => setEditingCaption({ id: photo.id, value: photo.caption })}>
                   <Pencil className="w-3.5 h-3.5" />
                 </Button>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="w-7 h-7"
-                  onClick={() => removePhoto(photo.id)}
-                >
+                <Button variant="destructive" size="icon" className="w-7 h-7" onClick={() => removePhoto(photo.id)}>
                   <X className="w-3.5 h-3.5" />
                 </Button>
               </div>
@@ -184,26 +162,25 @@ const SectionPhotoGallery = ({ photos, onChange, sectionTitle }: Props) => {
               )}
             </div>
           ))}
+          {uploading && (
+            <div className="flex items-center justify-center aspect-square rounded-lg border-2 border-dashed">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
       )}
 
-      {/* Preview dialog */}
       <Dialog open={!!previewPhoto} onOpenChange={() => setPreviewPhoto(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{previewPhoto?.caption || 'תמונה'}</DialogTitle>
           </DialogHeader>
           {previewPhoto && (
-            <img
-              src={previewPhoto.dataUrl}
-              alt={previewPhoto.caption || 'תמונה'}
-              className="w-full rounded-lg"
-            />
+            <img src={previewPhoto.dataUrl} alt={previewPhoto.caption || 'תמונה'} className="w-full rounded-lg" />
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Caption edit dialog */}
       <Dialog open={!!editingCaption} onOpenChange={() => setEditingCaption(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
