@@ -24,6 +24,9 @@ import ContentLibraryDialog from '@/components/dossier/ContentLibraryDialog';
 import ValidationPanel from '@/components/dossier/ValidationPanel';
 import TaskManager from '@/components/dossier/TaskManager';
 import SectionPhotoGallery from '@/components/dossier/SectionPhotoGallery';
+import VoiceNoteButton from '@/components/dossier/VoiceNoteButton';
+import OfflineSyncIndicator from '@/components/dossier/OfflineSyncIndicator';
+import { useOnlineStatus } from '@/hooks/use-online-status';
 
 const iconMap: Record<string, any> = {
   FileText, Building2, Phone, History, Map, Route, Users, Droplets,
@@ -40,6 +43,7 @@ const DossierEditor = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [sidePanel, setSidePanel] = useState<SidePanel>('none');
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { isOnline, markPendingSync } = useOnlineStatus();
 
   useEffect(() => {
     if (id) {
@@ -55,8 +59,9 @@ const DossierEditor = () => {
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(() => {
       saveDossier(dossier);
+      if (!isOnline) markPendingSync(dossier.id);
       setHasChanges(false);
-      toast.success('נשמר אוטומטית', { duration: 1500 });
+      toast.success(isOnline ? 'נשמר אוטומטית' : 'נשמר מקומית — יסונכרן בחזרה לרשת', { duration: 2000 });
     }, 3000);
     return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); };
   }, [dossier, hasChanges]);
@@ -154,10 +159,16 @@ const DossierEditor = () => {
     if (field.type === 'textarea') {
       return (
         <div key={field.key} className={field.fullWidth ? 'col-span-full' : ''}>
-          <Label className="text-sm font-medium mb-1.5 block">
-            {field.label}
-            {field.required && <span className="text-destructive mr-1">*</span>}
-          </Label>
+          <div className="flex items-center justify-between mb-1.5">
+            <Label className="text-sm font-medium">
+              {field.label}
+              {field.required && <span className="text-destructive mr-1">*</span>}
+            </Label>
+            <VoiceNoteButton
+              currentValue={value}
+              onTranscript={text => updateSectionData(section.id, field.key, text)}
+            />
+          </div>
           <Textarea
             value={value}
             onChange={e => updateSectionData(section.id, field.key, e.target.value)}
@@ -205,6 +216,7 @@ const DossierEditor = () => {
                 {hasChanges && (
                   <span className="text-xs text-warning">שומר...</span>
                 )}
+                <OfflineSyncIndicator />
               </div>
             </div>
           </div>
