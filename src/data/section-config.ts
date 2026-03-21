@@ -176,16 +176,18 @@ export const sectionConfigs: SectionConfig[] = [
   },
   {
     id: 'risks',
-    title: 'הערכת סיכונים',
+    title: 'מטריצת סיכונים',
     icon: 'AlertTriangle',
-    description: 'זיהוי סיכונים והערכת רמת סיכון',
+    description: 'מטריצת סיכונים מובנית — סיכון, מיקום, סבירות, חומרה, ציון סיכון ואמצעי שליטה',
     repeatable: {
       columns: [
-        { key: 'area', label: 'אזור', type: 'text' },
         { key: 'hazard', label: 'סיכון', type: 'text' },
+        { key: 'location', label: 'מיקום', type: 'text' },
+        { key: 'likelihood', label: 'סבירות', type: 'text' },
         { key: 'severity', label: 'חומרה', type: 'text' },
-        { key: 'probability', label: 'הסתברות', type: 'text' },
-        { key: 'mitigation', label: 'אמצעי מניעה', type: 'text' },
+        { key: 'riskScore', label: 'ציון סיכון', type: 'text' },
+        { key: 'controls', label: 'אמצעי שליטה', type: 'text' },
+        { key: 'responsible', label: 'אחראי', type: 'text' },
       ],
     },
   },
