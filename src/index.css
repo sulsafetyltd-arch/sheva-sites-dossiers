@@ -62,6 +62,9 @@
   body {
     background: white !important;
     font-size: 11pt;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .no-print {
     display: none !important;
@@ -75,14 +78,113 @@
   .avoid-break {
     page-break-inside: avoid;
   }
+
+  /* Cover page fills entire first page */
+  .print-cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Section dividers */
+  .print-section {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin-bottom: 24pt !important;
+  }
+
+  .print-section-header {
+    border-bottom: 2pt solid hsl(0 65% 42%) !important;
+    padding-bottom: 6pt !important;
+    margin-bottom: 12pt !important;
+  }
+
+  /* Tables */
+  table {
+    font-size: 9pt;
+  }
+  th, td {
+    border: 0.5pt solid #ccc !important;
+    padding: 4pt 6pt !important;
+  }
+  thead th {
+    background: #f0f0f0 !important;
+  }
+
+  /* Photo grid in print */
+  .print-photo-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8pt !important;
+  }
+  .print-photo-grid img {
+    max-height: 140pt !important;
+  }
+
+  /* Signature blocks */
+  .print-sig-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
   @page {
-    margin: 15mm 20mm;
+    margin: 20mm 18mm 25mm 18mm;
     size: A4;
+
+    @top-center {
+      content: none;
+    }
+  }
+
+  /* First page — no header/footer */
+  @page :first {
+    margin-top: 15mm;
+    margin-bottom: 15mm;
   }
 }
 
 .print-only {
   display: none;
+}
+
+/* Running header/footer for print — CSS-only approach */
+.print-running-header,
+.print-running-footer {
+  display: none;
+}
+
+@media print {
+  .print-running-header {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 4mm 18mm;
+    font-size: 8pt;
+    color: #888;
+    border-bottom: 0.5pt solid #ddd;
+    direction: rtl;
+  }
+  .print-running-footer {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 4mm 18mm;
+    font-size: 8pt;
+    color: #888;
+    border-top: 0.5pt solid #ddd;
+    direction: rtl;
+    text-align: center;
+  }
+  /* Hide running header on first page */
+  .print-cover ~ .print-running-header {
+    display: none;
+  }
 }
 
 /* Scroll reveal animation */
