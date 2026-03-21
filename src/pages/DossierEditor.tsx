@@ -387,6 +387,7 @@ const DossierEditor = () => {
 
             <SectionPhotoGallery
               sectionTitle={currentSection.title}
+              dossierId={dossier.id}
               photos={dossier.data[`${currentSection.id}_photos`] ?? []}
               onChange={photos => {
                 setDossier(prev => {
