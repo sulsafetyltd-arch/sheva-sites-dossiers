@@ -1,12 +1,12 @@
 import { Dossier, DossierMeta } from '@/types/dossier';
 import { demoDossier } from '@/data/demo-dossier';
+import { BuildingTemplate } from '@/data/building-templates';
 
 const STORAGE_KEY = 'fire-dossiers';
 
 function loadAll(): Dossier[] {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
-    // Initialize with demo
     const initial = [demoDossier];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
     return initial;
@@ -52,6 +52,19 @@ export function createDossier(name: string): Dossier {
     createdAt: new Date().toISOString().split('T')[0],
     updatedAt: new Date().toISOString().split('T')[0],
     data: {},
+  };
+  saveDossier(dossier);
+  return dossier;
+}
+
+export function createDossierFromTemplate(name: string, template: BuildingTemplate): Dossier {
+  const dossier: Dossier = {
+    id: crypto.randomUUID(),
+    name,
+    status: 'draft',
+    createdAt: new Date().toISOString().split('T')[0],
+    updatedAt: new Date().toISOString().split('T')[0],
+    data: { ...template.preloadData },
   };
   saveDossier(dossier);
   return dossier;
