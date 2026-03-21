@@ -215,6 +215,7 @@ const DossierEditor = () => {
                 {hasChanges && (
                   <span className="text-xs text-warning">שומר...</span>
                 )}
+                <OfflineSyncIndicator />
               </div>
             </div>
           </div>
