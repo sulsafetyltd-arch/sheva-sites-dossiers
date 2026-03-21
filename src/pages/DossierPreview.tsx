@@ -21,6 +21,22 @@ const DossierPreview = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [dossier, setDossier] = useState<Dossier | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleExportPdf = useCallback(async () => {
+    if (!contentRef.current || !dossier) return;
+    setExporting(true);
+    try {
+      const fileName = `תיק_שטח_${dossier.name.replace(/\s+/g, '_')}.pdf`;
+      await exportToPdf(contentRef.current, fileName);
+      toast.success('הקובץ הורד בהצלחה');
+    } catch (err) {
+      console.error('PDF export error:', err);
+      toast.error('שגיאה בייצוא PDF');
+    }
+    setExporting(false);
+  }, [dossier]);
 
   useEffect(() => {
     if (id) {
