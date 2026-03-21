@@ -355,6 +355,19 @@ const DossierEditor = () => {
               />
             )}
 
+            {currentSection.id === 'cover' && (
+              <SignatureBlock
+                signatures={dossier.data.signatures ?? {}}
+                onChange={sigs => {
+                  setDossier(prev => {
+                    if (!prev) return prev;
+                    return { ...prev, data: { ...prev.data, signatures: sigs } };
+                  });
+                  setHasChanges(true);
+                }}
+              />
+            )}
+
             <SectionPhotoGallery
               sectionTitle={currentSection.title}
               photos={dossier.data[`${currentSection.id}_photos`] ?? []}
