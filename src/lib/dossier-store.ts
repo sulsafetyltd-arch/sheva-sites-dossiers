@@ -15,7 +15,13 @@ function loadAll(): Dossier[] {
 }
 
 function saveAll(dossiers: Dossier[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(dossiers));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dossiers));
+  } catch (e) {
+    // localStorage quota exceeded — likely from base64 images
+    console.error('Save failed — storage quota exceeded', e);
+    throw new Error('QUOTA_EXCEEDED');
+  }
 }
 
 export function getAllDossiers(): DossierMeta[] {
