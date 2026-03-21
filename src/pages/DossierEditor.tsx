@@ -26,6 +26,7 @@ import TaskManager from '@/components/dossier/TaskManager';
 import SectionPhotoGallery from '@/components/dossier/SectionPhotoGallery';
 import PlanAnnotator from '@/components/dossier/PlanAnnotator';
 import VoiceNoteButton from '@/components/dossier/VoiceNoteButton';
+import SignatureBlock from '@/components/dossier/SignatureBlock';
 import OfflineSyncIndicator from '@/components/dossier/OfflineSyncIndicator';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 
