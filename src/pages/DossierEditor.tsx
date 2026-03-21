@@ -101,9 +101,17 @@ const DossierEditor = () => {
   const handleSave = useCallback(() => {
     if (!dossier) return;
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-    saveDossier(dossier);
-    setHasChanges(false);
-    toast.success('התיק נשמר בהצלחה');
+    try {
+      saveDossier(dossier);
+      setHasChanges(false);
+      toast.success('התיק נשמר בהצלחה');
+    } catch (e: any) {
+      if (e.message === 'QUOTA_EXCEEDED') {
+        toast.error('נפח האחסון המקומי מלא — הקטן מספר תמונות או מחק תיקים ישנים', { duration: 5000 });
+      } else {
+        toast.error('שגיאה בשמירה');
+      }
+    }
   }, [dossier]);
 
   const handleMarkComplete = useCallback(() => {
