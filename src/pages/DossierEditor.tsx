@@ -341,6 +341,19 @@ const DossierEditor = () => {
               <RiskMatrix risks={dossier.data.risks ?? []} />
             )}
 
+            {currentSection.id === 'drawings' && (
+              <PlanAnnotator
+                plans={dossier.data.drawings_plans ?? []}
+                onChange={plans => {
+                  setDossier(prev => {
+                    if (!prev) return prev;
+                    return { ...prev, data: { ...prev.data, drawings_plans: plans } };
+                  });
+                  setHasChanges(true);
+                }}
+              />
+            )}
+
             <SectionPhotoGallery
               sectionTitle={currentSection.title}
               photos={dossier.data[`${currentSection.id}_photos`] ?? []}
