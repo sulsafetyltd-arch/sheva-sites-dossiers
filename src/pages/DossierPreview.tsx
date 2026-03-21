@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, Printer, Flame, Shield } from 'lucide-react';
+import { ArrowRight, Printer, Flame, Shield, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getDossier } from '@/lib/dossier-store';
 import { sectionConfigs } from '@/data/section-config';
 import { Dossier, SectionConfig } from '@/types/dossier';
+import { exportToPdf } from '@/lib/pdf-export';
+import { toast } from 'sonner';
 
 const buildingTypeLabels: Record<string, string> = {
   residential: 'מגורים',
