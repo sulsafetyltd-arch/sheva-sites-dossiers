@@ -1,4 +1,4 @@
-import { Wifi, WifiOff, Cloud } from 'lucide-react';
+import { Wifi, WifiOff } from 'lucide-react';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';

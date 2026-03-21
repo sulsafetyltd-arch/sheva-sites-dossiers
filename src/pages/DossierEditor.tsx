@@ -24,6 +24,9 @@ import ContentLibraryDialog from '@/components/dossier/ContentLibraryDialog';
 import ValidationPanel from '@/components/dossier/ValidationPanel';
 import TaskManager from '@/components/dossier/TaskManager';
 import SectionPhotoGallery from '@/components/dossier/SectionPhotoGallery';
+import VoiceNoteButton from '@/components/dossier/VoiceNoteButton';
+import OfflineSyncIndicator from '@/components/dossier/OfflineSyncIndicator';
+import { useOnlineStatus } from '@/hooks/use-online-status';
 
 const iconMap: Record<string, any> = {
   FileText, Building2, Phone, History, Map, Route, Users, Droplets,
