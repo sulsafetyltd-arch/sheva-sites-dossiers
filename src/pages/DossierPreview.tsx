@@ -109,7 +109,7 @@ const DossierPreview = () => {
       </div>
 
       {/* Printable content */}
-      <div className="container max-w-4xl py-8 space-y-0">
+      <div ref={contentRef} className="container max-w-4xl py-8 space-y-0">
 
         {/* ═══ COVER PAGE ═══ */}
         <div className="print-cover bg-card border rounded-lg p-8 md:p-16 text-center mb-8 shadow-sm">
