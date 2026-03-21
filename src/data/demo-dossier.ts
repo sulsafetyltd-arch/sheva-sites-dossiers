@@ -30,10 +30,10 @@ export const demoDossier: Dossier = {
       lastInspection: '2024-01-10',
     },
     contacts: [
-      { id: '1', name: 'אבי מזרחי', role: 'מנהל המתחם', phone: '050-1234567', email: 'avi@atias.co.il', available: '24/7' },
-      { id: '2', name: 'רונית שלום', role: 'ממונה בטיחות אש', phone: '052-9876543', email: 'ronit@atias.co.il', available: 'ימים א-ה' },
-      { id: '3', name: 'מוקד כיבוי אש', role: 'כיבוי אש', phone: '102', email: '', available: '24/7' },
-      { id: '4', name: 'מד"א', role: 'שירותי חירום', phone: '101', email: '', available: '24/7' },
+      { id: '1', name: 'אבי מזרחי', role: 'מנהל המתחם', category: 'מנהל אתר', phone: '050-1234567', email: 'avi@atias.co.il', available: '24/7' },
+      { id: '2', name: 'רונית שלום', role: 'ממונה בטיחות אש', category: 'ממונה בטיחות', phone: '052-9876543', email: 'ronit@atias.co.il', available: 'ימים א-ה' },
+      { id: '3', name: 'מוקד כיבוי אש', role: 'כיבוי אש', category: 'איש קשר חירום', phone: '102', email: '', available: '24/7' },
+      { id: '4', name: 'מד"א', role: 'שירותי חירום', category: 'איש קשר חירום', phone: '101', email: '', available: '24/7' },
     ],
     updateLog: [
       { id: '1', date: '2024-01-15', description: 'יצירת תיק שטח ראשוני', updatedBy: 'יוסי כהן', version: '1.0' },
