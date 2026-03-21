@@ -33,6 +33,7 @@ type MarkerType = 'exit' | 'hydrant' | 'extinguisher' | 'assembly' | 'electrical
 interface Props {
   plans: PlanData[];
   onChange: (plans: PlanData[]) => void;
+  dossierId?: string;
 }
 
 const MARKER_TYPES: { type: MarkerType; label: string; icon: typeof DoorOpen; color: string }[] = [
