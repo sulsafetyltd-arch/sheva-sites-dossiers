@@ -49,9 +49,10 @@ const DossierEditor = () => {
 
   useEffect(() => {
     if (id) {
-      const d = getDossier(id);
-      if (d) setDossier(d);
-      else navigate('/');
+      getDossier(id).then(d => {
+        if (d) setDossier(d);
+        else navigate('/');
+      });
     }
   }, [id, navigate]);
 
@@ -59,18 +60,14 @@ const DossierEditor = () => {
   useEffect(() => {
     if (!dossier || !hasChanges) return;
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-    autosaveTimer.current = setTimeout(() => {
+    autosaveTimer.current = setTimeout(async () => {
       try {
-        saveDossier(dossier);
+        await saveDossier(dossier);
         if (!isOnline) markPendingSync(dossier.id);
         setHasChanges(false);
         toast.success(isOnline ? 'נשמר אוטומטית' : 'נשמר מקומית — יסונכרן בחזרה לרשת', { duration: 2000 });
       } catch (e: any) {
-        if (e.message === 'QUOTA_EXCEEDED') {
-          toast.error('נפח האחסון המקומי מלא — נסה להקטין את מספר התמונות או לייצא ולמחוק תיקים ישנים', { duration: 5000 });
-        } else {
-          toast.error('שגיאה בשמירה');
-        }
+        toast.error('שגיאה בשמירה');
       }
     }, 3000);
     return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); };
