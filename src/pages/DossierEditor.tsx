@@ -24,6 +24,7 @@ import ContentLibraryDialog from '@/components/dossier/ContentLibraryDialog';
 import ValidationPanel from '@/components/dossier/ValidationPanel';
 import TaskManager from '@/components/dossier/TaskManager';
 import SectionPhotoGallery from '@/components/dossier/SectionPhotoGallery';
+import PlanAnnotator from '@/components/dossier/PlanAnnotator';
 import VoiceNoteButton from '@/components/dossier/VoiceNoteButton';
 import OfflineSyncIndicator from '@/components/dossier/OfflineSyncIndicator';
 import { useOnlineStatus } from '@/hooks/use-online-status';
@@ -338,6 +339,19 @@ const DossierEditor = () => {
 
             {currentSection.id === 'risks' && (
               <RiskMatrix risks={dossier.data.risks ?? []} />
+            )}
+
+            {currentSection.id === 'drawings' && (
+              <PlanAnnotator
+                plans={dossier.data.drawings_plans ?? []}
+                onChange={plans => {
+                  setDossier(prev => {
+                    if (!prev) return prev;
+                    return { ...prev, data: { ...prev.data, drawings_plans: plans } };
+                  });
+                  setHasChanges(true);
+                }}
+              />
             )}
 
             <SectionPhotoGallery
