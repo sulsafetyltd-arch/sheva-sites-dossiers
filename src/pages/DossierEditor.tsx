@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowRight, Save, Eye, CheckCircle, FileText, Building2, Phone, History,
   Map, Route, Users, Droplets, Bell, Layers, Zap, DoorOpen, AlertTriangle,
-  ClipboardList, Flame, Image
+  ClipboardList, Flame, Image, FileBarChart, ListTodo, Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,14 +16,20 @@ import { toast } from 'sonner';
 import { getDossier, saveDossier } from '@/lib/dossier-store';
 import { sectionConfigs } from '@/data/section-config';
 import { Dossier, SectionConfig, FieldConfig } from '@/types/dossier';
+import { validateDossier, readinessLabels } from '@/lib/validation-engine';
 import RepeatableTable from '@/components/dossier/RepeatableTable';
 import ScenarioLibrary from '@/components/dossier/ScenarioLibrary';
 import RiskMatrix from '@/components/dossier/RiskMatrix';
+import ContentLibraryDialog from '@/components/dossier/ContentLibraryDialog';
+import ValidationPanel from '@/components/dossier/ValidationPanel';
+import TaskManager from '@/components/dossier/TaskManager';
 
 const iconMap: Record<string, any> = {
   FileText, Building2, Phone, History, Map, Route, Users, Droplets,
   Bell, Layers, Zap, DoorOpen, AlertTriangle, ClipboardList, Flame, Image,
 };
+
+type SidePanel = 'none' | 'validation' | 'tasks';
 
 const DossierEditor = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +37,7 @@ const DossierEditor = () => {
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [activeSection, setActiveSection] = useState(sectionConfigs[0].id);
   const [hasChanges, setHasChanges] = useState(false);
+  const [sidePanel, setSidePanel] = useState<SidePanel>('none');
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -52,6 +59,8 @@ const DossierEditor = () => {
     }, 3000);
     return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); };
   }, [dossier, hasChanges]);
+
+  const validationReport = useMemo(() => dossier ? validateDossier(dossier) : null, [dossier]);
 
   const updateSectionData = useCallback((sectionId: string, key: string, value: any) => {
     setDossier(prev => {
@@ -90,9 +99,15 @@ const DossierEditor = () => {
     toast.success(updated.status === 'complete' ? 'התיק סומן כהושלם' : 'התיק הוחזר לטיוטה');
   }, [dossier]);
 
-  if (!dossier) return null;
+  const handleContentInsert = useCallback((fieldKey: string, content: string) => {
+    updateSectionData(activeSection, fieldKey, content);
+    toast.success('תוכן הוכנס בהצלחה');
+  }, [activeSection, updateSectionData]);
+
+  if (!dossier || !validationReport) return null;
 
   const currentSection = sectionConfigs.find(s => s.id === activeSection)!;
+  const readiness = readinessLabels[validationReport.readinessLevel];
 
   // Section completion calculation
   const getSectionProgress = (section: SectionConfig): number => {
@@ -110,10 +125,6 @@ const DossierEditor = () => {
     }
     return 0;
   };
-
-  const totalProgress = Math.round(
-    sectionConfigs.reduce((sum, s) => sum + getSectionProgress(s), 0) / sectionConfigs.length
-  );
 
   const renderField = (section: SectionConfig, field: FieldConfig) => {
     const value = dossier.data[section.id]?.[field.key] ?? '';
@@ -187,14 +198,41 @@ const DossierEditor = () => {
                 <Badge variant={dossier.status === 'complete' ? 'default' : 'secondary'} className="text-xs">
                   {dossier.status === 'complete' ? 'הושלם' : 'טיוטה'}
                 </Badge>
-                <span className="text-xs text-muted-foreground">{totalProgress}% הושלם</span>
+                <span className={`text-xs font-medium ${readiness.color}`}>
+                  {validationReport.totalScore}% מוכנות
+                </span>
                 {hasChanges && (
                   <span className="text-xs text-warning">שומר...</span>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant={sidePanel === 'validation' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setSidePanel(sidePanel === 'validation' ? 'none' : 'validation')}
+              title="בדיקת מוכנות"
+              className="relative"
+            >
+              <Shield className="w-4 h-4" />
+              {validationReport.criticalCount > 0 && (
+                <span className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
+                  {validationReport.criticalCount}
+                </span>
+              )}
+            </Button>
+            <Button
+              variant={sidePanel === 'tasks' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setSidePanel(sidePanel === 'tasks' ? 'none' : 'tasks')}
+              title="משימות"
+            >
+              <ListTodo className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate(`/reports/${dossier.id}`)} title="דוחות">
+              <FileBarChart className="w-4 h-4" />
+            </Button>
             <Button variant="outline" size="sm" onClick={handleMarkComplete} className="hidden sm:flex gap-1.5">
               <CheckCircle className="w-4 h-4" />
               {dossier.status === 'complete' ? 'החזר לטיוטה' : 'סמן כהושלם'}
@@ -209,18 +247,18 @@ const DossierEditor = () => {
             </Button>
           </div>
         </div>
-        {/* Global progress bar */}
-        <Progress value={totalProgress} className="h-1 rounded-none" />
+        <Progress value={validationReport.totalScore} className="h-1 rounded-none" />
       </header>
 
       <div className="flex-1 flex flex-col md:flex-row">
         {/* Sidebar - section nav */}
-        <nav className="border-b md:border-b-0 md:border-l md:w-64 shrink-0 bg-card no-print">
+        <nav className="border-b md:border-b-0 md:border-l md:w-56 shrink-0 bg-card no-print">
           <div className="flex md:flex-col overflow-x-auto md:overflow-x-visible py-2 md:py-4 px-2 gap-1">
             {sectionConfigs.map(section => {
               const Icon = iconMap[section.icon] || FileText;
               const isActive = activeSection === section.id;
               const progress = getSectionProgress(section);
+              const sectionIssues = validationReport.sections.find(s => s.sectionId === section.id)?.issues || [];
               return (
                 <button
                   key={section.id}
@@ -233,11 +271,16 @@ const DossierEditor = () => {
                 >
                   <Icon className="w-4 h-4 shrink-0" />
                   <span className="flex-1 text-right">{section.title}</span>
-                  {progress > 0 && (
-                    <span className={`text-xs tabular-nums ${progress === 100 ? 'text-success' : 'text-muted-foreground'}`}>
-                      {progress}%
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {sectionIssues.some(i => i.severity === 'critical') && (
+                      <span className="w-2 h-2 rounded-full bg-destructive shrink-0" />
+                    )}
+                    {progress > 0 && (
+                      <span className={`text-xs tabular-nums ${progress === 100 ? 'text-success' : 'text-muted-foreground'}`}>
+                        {progress}%
+                      </span>
+                    )}
+                  </div>
                 </button>
               );
             })}
@@ -247,15 +290,20 @@ const DossierEditor = () => {
         {/* Content */}
         <main className="flex-1 p-4 md:p-8 max-w-4xl">
           <div className="animate-reveal">
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
               <h2 className="text-xl font-bold">{currentSection.title}</h2>
-              {/* Scenario library button for scenarios section */}
-              {currentSection.id === 'scenarios' && (
-                <ScenarioLibrary
-                  existingScenarios={dossier.data.scenarios ?? []}
-                  onAdd={rows => updateRepeatableData('scenarios', rows)}
+              <div className="flex items-center gap-2">
+                <ContentLibraryDialog
+                  sectionId={currentSection.id}
+                  onInsert={handleContentInsert}
                 />
-              )}
+                {currentSection.id === 'scenarios' && (
+                  <ScenarioLibrary
+                    existingScenarios={dossier.data.scenarios ?? []}
+                    onAdd={rows => updateRepeatableData('scenarios', rows)}
+                  />
+                )}
+              </div>
             </div>
             {currentSection.description && (
               <p className="text-sm text-muted-foreground mb-6">{currentSection.description}</p>
@@ -275,12 +323,35 @@ const DossierEditor = () => {
               />
             )}
 
-            {/* Risk matrix visualization */}
             {currentSection.id === 'risks' && (
               <RiskMatrix risks={dossier.data.risks ?? []} />
             )}
           </div>
         </main>
+
+        {/* Side panel */}
+        {sidePanel !== 'none' && (
+          <aside className="border-t md:border-t-0 md:border-r md:w-80 shrink-0 bg-card p-4 overflow-y-auto no-print">
+            {sidePanel === 'validation' && (
+              <ValidationPanel
+                report={validationReport}
+                onNavigateToSection={sectionId => {
+                  setActiveSection(sectionId);
+                  setSidePanel('none');
+                }}
+              />
+            )}
+            {sidePanel === 'tasks' && (
+              <div>
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <ListTodo className="w-4 h-4" />
+                  משימות
+                </h3>
+                <TaskManager dossierId={dossier.id} />
+              </div>
+            )}
+          </aside>
+        )}
       </div>
     </div>
   );
