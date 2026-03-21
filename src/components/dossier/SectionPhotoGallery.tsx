@@ -18,7 +18,7 @@ interface Props {
   sectionTitle: string;
 }
 
-const MAX_SIZE = 1200;
+const MAX_SIZE = 800;
 
 function resizeImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
