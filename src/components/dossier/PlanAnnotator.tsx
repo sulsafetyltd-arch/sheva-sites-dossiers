@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   DoorOpen, Droplets, FireExtinguisher, Users, Zap, Wind,
-  Upload, Trash2, ZoomIn, ZoomOut, RotateCcw, MousePointer, Plus,
+  Upload, Trash2, ZoomIn, ZoomOut, RotateCcw, MousePointer, Plus, Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-
+import { uploadImage, resizeImageToBlob } from '@/lib/storage-utils';
 export interface PlanMarker {
   id: string;
   x: number; // percentage 0-100
