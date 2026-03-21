@@ -23,6 +23,7 @@ import RiskMatrix from '@/components/dossier/RiskMatrix';
 import ContentLibraryDialog from '@/components/dossier/ContentLibraryDialog';
 import ValidationPanel from '@/components/dossier/ValidationPanel';
 import TaskManager from '@/components/dossier/TaskManager';
+import SectionPhotoGallery from '@/components/dossier/SectionPhotoGallery';
 
 const iconMap: Record<string, any> = {
   FileText, Building2, Phone, History, Map, Route, Users, Droplets,
@@ -326,6 +327,18 @@ const DossierEditor = () => {
             {currentSection.id === 'risks' && (
               <RiskMatrix risks={dossier.data.risks ?? []} />
             )}
+
+            <SectionPhotoGallery
+              sectionTitle={currentSection.title}
+              photos={dossier.data[`${currentSection.id}_photos`] ?? []}
+              onChange={photos => {
+                setDossier(prev => {
+                  if (!prev) return prev;
+                  return { ...prev, data: { ...prev.data, [`${currentSection.id}_photos`]: photos } };
+                });
+                setHasChanges(true);
+              }}
+            />
           </div>
         </main>
 
