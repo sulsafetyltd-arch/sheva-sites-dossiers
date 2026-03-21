@@ -30,10 +30,10 @@ export const demoDossier: Dossier = {
       lastInspection: '2024-01-10',
     },
     contacts: [
-      { id: '1', name: 'אבי מזרחי', role: 'מנהל המתחם', phone: '050-1234567', email: 'avi@atias.co.il', available: '24/7' },
-      { id: '2', name: 'רונית שלום', role: 'ממונה בטיחות אש', phone: '052-9876543', email: 'ronit@atias.co.il', available: 'ימים א-ה' },
-      { id: '3', name: 'מוקד כיבוי אש', role: 'כיבוי אש', phone: '102', email: '', available: '24/7' },
-      { id: '4', name: 'מד"א', role: 'שירותי חירום', phone: '101', email: '', available: '24/7' },
+      { id: '1', name: 'אבי מזרחי', role: 'מנהל המתחם', category: 'מנהל אתר', phone: '050-1234567', email: 'avi@atias.co.il', available: '24/7' },
+      { id: '2', name: 'רונית שלום', role: 'ממונה בטיחות אש', category: 'ממונה בטיחות', phone: '052-9876543', email: 'ronit@atias.co.il', available: 'ימים א-ה' },
+      { id: '3', name: 'מוקד כיבוי אש', role: 'כיבוי אש', category: 'איש קשר חירום', phone: '102', email: '', available: '24/7' },
+      { id: '4', name: 'מד"א', role: 'שירותי חירום', category: 'איש קשר חירום', phone: '101', email: '', available: '24/7' },
     ],
     updateLog: [
       { id: '1', date: '2024-01-15', description: 'יצירת תיק שטח ראשוני', updatedBy: 'יוסי כהן', version: '1.0' },
@@ -99,11 +99,11 @@ export const demoDossier: Dossier = {
       { id: '4', location: 'רמפת חניון', type: 'רמפה', width: '5.0', floor: 'מרתפים', notes: 'יציאה לרחוב הרצל' },
     ],
     risks: [
-      { id: '1', area: 'מטבחים - קומה 1', hazard: 'שריפת שמן בישול', severity: 'גבוהה', probability: 'בינונית', mitigation: 'מערכת כיבוי אוטומטית מעל משטחי בישול, מטפי קצף AFFF' },
-      { id: '2', area: 'חדר גנרטור - מרתף 1', hazard: 'דליפת דלק / שריפה', severity: 'גבוהה', probability: 'נמוכה', mitigation: 'אגן איגום, גלאי להבה, מערכת כיבוי אוטומטית' },
-      { id: '3', area: 'חניון תת-קרקעי', hazard: 'שריפת רכב', severity: 'גבוהה', probability: 'נמוכה', mitigation: 'ספרינקלרים, מערכת שאיבת עשן, גלאי CO' },
-      { id: '4', area: 'חדר שרת - קומה 2', hazard: 'שריפה חשמלית', severity: 'בינונית', probability: 'נמוכה', mitigation: 'מערכת כיבוי גז FM-200, גלאי עשן כפולים' },
-      { id: '5', area: 'מערכת גז - חצר דרומית', hazard: 'דליפת גז', severity: 'קריטית', probability: 'נמוכה', mitigation: 'גלאי גז, שסתומי ניתוק אוטומטיים, איוורור טבעי' },
+      { id: '1', hazard: 'שריפת שמן בישול', location: 'מטבחים - קומה 1', likelihood: 'בינונית', severity: 'גבוהה', riskScore: 'גבוה', controls: 'מערכת כיבוי אוטומטית מעל משטחי בישול, מטפי קצף AFFF', responsible: 'רונית שלום' },
+      { id: '2', hazard: 'דליפת דלק / שריפה', location: 'חדר גנרטור - מרתף 1', likelihood: 'נמוכה', severity: 'גבוהה', riskScore: 'בינוני', controls: 'אגן איגום, גלאי להבה, מערכת כיבוי אוטומטית', responsible: 'אבי מזרחי' },
+      { id: '3', hazard: 'שריפת רכב', location: 'חניון תת-קרקעי', likelihood: 'נמוכה', severity: 'גבוהה', riskScore: 'בינוני', controls: 'ספרינקלרים, מערכת שאיבת עשן, גלאי CO', responsible: 'אבי מזרחי' },
+      { id: '4', hazard: 'שריפה חשמלית', location: 'חדר שרת - קומה 2', likelihood: 'נמוכה', severity: 'בינונית', riskScore: 'נמוך', controls: 'מערכת כיבוי גז FM-200, גלאי עשן כפולים', responsible: 'קבלן IT' },
+      { id: '5', hazard: 'דליפת גז', location: 'מערכת גז - חצר דרומית', likelihood: 'נמוכה', severity: 'קריטית', riskScore: 'גבוה', controls: 'גלאי גז, שסתומי ניתוק אוטומטיים, איוורור טבעי', responsible: 'רונית שלום' },
     ],
     procedures: {
       fireResponse: '1. הפעלת אזעקה באמצעות כפתור מצוקה\n2. חיוג 102 - כיבוי אש\n3. פינוי מיידי של האזור הנפגע\n4. ניסיון כיבוי ראשוני (רק אם בטוח)\n5. סגירת דלתות אש\n6. הכוונת כוחות כיבוי בהגעתם\n7. מניית אנשים בנקודת כינוס',

@@ -149,11 +149,21 @@ const DossierPreview = () => {
                       {data.map((row: any, i: number) => (
                         <tr key={row.id || i}>
                           <td className="border-b py-2 px-2 text-muted-foreground">{i + 1}</td>
-                          {section.repeatable!.columns.map(col => (
-                            <td key={col.key} className="border-b py-2 px-2">
-                              {row[col.key] || '—'}
-                            </td>
-                          ))}
+                          {section.repeatable!.columns.map(col => {
+                            const cellVal = row[col.key] || '—';
+                            // Color-code risk scores
+                            let cellClass = 'border-b py-2 px-2';
+                            if (section.id === 'risks' && col.key === 'riskScore') {
+                              if (cellVal === 'גבוה' || cellVal === 'קריטי') cellClass += ' text-destructive font-medium';
+                              else if (cellVal === 'בינוני') cellClass += ' text-warning font-medium';
+                              else if (cellVal === 'נמוך') cellClass += ' text-success font-medium';
+                            }
+                            return (
+                              <td key={col.key} className={cellClass}>
+                                {cellVal}
+                              </td>
+                            );
+                          })}
                         </tr>
                       ))}
                     </tbody>
