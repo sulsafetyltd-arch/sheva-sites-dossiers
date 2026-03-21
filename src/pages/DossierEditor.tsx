@@ -158,10 +158,16 @@ const DossierEditor = () => {
     if (field.type === 'textarea') {
       return (
         <div key={field.key} className={field.fullWidth ? 'col-span-full' : ''}>
-          <Label className="text-sm font-medium mb-1.5 block">
-            {field.label}
-            {field.required && <span className="text-destructive mr-1">*</span>}
-          </Label>
+          <div className="flex items-center justify-between mb-1.5">
+            <Label className="text-sm font-medium">
+              {field.label}
+              {field.required && <span className="text-destructive mr-1">*</span>}
+            </Label>
+            <VoiceNoteButton
+              currentValue={value}
+              onTranscript={text => updateSectionData(section.id, field.key, text)}
+            />
+          </div>
           <Textarea
             value={value}
             onChange={e => updateSectionData(section.id, field.key, e.target.value)}
