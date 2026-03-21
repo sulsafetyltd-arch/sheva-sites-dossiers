@@ -327,6 +327,12 @@ const DossierEditor = () => {
             {currentSection.id === 'risks' && (
               <RiskMatrix risks={dossier.data.risks ?? []} />
             )}
+
+            <SectionPhotoGallery
+              sectionTitle={currentSection.title}
+              photos={dossier.data[`${currentSection.id}_photos`] ?? []}
+              onChange={photos => updateSectionData(currentSection.id.replace(/_photos$/, ''), `${currentSection.id}_photos` === `${currentSection.id}_photos` ? '_photos_placeholder' : '', photos)}
+            />
           </div>
         </main>
 
