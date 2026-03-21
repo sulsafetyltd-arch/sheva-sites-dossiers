@@ -44,16 +44,17 @@ export const sectionConfigs: SectionConfig[] = [
   },
   {
     id: 'contacts',
-    title: 'אנשי קשר חירום',
+    title: 'אנשי קשר ואחריות',
     icon: 'Phone',
-    description: 'רשימת אנשי קשר לשעת חירום',
+    description: 'אנשי קשר מקצועיים לפי תפקיד — בעלים, מנהל אתר, ממונה בטיחות, קבלנים ועוד',
     repeatable: {
       columns: [
         { key: 'name', label: 'שם', type: 'text' },
         { key: 'role', label: 'תפקיד', type: 'text' },
+        { key: 'category', label: 'קטגוריה', type: 'text' },
         { key: 'phone', label: 'טלפון', type: 'text' },
         { key: 'email', label: 'דוא"ל', type: 'text' },
-        { key: 'available', label: 'זמינות', type: 'text' },
+        { key: 'available', label: 'זמינות / הערות', type: 'text' },
       ],
     },
   },
