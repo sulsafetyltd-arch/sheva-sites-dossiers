@@ -1,41 +1,76 @@
 import { DossierTask } from '@/types/dossier';
+import { supabase } from '@/integrations/supabase/client';
 
-const TASKS_KEY = 'fire-dossier-tasks';
+export async function getTasksForDossier(dossierId: string): Promise<DossierTask[]> {
+  const { data, error } = await supabase
+    .from('dossier_tasks')
+    .select('*')
+    .eq('dossier_id', dossierId)
+    .order('created_at', { ascending: false });
 
-function loadTasks(): Record<string, DossierTask[]> {
-  const raw = localStorage.getItem(TASKS_KEY);
-  return raw ? JSON.parse(raw) : {};
+  if (error) throw error;
+
+  return (data ?? []).map(t => ({
+    id: t.id,
+    title: t.title,
+    status: t.status as DossierTask['status'],
+    assignee: t.assignee ?? undefined,
+    deadline: t.deadline ?? undefined,
+    createdAt: t.created_at.split('T')[0],
+  }));
 }
 
-function saveTasks(all: Record<string, DossierTask[]>) {
-  localStorage.setItem(TASKS_KEY, JSON.stringify(all));
-}
+export async function addTask(
+  dossierId: string,
+  task: Omit<DossierTask, 'id' | 'createdAt'>,
+): Promise<DossierTask> {
+  const { data, error } = await supabase
+    .from('dossier_tasks')
+    .insert({
+      dossier_id: dossierId,
+      title: task.title,
+      status: task.status,
+      assignee: task.assignee ?? null,
+      deadline: task.deadline ?? null,
+    })
+    .select()
+    .single();
 
-export function getTasksForDossier(dossierId: string): DossierTask[] {
-  return loadTasks()[dossierId] || [];
-}
+  if (error) throw error;
 
-export function addTask(dossierId: string, task: Omit<DossierTask, 'id' | 'createdAt'>): DossierTask {
-  const all = loadTasks();
-  const newTask: DossierTask = {
-    ...task,
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString().split('T')[0],
+  return {
+    id: data.id,
+    title: data.title,
+    status: data.status as DossierTask['status'],
+    assignee: data.assignee ?? undefined,
+    deadline: data.deadline ?? undefined,
+    createdAt: data.created_at.split('T')[0],
   };
-  all[dossierId] = [...(all[dossierId] || []), newTask];
-  saveTasks(all);
-  return newTask;
 }
 
-export function updateTask(dossierId: string, taskId: string, updates: Partial<DossierTask>): void {
-  const all = loadTasks();
-  const tasks = all[dossierId] || [];
-  all[dossierId] = tasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
-  saveTasks(all);
+export async function updateTask(
+  _dossierId: string,
+  taskId: string,
+  updates: Partial<DossierTask>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('dossier_tasks')
+    .update({
+      ...(updates.title !== undefined && { title: updates.title }),
+      ...(updates.status !== undefined && { status: updates.status }),
+      ...(updates.assignee !== undefined && { assignee: updates.assignee }),
+      ...(updates.deadline !== undefined && { deadline: updates.deadline }),
+    })
+    .eq('id', taskId);
+
+  if (error) throw error;
 }
 
-export function deleteTask(dossierId: string, taskId: string): void {
-  const all = loadTasks();
-  all[dossierId] = (all[dossierId] || []).filter(t => t.id !== taskId);
-  saveTasks(all);
+export async function deleteTask(_dossierId: string, taskId: string): Promise<void> {
+  const { error } = await supabase
+    .from('dossier_tasks')
+    .delete()
+    .eq('id', taskId);
+
+  if (error) throw error;
 }
