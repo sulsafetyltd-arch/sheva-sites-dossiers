@@ -78,12 +78,21 @@ const DossierPreview = () => {
             </Button>
             <h1 className="font-bold">תצוגה מקדימה</h1>
           </div>
-          <Button onClick={() => window.print()} className="gap-1.5">
-            <Printer className="w-4 h-4" />
-            הדפסה / PDF
-          </Button>
-        </div>
-      </header>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExportPdf}
+              disabled={exporting}
+              className="gap-1.5"
+            >
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {exporting ? 'מייצא...' : 'הורד PDF'}
+            </Button>
+            <Button onClick={() => window.print()} className="gap-1.5">
+              <Printer className="w-4 h-4" />
+              הדפסה
+            </Button>
+          </div>
 
       {/* Fixed running header for print */}
       <div className="print-running-header">
