@@ -56,42 +56,18 @@ const CATEGORIES = [
 
 const MAX_IMG = 1600;
 
-function resizeForPlan(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new window.Image();
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > MAX_IMG || height > MAX_IMG) {
-          const ratio = Math.min(MAX_IMG / width, MAX_IMG / height);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      };
-      img.onerror = reject;
-      img.src = reader.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-export default function PlanAnnotator({ plans, onChange }: Props) {
+export default function PlanAnnotator({ plans, onChange, dossierId }: Props) {
   const [activePlanId, setActivePlanId] = useState<string | null>(plans[0]?.id ?? null);
   const [activeMarkerType, setActiveMarkerType] = useState<MarkerType | null>(null);
   const [editingMarker, setEditingMarker] = useState<PlanMarker | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [zoom, setZoom] = useState(1);
+  const [uploading, setUploading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const activePlan = plans.find(p => p.id === activePlanId) ?? null;
+  const folder = dossierId ? `plans/${dossierId}` : 'plans/unsorted';
 
   useEffect(() => {
     if (!activePlanId && plans.length > 0) setActivePlanId(plans[0].id);
@@ -100,14 +76,17 @@ export default function PlanAnnotator({ plans, onChange }: Props) {
   const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
+    setUploading(true);
     try {
       const newPlans: PlanData[] = [];
       for (const file of Array.from(files)) {
         if (!file.type.startsWith('image/')) continue;
-        const dataUrl = await resizeForPlan(file);
+        const planId = crypto.randomUUID();
+        const blob = await resizeImageToBlob(file, MAX_IMG, 0.85);
+        const publicUrl = await uploadImage(blob, folder, `${planId}.jpg`);
         newPlans.push({
-          id: crypto.randomUUID(),
-          imageDataUrl: dataUrl,
+          id: planId,
+          imageDataUrl: publicUrl,
           name: file.name.replace(/\.[^.]+$/, ''),
           category: 'other',
           markers: [],
@@ -117,11 +96,13 @@ export default function PlanAnnotator({ plans, onChange }: Props) {
         const updated = [...plans, ...newPlans];
         onChange(updated);
         setActivePlanId(newPlans[0].id);
-        toast.success(`${newPlans.length} תוכניות הועלו`);
+        toast.success(`${newPlans.length} תוכניות הועלו לענן`);
       }
-    } catch {
+    } catch (err) {
+      console.error('Plan upload error:', err);
       toast.error('שגיאה בהעלאת תוכנית');
     }
+    setUploading(false);
     e.target.value = '';
   }, [plans, onChange]);
 
