@@ -323,7 +323,7 @@ const DossierEditor = () => {
                 />
                 {currentSection.id === 'scenarios' && (
                   <ScenarioLibrary
-                    existingScenarios={dossier.data.scenarios ?? []}
+                    existingScenarios={Array.isArray(dossier.data.scenarios) ? dossier.data.scenarios : []}
                     onAdd={rows => updateRepeatableData('scenarios', rows)}
                   />
                 )}
