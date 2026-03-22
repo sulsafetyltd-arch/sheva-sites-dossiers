@@ -348,7 +348,7 @@ const DossierEditor = () => {
             )}
 
             {currentSection.id === 'risks' && (
-              <RiskMatrix risks={dossier.data.risks ?? []} />
+              <RiskMatrix risks={Array.isArray(dossier.data.risks) ? dossier.data.risks : []} />
             )}
 
             {currentSection.id === 'drawings' && (
