@@ -342,7 +342,7 @@ const DossierEditor = () => {
             {currentSection.repeatable && (
               <RepeatableTable
                 columns={currentSection.repeatable.columns}
-                rows={dossier.data[currentSection.id] ?? []}
+                rows={Array.isArray(dossier.data[currentSection.id]) ? dossier.data[currentSection.id] : []}
                 onChange={rows => updateRepeatableData(currentSection.id, rows)}
               />
             )}
