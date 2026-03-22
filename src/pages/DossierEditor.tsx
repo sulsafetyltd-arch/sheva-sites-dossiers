@@ -323,7 +323,7 @@ const DossierEditor = () => {
                 />
                 {currentSection.id === 'scenarios' && (
                   <ScenarioLibrary
-                    existingScenarios={dossier.data.scenarios ?? []}
+                    existingScenarios={Array.isArray(dossier.data.scenarios) ? dossier.data.scenarios : []}
                     onAdd={rows => updateRepeatableData('scenarios', rows)}
                   />
                 )}
@@ -342,13 +342,13 @@ const DossierEditor = () => {
             {currentSection.repeatable && (
               <RepeatableTable
                 columns={currentSection.repeatable.columns}
-                rows={dossier.data[currentSection.id] ?? []}
+                rows={Array.isArray(dossier.data[currentSection.id]) ? dossier.data[currentSection.id] : []}
                 onChange={rows => updateRepeatableData(currentSection.id, rows)}
               />
             )}
 
             {currentSection.id === 'risks' && (
-              <RiskMatrix risks={dossier.data.risks ?? []} />
+              <RiskMatrix risks={Array.isArray(dossier.data.risks) ? dossier.data.risks : []} />
             )}
 
             {currentSection.id === 'drawings' && (
@@ -381,7 +381,7 @@ const DossierEditor = () => {
             <SectionPhotoGallery
               sectionTitle={currentSection.title}
               dossierId={dossier.id}
-              photos={dossier.data[`${currentSection.id}_photos`] ?? []}
+              photos={Array.isArray(dossier.data[`${currentSection.id}_photos`]) ? dossier.data[`${currentSection.id}_photos`] : []}
               onChange={photos => {
                 setDossier(prev => {
                   if (!prev) return prev;
