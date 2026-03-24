@@ -60,6 +60,7 @@ export async function exportToPdf(
   });
 
   body.classList.remove('pdf-capturing');
+  restoreImages();
 
   const imgData = canvas.toDataURL('image/jpeg', 0.92);
   const imgWidth = canvas.width;
