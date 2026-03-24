@@ -5,6 +5,36 @@ import { jsPDF } from 'jspdf';
  * Capture the printable content area and export it as a multi-page PDF.
  * Uses html2canvas to rasterise the DOM and jsPDF to paginate.
  */
+/**
+ * Convert cross-origin images to inline base64 so html2canvas can render them.
+ */
+async function inlineImages(container: HTMLElement): Promise<() => void> {
+  const images = Array.from(container.querySelectorAll('img'));
+  const originals: { img: HTMLImageElement; src: string }[] = [];
+
+  await Promise.all(
+    images.map(async (img) => {
+      if (img.src.startsWith('data:')) return;
+      try {
+        const resp = await fetch(img.src, { mode: 'cors' });
+        const blob = await resp.blob();
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+        originals.push({ img, src: img.src });
+        img.src = dataUrl;
+      } catch {
+        // If fetch fails, leave original src
+      }
+    }),
+  );
+
+  // Return a restore function
+  return () => originals.forEach(({ img, src }) => (img.src = src));
+}
+
 export async function exportToPdf(
   contentElement: HTMLElement,
   fileName: string,
@@ -12,6 +42,9 @@ export async function exportToPdf(
   // Temporarily add print-like styles for capture
   const body = document.body;
   body.classList.add('pdf-capturing');
+
+  // Convert cross-origin images to base64
+  const restoreImages = await inlineImages(contentElement);
 
   // Wait for images to settle
   await new Promise(r => setTimeout(r, 300));
