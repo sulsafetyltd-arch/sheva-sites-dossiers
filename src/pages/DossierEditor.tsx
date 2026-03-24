@@ -367,6 +367,7 @@ const DossierEditor = () => {
 
             {currentSection.id === 'cover' && (
               <SignatureBlock
+                dossierId={dossier.id}
                 signatures={dossier.data.signatures ?? {}}
                 onChange={sigs => {
                   setDossier(prev => {

@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import SignaturePad from './SignaturePad';
+import { dataUrlToBlob, deleteStorageFile, uploadImage } from '@/lib/storage-utils';
 
 export interface SignatureData {
   name: string;
@@ -28,13 +30,17 @@ const SIGNATURE_ROLES: SignatureRole[] = [
 interface Props {
   signatures: Record<string, SignatureData>;
   onChange: (signatures: Record<string, SignatureData>) => void;
+  dossierId?: string;
 }
 
-export default function SignatureBlock({ signatures, onChange }: Props) {
+export default function SignatureBlock({ signatures, onChange, dossierId }: Props) {
   const [activeRole, setActiveRole] = useState<string | null>(null);
   const [tempName, setTempName] = useState('');
   const [tempDate, setTempDate] = useState('');
   const [tempSig, setTempSig] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const folder = dossierId ? `signatures/${dossierId}` : 'signatures/unsorted';
 
   const openSign = (role: SignatureRole) => {
     const existing = signatures[role.key];
@@ -44,17 +50,42 @@ export default function SignatureBlock({ signatures, onChange }: Props) {
     setActiveRole(role.key);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!activeRole) return;
-    onChange({
-      ...signatures,
-      [activeRole]: { name: tempName, date: tempDate, signatureDataUrl: tempSig },
-    });
-    setActiveRole(null);
+    try {
+      setIsSaving(true);
+
+      let signatureUrl = tempSig;
+      if (tempSig?.startsWith('data:')) {
+        const blob = await dataUrlToBlob(tempSig);
+        signatureUrl = await uploadImage(blob, folder, `${activeRole}.png`);
+      }
+
+      const previousUrl = signatures[activeRole]?.signatureDataUrl;
+      if (previousUrl && signatureUrl && previousUrl !== signatureUrl) {
+        await deleteStorageFile(previousUrl).catch(() => undefined);
+      }
+
+      onChange({
+        ...signatures,
+        [activeRole]: { name: tempName, date: tempDate, signatureDataUrl: signatureUrl },
+      });
+      setActiveRole(null);
+      toast.success('החתימה נשמרה בענן');
+    } catch (error) {
+      console.error('Signature upload error:', error);
+      toast.error('שמירת החתימה נכשלה');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const remove = (key: string) => {
+  const remove = async (key: string) => {
     const updated = { ...signatures };
+    const signatureUrl = updated[key]?.signatureDataUrl;
+    if (signatureUrl) {
+      await deleteStorageFile(signatureUrl).catch(() => undefined);
+    }
     delete updated[key];
     onChange(updated);
   };
@@ -82,7 +113,7 @@ export default function SignatureBlock({ signatures, onChange }: Props) {
                   <p className="text-xs text-muted-foreground">{role.description}</p>
                 </div>
                 {sig?.signatureDataUrl && (
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => remove(role.key)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => void remove(role.key)}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 )}
@@ -143,8 +174,8 @@ export default function SignatureBlock({ signatures, onChange }: Props) {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={save} disabled={!tempSig || !tempName}>
-              שמור חתימה
+            <Button onClick={() => void save()} disabled={!tempSig || !tempName || isSaving}>
+              {isSaving ? 'שומר...' : 'שמור חתימה'}
             </Button>
           </DialogFooter>
         </DialogContent>

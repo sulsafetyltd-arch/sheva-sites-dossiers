@@ -27,6 +27,11 @@ export async function uploadImage(
   return data.publicUrl;
 }
 
+export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  const response = await fetch(dataUrl);
+  return response.blob();
+}
+
 /**
  * Resize an image File on a canvas and return it as a Blob (not base64).
  */
