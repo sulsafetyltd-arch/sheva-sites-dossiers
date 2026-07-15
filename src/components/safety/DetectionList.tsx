@@ -30,7 +30,7 @@ export function DetectionList({ detections, onChange }: Props) {
   if (detections.length === 0) {
     return (
       <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        עדיין אין ממצאים. צלמו בשטח והריצו זיהוי AI, או הוסיפו ליקוי ידנית.
+        עדיין אין ממצאים. צלמו והריצו AI, בחרו מרשימת ליקויים לפי תחום, או הוסיפו ידנית.
       </p>
     );
   }
@@ -54,6 +54,7 @@ export function DetectionList({ detections, onChange }: Props) {
                 {d.source === 'ai' && (
                   <Badge variant="secondary">AI {Math.round(d.confidence * 100)}%</Badge>
                 )}
+                {d.source === 'catalog' && <Badge variant="secondary">מרשימה</Badge>}
                 {d.source === 'manual' && <Badge variant="secondary">ידני</Badge>}
               </div>
               <h3 className="text-base font-semibold leading-snug">{d.title}</h3>

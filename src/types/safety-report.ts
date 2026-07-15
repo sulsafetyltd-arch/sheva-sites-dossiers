@@ -29,8 +29,10 @@ export interface AiDetection {
   regulationHint?: string;
   recommendation: string;
   confidence: number;
-  /** Whether the finding was AI-suggested or manually added */
-  source: 'ai' | 'manual';
+  /** Whether the finding was AI-suggested, picked from catalog, or free-text */
+  source: 'ai' | 'manual' | 'catalog';
+  /** Catalog item id when selected from domain list */
+  catalogId?: string;
   locationNote?: string;
   status: 'open' | 'accepted' | 'rejected' | 'fixed';
 }

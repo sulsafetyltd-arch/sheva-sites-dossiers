@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SafetyPhotoCapture } from '@/components/safety/SafetyPhotoCapture';
 import { DetectionList, ManualDefectForm } from '@/components/safety/DetectionList';
+import { DefectCatalogPicker } from '@/components/safety/DefectCatalogPicker';
 import { getDomain } from '@/data/safety-domains';
 import { analyzeSafetyPhotos } from '@/lib/safety-ai';
 import { getSafetyReport, saveSafetyReport } from '@/lib/safety-report-store';
@@ -74,9 +75,14 @@ export default function SafetyInspectorPage() {
         siteName: report.siteName,
         notes: report.notes,
       });
+      const keptManual = report.detections.filter(
+        (d) => d.source === 'manual' || d.source === 'catalog',
+      );
+      const aiTitles = new Set(result.detections.map((d) => d.title));
+      const keptWithoutOverlap = keptManual.filter((d) => !aiTitles.has(d.title));
       const next: SafetyReport = {
         ...report,
-        detections: result.detections,
+        detections: [...keptWithoutOverlap, ...result.detections],
         status: 'ready',
         analyzedAt: new Date().toISOString(),
         analysisMode: result.mode,
@@ -198,6 +204,18 @@ export default function SafetyInspectorPage() {
           </TabsContent>
 
           <TabsContent value="findings" className="mt-4 space-y-4">
+            <DefectCatalogPicker
+              domain={report.domain}
+              existingCatalogIds={report.detections
+                .map((d) => d.catalogId)
+                .filter((id): id is string => Boolean(id))}
+              onAdd={(picked) =>
+                patch({
+                  detections: [...report.detections, ...picked],
+                  status: 'ready',
+                })
+              }
+            />
             <DetectionList
               detections={report.detections}
               onChange={(detections) =>

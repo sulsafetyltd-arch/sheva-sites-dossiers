@@ -193,6 +193,8 @@ export default function SafetyReportPreviewPage() {
                       {f.source === 'ai' && (
                         <Badge variant="secondary">AI {Math.round(f.confidence * 100)}%</Badge>
                       )}
+                      {f.source === 'catalog' && <Badge variant="secondary">מרשימה</Badge>}
+                      {f.source === 'manual' && <Badge variant="secondary">ידני</Badge>}
                       {f.status === 'fixed' && <Badge className="bg-success text-white">תוקן</Badge>}
                     </div>
                     <h3 className="text-base font-semibold">{f.title}</h3>
