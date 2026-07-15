@@ -76,6 +76,34 @@ export async function resolvePhotoForAnalysis(photo: DefectPhoto): Promise<strin
   return photo.url;
 }
 
+/** Display/print-safe URL: cache → http(s) → data → empty */
+export async function resolvePhotoDisplayUrl(photo: DefectPhoto): Promise<string> {
+  const cached = await getCachedPhotoDataUrl(photo.id);
+  if (cached) return cached;
+  if (photo.previewUrl?.startsWith('data:') || photo.previewUrl?.startsWith('http')) {
+    return photo.previewUrl;
+  }
+  if (photo.url?.startsWith('data:') || photo.url?.startsWith('http')) {
+    return photo.url;
+  }
+  // local://id – try cache by id embedded in url
+  if (photo.url?.startsWith('local://')) {
+    const id = photo.url.slice('local://'.length);
+    const byUrl = await getCachedPhotoDataUrl(id);
+    if (byUrl) return byUrl;
+  }
+  return '';
+}
+
+export async function resolveAllPhotoDisplayUrls(
+  photos: DefectPhoto[],
+): Promise<Record<string, string>> {
+  const entries = await Promise.all(
+    photos.map(async (p) => [p.id, await resolvePhotoDisplayUrl(p)] as const),
+  );
+  return Object.fromEntries(entries.filter(([, src]) => Boolean(src)));
+}
+
 /**
  * Strip heavy fields before localStorage persistence.
  * Keep http(s) cloud URLs; drop large data/blob preview payloads.

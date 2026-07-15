@@ -58,4 +58,16 @@ describe('AI photo analysis reliability', () => {
     expect(slim[0].previewUrl).toBeUndefined();
     expect(slim[0].url.startsWith('local://')).toBe(true);
   });
+
+  it('resolves display url from memory cache', async () => {
+    const { cachePhotoDataUrl, resolvePhotoDisplayUrl } = await import('@/lib/photo-cache');
+    await cachePhotoDataUrl('photo-1', RED_PNG);
+    const src = await resolvePhotoDisplayUrl({
+      id: 'photo-1',
+      url: 'local://photo-1',
+      caption: '',
+      timestamp: new Date().toISOString(),
+    });
+    expect(src).toBe(RED_PNG);
+  });
 });

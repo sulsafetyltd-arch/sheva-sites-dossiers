@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getDomain, SEVERITY_LABELS, SEVERITY_ORDER } from '@/data/safety-domains';
 import { exportToPdf } from '@/lib/pdf-export';
+import { resolveAllPhotoDisplayUrls } from '@/lib/photo-cache';
 import { getSafetyReport, saveSafetyReport } from '@/lib/safety-report-store';
 import { SafetyReport, Severity } from '@/types/safety-report';
 
@@ -21,11 +22,32 @@ export default function SafetyReportPreviewPage() {
   const printRef = useRef<HTMLDivElement>(null);
   const [report, setReport] = useState<SafetyReport | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [photoSrcs, setPhotoSrcs] = useState<Record<string, string>>({});
+  const [photosLoading, setPhotosLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     void getSafetyReport(id).then((r) => setReport(r ?? null));
   }, [id]);
+
+  useEffect(() => {
+    if (!report?.photos.length) {
+      setPhotoSrcs({});
+      setPhotosLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setPhotosLoading(true);
+    void resolveAllPhotoDisplayUrls(report.photos).then((map) => {
+      if (!cancelled) {
+        setPhotoSrcs(map);
+        setPhotosLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [report]);
 
   const findings = useMemo(() => {
     if (!report) return [];
@@ -42,10 +64,22 @@ export default function SafetyReportPreviewPage() {
     return c;
   }, [findings]);
 
+  const visiblePhotos = useMemo(() => {
+    if (!report) return [];
+    return report.photos
+      .map((p, index) => ({ photo: p, index, src: photoSrcs[p.id] }))
+      .filter((p) => Boolean(p.src));
+  }, [report, photoSrcs]);
+
   const handlePdf = async () => {
     if (!printRef.current || !report) return;
+    if (report.photos.length > 0 && visiblePhotos.length === 0 && photosLoading) {
+      toast.message('ממתין לטעינת התמונות…');
+      return;
+    }
     setExporting(true);
     try {
+      await new Promise((r) => setTimeout(r, 150));
       await exportToPdf(
         printRef.current,
         `דוח-בטיחות-${report.siteName.replace(/\s+/g, '_')}.pdf`,
@@ -155,24 +189,35 @@ export default function SafetyReportPreviewPage() {
             </div>
           </section>
 
-          {report.photos.length > 0 && (
+          {(report.photos.length > 0 || visiblePhotos.length > 0) && (
             <section className="avoid-break">
               <h2 className="mb-3 text-lg font-bold">תיעוד מצולם</h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {report.photos.map((p, i) => (
-                  <figure key={p.id} className="overflow-hidden rounded-lg border">
-                    <img
-                      src={p.previewUrl || p.url}
-                      alt={`תיעוד ${i + 1}`}
-                      className="aspect-square w-full object-cover"
-                    />
-                    <figcaption className="px-2 py-1 text-[11px] text-muted-foreground">
-                      תמונה {i + 1}
-                      {p.caption ? ` · ${p.caption}` : ''}
-                    </figcaption>
-                  </figure>
-                ))}
-              </div>
+              {photosLoading && visiblePhotos.length === 0 ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  טוען תמונות לדוח…
+                </div>
+              ) : visiblePhotos.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  התמונות לא זמינות להצגה כרגע. חזרו לבדיקה וצלמו שוב אם צריך.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {visiblePhotos.map(({ photo, index, src }) => (
+                    <figure key={photo.id} className="overflow-hidden rounded-lg border">
+                      <img
+                        src={src}
+                        alt={`תיעוד ${index + 1}`}
+                        className="aspect-square w-full object-cover"
+                      />
+                      <figcaption className="px-2 py-1 text-[11px] text-muted-foreground">
+                        תמונה {index + 1}
+                        {photo.caption ? ` · ${photo.caption}` : ''}
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
@@ -209,6 +254,9 @@ export default function SafetyReportPreviewPage() {
                     )}
                     {f.regulationHint && (
                       <p className="mt-1 text-xs text-muted-foreground">{f.regulationHint}</p>
+                    )}
+                    {f.locationNote && (
+                      <p className="mt-1 text-xs text-muted-foreground">מיקום: {f.locationNote}</p>
                     )}
                   </li>
                 ))}
