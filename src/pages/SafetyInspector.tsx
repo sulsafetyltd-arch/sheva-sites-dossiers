@@ -68,8 +68,10 @@ export default function SafetyInspectorPage() {
     }
     setAnalyzing(true);
     const snapshot = report;
+    // Update UI immediately – never block analysis on storage
+    setReport({ ...snapshot, status: 'analyzing' });
+
     try {
-      await persist({ ...snapshot, status: 'analyzing' });
       const result = await analyzeSafetyPhotos({
         domain: snapshot.domain,
         photos: snapshot.photos,
@@ -77,9 +79,9 @@ export default function SafetyInspectorPage() {
         notes: snapshot.notes,
       });
 
-      if (result.detections.length === 0) {
-        toast.error('לא זוהו ליקויים. נסו תמונה ברורה יותר או בחרו מרשימה.');
-        await persist({ ...snapshot, status: 'draft' });
+      if (!result.detections.length) {
+        toast.error('לא זוהו ליקויים. בחרו מרשימה או הוסיפו הערה וחזרו על הניתוח.');
+        setReport({ ...snapshot, status: 'draft' });
         return;
       }
 
@@ -95,19 +97,23 @@ export default function SafetyInspectorPage() {
         analyzedAt: new Date().toISOString(),
         analysisMode: result.mode,
       };
-      await persist(next);
+
+      setReport(next);
       setTab('findings');
-      toast.success(
-        result.mode === 'vision-api'
-          ? `ניתוח Vision הושלם · ${result.detections.length} ממצאים`
-          : `ניתוח תמונות הושלם · ${result.detections.length} ממצאים`,
-      );
+
+      try {
+        await saveSafetyReport(next);
+      } catch (saveErr) {
+        console.warn('Save after analysis failed:', saveErr);
+        toast.message('הממצאים מוצגים – השמירה לענן/מקומית נכשלה זמנית');
+      }
+
+      toast.success(`זוהו ${result.detections.length} ליקויים`);
       if (result.warning) toast.message(result.warning);
-      else if (result.summary) toast.message(result.summary);
     } catch (err) {
       console.error(err);
-      toast.error('ניתוח נכשל. בדקו את התמונות ונסו שוב, או בחרו ליקויים מהרשימה.');
-      await persist({ ...report, status: 'draft' });
+      toast.error('ניתוח נכשל. נסו שוב או בחרו ליקויים מהרשימה.');
+      setReport({ ...snapshot, status: 'draft' });
     } finally {
       setAnalyzing(false);
     }

@@ -1,4 +1,5 @@
 import { SafetyReport, SafetyReportMeta } from '@/types/safety-report';
+import { slimPhotosForStorage } from '@/lib/photo-cache';
 
 const STORAGE_KEY = 'safety_reports_v1';
 
@@ -13,7 +14,26 @@ function readLocal(): SafetyReport[] {
 }
 
 function writeLocal(reports: SafetyReport[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+  const payload = JSON.stringify(reports);
+  try {
+    localStorage.setItem(STORAGE_KEY, payload);
+  } catch (err) {
+    // QuotaExceeded – drop oldest drafts' photos further and retry once
+    console.warn('localStorage write failed, compacting:', err);
+    const compacted = reports.map((r) => ({
+      ...r,
+      photos: slimPhotosForStorage(r.photos).map((p) => ({
+        ...p,
+        url: p.url.startsWith('http') ? p.url : `local://${p.id}`,
+      })),
+    }));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(compacted));
+    } catch (err2) {
+      console.error('localStorage still full:', err2);
+      throw err2;
+    }
+  }
 }
 
 function toMeta(r: SafetyReport): SafetyReportMeta {
@@ -32,6 +52,13 @@ function toMeta(r: SafetyReport): SafetyReportMeta {
   };
 }
 
+function prepareForStorage(report: SafetyReport): SafetyReport {
+  return {
+    ...report,
+    photos: slimPhotosForStorage(report.photos),
+  };
+}
+
 export async function getAllSafetyReports(): Promise<SafetyReportMeta[]> {
   return readLocal()
     .map(toMeta)
@@ -43,10 +70,10 @@ export async function getSafetyReport(id: string): Promise<SafetyReport | undefi
 }
 
 export async function saveSafetyReport(report: SafetyReport): Promise<void> {
-  const updated: SafetyReport = {
+  const updated = prepareForStorage({
     ...report,
     updatedAt: new Date().toISOString(),
-  };
+  });
   const all = readLocal().filter((r) => r.id !== updated.id);
   all.push(updated);
   writeLocal(all);
@@ -61,8 +88,12 @@ export async function createSafetyReport(
     Partial<Pick<SafetyReport, 'title' | 'address' | 'inspectorName'>>,
 ): Promise<SafetyReport> {
   const now = new Date().toISOString();
+  const id =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `rpt-${Date.now()}`;
   const report: SafetyReport = {
-    id: crypto.randomUUID(),
+    id,
     title: partial.title || `בדיקת בטיחות – ${partial.siteName}`,
     siteName: partial.siteName,
     address: partial.address ?? '',

@@ -1,10 +1,16 @@
-import { useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Camera, ImagePlus, Loader2, Sparkles, X, ZoomIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { DefectPhoto } from '@/types/safety-report';
 import { resizeImageToBlob, uploadImage, deleteStorageFile } from '@/lib/storage-utils';
+import {
+  cachePhotoDataUrl,
+  deleteCachedPhoto,
+  getCachedPhotoDataUrl,
+  newId,
+} from '@/lib/photo-cache';
 
 interface Props {
   photos: DefectPhoto[];
@@ -14,7 +20,7 @@ interface Props {
   analyzing?: boolean;
 }
 
-const MAX_SIZE = 1280;
+const MAX_SIZE = 960;
 
 export function SafetyPhotoCapture({
   photos,
@@ -26,19 +32,37 @@ export function SafetyPhotoCapture({
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [preview, setPreview] = useState<DefectPhoto | null>(null);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const next: Record<string, string> = {};
+      for (const photo of photos) {
+        const cached = await getCachedPhotoDataUrl(photo.id);
+        if (cached) next[photo.id] = cached;
+        else if (photo.url.startsWith('http')) next[photo.id] = photo.url;
+      }
+      if (!cancelled) setThumbs(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [photos]);
 
   const handleFiles = useCallback(
     async (files: FileList | null) => {
       if (!files?.length) return;
       setUploading(true);
-      const next: DefectPhoto[] = [];
+      const added: DefectPhoto[] = [];
+      const thumbUpdates: Record<string, string> = {};
 
       for (const file of Array.from(files)) {
         if (!file.type.startsWith('image/')) continue;
-        const photoId = crypto.randomUUID();
+        const photoId = newId();
         try {
-          const blob = await resizeImageToBlob(file, MAX_SIZE, 0.75);
+          const blob = await resizeImageToBlob(file, MAX_SIZE, 0.65);
           const dataUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result as string);
@@ -46,20 +70,24 @@ export function SafetyPhotoCapture({
             reader.readAsDataURL(blob);
           });
 
-          let url = dataUrl;
+          await cachePhotoDataUrl(photoId, dataUrl);
+          thumbUpdates[photoId] = dataUrl;
+
+          let url = `local://${photoId}`;
           try {
-            url = await uploadImage(blob, `safety/${reportId}`, `${photoId}.jpg`);
+            url = await Promise.race([
+              uploadImage(blob, `safety/${reportId}`, `${photoId}.jpg`),
+              new Promise<string>((_, reject) =>
+                setTimeout(() => reject(new Error('upload timeout')), 8000),
+              ),
+            ]);
           } catch (err) {
-            console.warn('Cloud upload failed, keeping local image:', err);
-            toast.message('התמונה נשמרה במכשיר (העלאה לענן נכשלה)');
-            url = dataUrl;
+            console.warn('Cloud upload skipped:', err);
           }
 
-          next.push({
+          added.push({
             id: photoId,
             url,
-            // Always keep a data URL for reliable on-device AI analysis
-            previewUrl: dataUrl,
             caption: '',
             timestamp: new Date().toISOString(),
           });
@@ -70,9 +98,10 @@ export function SafetyPhotoCapture({
       }
 
       setUploading(false);
-      if (next.length) {
-        onChange([...photos, ...next]);
-        toast.success(`${next.length} תמונות נוספו`);
+      if (added.length) {
+        setThumbs((prev) => ({ ...prev, ...thumbUpdates }));
+        onChange([...photos, ...added]);
+        toast.success(`${added.length} תמונות מוכנות לניתוח`);
       }
     },
     [onChange, photos, reportId],
@@ -87,6 +116,12 @@ export function SafetyPhotoCapture({
         /* ignore */
       }
     }
+    await deleteCachedPhoto(id);
+    setThumbs((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
     onChange(photos.filter((p) => p.id !== id));
   };
 
@@ -98,7 +133,7 @@ export function SafetyPhotoCapture({
           size="lg"
           className="h-24 flex-col gap-2 text-base"
           onClick={() => cameraRef.current?.click()}
-          disabled={uploading}
+          disabled={uploading || analyzing}
         >
           {uploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Camera className="h-7 w-7" />}
           צלם בשטח
@@ -109,7 +144,7 @@ export function SafetyPhotoCapture({
           variant="outline"
           className="h-24 flex-col gap-2 text-base"
           onClick={() => galleryRef.current?.click()}
-          disabled={uploading}
+          disabled={uploading || analyzing}
         >
           <ImagePlus className="h-7 w-7" />
           מהגלריה
@@ -142,13 +177,22 @@ export function SafetyPhotoCapture({
       {photos.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
           {photos.map((photo) => (
-            <div key={photo.id} className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-              <img
-                src={photo.previewUrl || photo.url}
-                alt=""
-                className="h-full w-full object-cover"
-                onClick={() => setPreview(photo)}
-              />
+            <div
+              key={photo.id}
+              className="relative aspect-square overflow-hidden rounded-lg bg-muted"
+            >
+              {thumbs[photo.id] ? (
+                <img
+                  src={thumbs[photo.id]}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  onClick={() => setPreviewSrc(thumbs[photo.id])}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                  תמונה
+                </div>
+              )}
               <button
                 type="button"
                 className="absolute left-1 top-1 rounded-full bg-black/60 p-1 text-white"
@@ -157,14 +201,16 @@ export function SafetyPhotoCapture({
               >
                 <X className="h-3.5 w-3.5" />
               </button>
-              <button
-                type="button"
-                className="absolute bottom-1 left-1 rounded-full bg-black/60 p-1 text-white"
-                onClick={() => setPreview(photo)}
-                aria-label="הגדל"
-              >
-                <ZoomIn className="h-3.5 w-3.5" />
-              </button>
+              {thumbs[photo.id] && (
+                <button
+                  type="button"
+                  className="absolute bottom-1 left-1 rounded-full bg-black/60 p-1 text-white"
+                  onClick={() => setPreviewSrc(thumbs[photo.id])}
+                  aria-label="הגדל"
+                >
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -173,7 +219,7 @@ export function SafetyPhotoCapture({
       {photos.length > 0 && onAnalyze && (
         <Button
           type="button"
-          className="w-full gap-2"
+          className="w-full gap-2 text-base"
           size="lg"
           onClick={onAnalyze}
           disabled={analyzing || uploading}
@@ -187,14 +233,10 @@ export function SafetyPhotoCapture({
         </Button>
       )}
 
-      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+      <Dialog open={!!previewSrc} onOpenChange={(o) => !o && setPreviewSrc(null)}>
         <DialogContent className="max-w-lg p-2">
-          {preview && (
-            <img
-              src={preview.previewUrl || preview.url}
-              alt=""
-              className="max-h-[80vh] w-full rounded object-contain"
-            />
+          {previewSrc && (
+            <img src={previewSrc} alt="" className="max-h-[80vh] w-full rounded object-contain" />
           )}
         </DialogContent>
       </Dialog>
