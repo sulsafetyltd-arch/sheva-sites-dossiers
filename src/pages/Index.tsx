@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, Plus, FileText, Trash2, Copy, Eye, Edit, Flame } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, Plus, FileText, Trash2, Copy, Eye, Edit, Flame, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -87,6 +87,14 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">ניהול תיקי שטח לבטיחות אש</p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="gap-2" asChild>
+              <Link to="/safety">
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">דוחות ליקויים AI</span>
+                <span className="sm:hidden">ליקויים</span>
+              </Link>
+            </Button>
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setSelectedTemplate(null); }}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -136,6 +144,7 @@ const Index = () => {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </header>
 
