@@ -4,6 +4,7 @@ export type SafetyDomain =
   | 'office'
   | 'warehouse'
   | 'public'
+  | 'infrastructure'
   | 'general';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low';

@@ -10,6 +10,11 @@ export interface CatalogDefect {
   recommendation: string;
   /** Keywords that help local matching / prompting */
   keywords: string[];
+  /**
+   * Visual scene cues used by the local image analyzer
+   * (e.g. trench, asphalt, orange-ppe, dark-void, cable, barrier).
+   */
+  visualCues?: string[];
 }
 
 export interface DomainInfo {
@@ -31,6 +36,7 @@ const constructionDefects: CatalogDefect[] = [
     regulationHint: 'תקנות הבטיחות בעבודה (עבודות בנייה)',
     recommendation: 'הפסקת עבודה בגובה עד השלמת מעקות, לוחות ועיגון מאושר.',
     keywords: ['פיגום', 'גובה', 'מעקה', 'scaffold'],
+    visualCues: ['metal-structure', 'height', 'edge-dense'],
   },
   {
     id: 'c-helmet',
@@ -41,6 +47,7 @@ const constructionDefects: CatalogDefect[] = [
     regulationHint: 'תקנות הבטיחות בעבודה – ציוד מגן אישי',
     recommendation: 'חיוב לבישת PPE מלא בכניסה לאתר והדרכת עובדים.',
     keywords: ['קסדה', 'כובע', 'ppe', 'אפוד', 'נעליים'],
+    visualCues: ['person', 'missing-ppe'],
   },
   {
     id: 'c-opening',
@@ -51,6 +58,7 @@ const constructionDefects: CatalogDefect[] = [
     regulationHint: 'תקנות הבטיחות בעבודה (עבודות בנייה)',
     recommendation: 'כיסוי מיידי עם שלט אזהרה וגידור היקפי.',
     keywords: ['פתח', 'פיר', 'בור', 'נפילה'],
+    visualCues: ['dark-void', 'opening', 'edge-dense'],
   },
   {
     id: 'c-electrical',
@@ -61,6 +69,7 @@ const constructionDefects: CatalogDefect[] = [
     regulationHint: 'תקנות החשמל ובטיחות בעבודה',
     recommendation: 'ניתוק מיידי, כיסוי/החלפת כבלים ותיקון לוח ע״י חשמלאי מוסמך.',
     keywords: ['חשמל', 'כבל', 'לוח', 'חיבור'],
+    visualCues: ['cable', 'electrical'],
   },
   {
     id: 'c-debris',
@@ -71,6 +80,109 @@ const constructionDefects: CatalogDefect[] = [
     regulationHint: 'נהלי סדר וניקיון באתר בנייה',
     recommendation: 'פינוי מיידי של המעבר וסימון אזורי אחסון מסודרים.',
     keywords: ['פסולת', 'מעבר', 'חומרים', 'סדר'],
+    visualCues: ['clutter', 'debris'],
+  },
+];
+
+const infrastructureDefects: CatalogDefect[] = [
+  {
+    id: 'i-trench',
+    title: 'חפירה / תעלת תשתיות ללא גידור',
+    description: 'חפירה פתוחה ליד כביש או מדרכה ללא מחסומים, כיסוי או שילוט.',
+    severity: 'critical',
+    category: 'חפירות',
+    regulationHint: 'תקנות הבטיחות בעבודה (עבודות בנייה) – חפירות; הנחיות בטיחות בדרכים',
+    recommendation: 'גידור היקפי מיידי, כיסוי/מעבר בטוח להולכי רגל ושילוט אזהרה.',
+    keywords: ['חפירה', 'תעלה', 'בור', 'גידור', 'trench', 'excavation'],
+    visualCues: ['trench', 'dark-void', 'dirt', 'asphalt'],
+  },
+  {
+    id: 'i-manhole',
+    title: 'תא ביוב / שוחת תקשורת פתוחה',
+    description: 'מכסה שוחה חסר, שבורה או מורם מעל פני הכביש/מדרכה.',
+    severity: 'critical',
+    category: 'שוחות',
+    regulationHint: 'דרישות בטיחות תשתיות עירוניות ומניעת נפילה',
+    recommendation: 'סגירה מיידית במכסה תקני או כיסוי זמני מאושר עם סימון.',
+    keywords: ['שוחה', 'ביוב', 'מכסה', 'תא', 'manhole'],
+    visualCues: ['dark-void', 'opening', 'asphalt', 'round-opening'],
+  },
+  {
+    id: 'i-utilities-exposed',
+    title: 'כבלים / צנרת תת-קרקעית חשופים',
+    description: 'כבלי חשמל, תקשורת או צנרת גז/מים חשופים בחפירה או מעל פני הקרקע.',
+    severity: 'critical',
+    category: 'תשתיות חשופות',
+    regulationHint: 'תקנות החשמל, גז וחוק התשתיות',
+    recommendation: 'סימון, הרחקת אנשים, דיווח לבעל התשתית וכיסוי/הגנה מיידיים.',
+    keywords: ['כבל', 'צנרת', 'גז', 'מים', 'תקשורת', 'חשמל', 'חשוף'],
+    visualCues: ['cable', 'pipe', 'trench', 'dirt'],
+  },
+  {
+    id: 'i-workzone',
+    title: 'אזור עבודה בדרך ללא הפרדה/שילוט',
+    description: 'עבודות בכביש או בשול ללא קונוסים, מחסומים או שילוט הכוונה מספקים.',
+    severity: 'critical',
+    category: 'עבודה בדרכים',
+    regulationHint: 'הנחיות משרד התחבורה / רשויות לניהול אתרי עבודה בדרכים',
+    recommendation: 'השלמת תוכנית הסדרי תנועה, מחסומים, תאורה ושילוט תקניים.',
+    keywords: ['כביש', 'קונוס', 'מחסום', 'שילוט', 'תנועה', 'work zone'],
+    visualCues: ['asphalt', 'barrier', 'road', 'orange-ppe', 'yellow-mark'],
+  },
+  {
+    id: 'i-guardrail',
+    title: 'מעקה בטיחות / מחסום דרך פגום',
+    description: 'מעקה מתכת שבור, חסר עיגון או עם פתח מסוכן לאורך מדרכה/גשר.',
+    severity: 'high',
+    category: 'הגנות דרך',
+    regulationHint: 'תקני מעקות בטיחות בדרכים וגשרים',
+    recommendation: 'גידור זמני מיידי ותיקון/החלפת מעקה.',
+    keywords: ['מעקה', 'מחסום', 'גשר', 'מעקה בטיחות', 'guardrail'],
+    visualCues: ['metal-structure', 'barrier', 'edge-dense'],
+  },
+  {
+    id: 'i-confined',
+    title: 'כניסה לחלל מוקף ללא בקרות',
+    description: 'עבודה בשוחה, תא או מנהלת תשתיות ללא בדיקת אטמוספרה / השגחה.',
+    severity: 'critical',
+    category: 'חלל מוקף',
+    regulationHint: 'תקנות הבטיחות בעבודה – חללים מוקפים',
+    recommendation: 'איסור כניסה עד היתר, מדידה, אוורור ומערכת השגחה.',
+    keywords: ['חלל מוקף', 'שוחה', 'מנהרה', 'אטמוספרה', 'confined'],
+    visualCues: ['dark-void', 'opening', 'underground'],
+  },
+  {
+    id: 'i-overhead',
+    title: 'קרבה מסוכנת לקווי מתח עיליים',
+    description: 'ציוד הרמה או פיגום בקרבה לקווי חשמל עיליים ללא מרחק בטיחות.',
+    severity: 'critical',
+    category: 'חשמל עילי',
+    regulationHint: 'תקנות החשמל – מרחקי בטיחות מקווי מתח',
+    recommendation: 'הפסקת עבודה, מדידת מרחק ותיאום עם חברת החשמל.',
+    keywords: ['מתח', 'עילי', 'קו חשמל', 'מנוף', 'overhead'],
+    visualCues: ['cable', 'sky', 'height', 'metal-structure'],
+  },
+  {
+    id: 'i-night-lighting',
+    title: 'עבודת לילה בתשתיות ללא תאורה מספקת',
+    description: 'אתר עבודה חשוך המקשה על זיהוי מכשולים והולכי רגל.',
+    severity: 'high',
+    category: 'תאורה',
+    regulationHint: 'דרישות תאורה בעבודות לילה באתרי תשתיות',
+    recommendation: 'השלמת תאורת עבודה ותאורת אזהרה לרכב והולכי רגל.',
+    keywords: ['לילה', 'תאורה', 'חושך', 'עבודת לילה'],
+    visualCues: ['low-light', 'dark-void', 'road'],
+  },
+  {
+    id: 'i-traffic-ppe',
+    title: 'עובדים ליד תנועה ללא ביגוד זוהר',
+    description: 'עובדי תשתיות בקרבת כביש ללא אפוד מחזיר אור / קסדה.',
+    severity: 'high',
+    category: 'ציוד מגן',
+    regulationHint: 'דרישות PPE בעבודה בדרכים',
+    recommendation: 'חיוב ביגוד זוהר מלא והפרדה פיזית מהתנועה.',
+    keywords: ['אפוד', 'זוהר', 'תנועה', 'ppe', 'כביש'],
+    visualCues: ['person', 'missing-ppe', 'road', 'orange-ppe'],
   },
 ];
 
@@ -339,6 +451,14 @@ export const SAFETY_DOMAINS: DomainInfo[] = [
     description: 'מילוט, נגישות ובטיחות קהל',
     icon: 'Landmark',
     defects: publicDefects,
+  },
+  {
+    id: 'infrastructure',
+    label: 'תשתיות',
+    shortLabel: 'תשתיות',
+    description: 'חפירות, כבישים, שוחות, כבלים וצנרת',
+    icon: 'Cable',
+    defects: infrastructureDefects,
   },
   {
     id: 'general',

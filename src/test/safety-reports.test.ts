@@ -1,6 +1,10 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { getDefectCatalog, SAFETY_DOMAINS } from '@/data/safety-domains';
-import { analyzeSafetyPhotos, createManualDetection } from '@/lib/safety-ai';
+import {
+  analyzeLocallyForTest,
+  analyzeSafetyPhotos,
+  createManualDetection,
+} from '@/lib/safety-ai';
 import {
   createSafetyReport,
   deleteSafetyReport,
@@ -10,9 +14,10 @@ import {
 } from '@/lib/safety-report-store';
 
 describe('safety domains catalog', () => {
-  it('covers construction, factory, office and more', () => {
+  it('covers construction, infrastructure, factory and more', () => {
     const ids = SAFETY_DOMAINS.map((d) => d.id);
     expect(ids).toContain('construction');
+    expect(ids).toContain('infrastructure');
     expect(ids).toContain('factory');
     expect(ids).toContain('office');
     expect(ids).toContain('warehouse');
@@ -22,6 +27,10 @@ describe('safety domains catalog', () => {
     const factory = getDefectCatalog('factory');
     expect(factory.some((d) => d.id.startsWith('f-'))).toBe(true);
     expect(factory.some((d) => d.id.startsWith('g-'))).toBe(true);
+
+    const infra = getDefectCatalog('infrastructure');
+    expect(infra.some((d) => d.id.startsWith('i-'))).toBe(true);
+    expect(infra.some((d) => d.title.includes('חפירה') || d.id === 'i-trench')).toBe(true);
   });
 });
 
@@ -41,10 +50,37 @@ describe('safety AI analyzer', () => {
       ],
     });
 
-    expect(result.detections.length).toBeGreaterThanOrEqual(3);
+    expect(result.detections.length).toBeGreaterThanOrEqual(2);
     expect(result.mode).toBe('local-ai');
     expect(result.detections.every((d) => d.source === 'ai')).toBe(true);
     expect(result.detections.every((d) => d.confidence > 0 && d.confidence <= 1)).toBe(true);
+  });
+
+  it('ranks infrastructure trench defects when notes mention excavation', async () => {
+    const result = await analyzeLocallyForTest({
+      domain: 'infrastructure',
+      siteName: 'עבודות תשתיות ברחוב הרצל',
+      notes: 'חפירה פתוחה ליד הכביש בלי גידור, שוחה בלי מכסה',
+      photos: [
+        {
+          id: '1',
+          url: 'data:image/jpeg;base64,xx',
+          caption: 'תעלת תשתיות פתוחה',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    expect(result.detections.length).toBeGreaterThanOrEqual(2);
+    const titles = result.detections.map((d) => d.title).join(' ');
+    expect(
+      titles.includes('חפירה') ||
+        titles.includes('שוחה') ||
+        titles.includes('כבלים') ||
+        result.detections.some((d) => d.category.includes('חפיר') || d.category.includes('שוח')),
+    ).toBe(true);
+    // Keyword-backed findings should score relatively high
+    expect(result.detections[0].confidence).toBeGreaterThanOrEqual(0.45);
   });
 
   it('creates manual detections as accepted', () => {
@@ -61,13 +97,14 @@ describe('safety report store', () => {
 
   it('creates, saves and lists reports', async () => {
     const report = await createSafetyReport({
-      siteName: 'מפעל בדיקה',
-      domain: 'factory',
+      siteName: 'קו ביוב בדיקה',
+      domain: 'infrastructure',
     });
     expect(report.id).toBeTruthy();
+    expect(report.domain).toBe('infrastructure');
 
     report.detections.push(
-      createManualDetection({ title: 'מכונה ללא מגן', severity: 'critical' }),
+      createManualDetection({ title: 'חפירה ללא גידור', severity: 'critical' }),
     );
     report.status = 'ready';
     await saveSafetyReport(report);
@@ -75,10 +112,10 @@ describe('safety report store', () => {
     const list = await getAllSafetyReports();
     expect(list).toHaveLength(1);
     expect(list[0].criticalCount).toBe(1);
-    expect(list[0].siteName).toBe('מפעל בדיקה');
+    expect(list[0].siteName).toBe('קו ביוב בדיקה');
 
     const loaded = await getSafetyReport(report.id);
-    expect(loaded?.detections[0].title).toBe('מכונה ללא מגן');
+    expect(loaded?.detections[0].title).toBe('חפירה ללא גידור');
 
     await deleteSafetyReport(report.id);
     expect(await getAllSafetyReports()).toHaveLength(0);

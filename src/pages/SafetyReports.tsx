@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   Building2,
+  Cable,
   Factory,
   FileText,
   Flame,
@@ -50,6 +51,7 @@ const domainIcons: Record<SafetyDomain, typeof HardHat> = {
   office: Building2,
   warehouse: Warehouse,
   public: Landmark,
+  infrastructure: Cable,
   general: ShieldAlert,
 };
 
