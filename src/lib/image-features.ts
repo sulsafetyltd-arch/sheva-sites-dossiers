@@ -13,7 +13,7 @@ export interface ImageFeatures {
   warmRatio: number;
 }
 
-const EMPTY: ImageFeatures = {
+export const EMPTY_FEATURES: ImageFeatures = {
   brightness: 0.5,
   contrast: 0.3,
   orangeRatio: 0,
@@ -26,31 +26,84 @@ const EMPTY: ImageFeatures = {
   warmRatio: 0.2,
 };
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+function loadImage(src: string, timeoutMs = 4000): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('image load failed'));
+    const timer = window.setTimeout(() => {
+      img.src = '';
+      reject(new Error('image load timeout'));
+    }, timeoutMs);
+
+    // crossOrigin only for remote http(s) – breaks some blob/data loads
+    if (/^https?:\/\//i.test(src)) {
+      img.crossOrigin = 'anonymous';
+    }
+
+    img.onload = () => {
+      window.clearTimeout(timer);
+      resolve(img);
+    };
+    img.onerror = () => {
+      window.clearTimeout(timer);
+      reject(new Error('image load failed'));
+    };
     img.src = src;
   });
 }
 
 /**
- * Sample a downscaled canvas and estimate color / structure features.
- * Works for data URLs and CORS-enabled public URLs.
+ * Convert any usable image source to a compressed JPEG data URL for reliable analysis.
  */
-export async function extractImageFeatures(src: string): Promise<ImageFeatures> {
-  if (!src || src.startsWith('data:image/jpeg;base64,xx')) return { ...EMPTY };
+export async function toAnalysisDataUrl(
+  src: string,
+  maxSize = 640,
+  quality = 0.7,
+): Promise<string | null> {
+  if (!src) return null;
+  if (src.startsWith('data:image/')) {
+    // Already inline – optionally re-encode large ones later; fine for now
+    return src;
+  }
 
   try {
     const img = await loadImage(src);
+    let w = img.naturalWidth || img.width;
+    let h = img.naturalHeight || img.height;
+    if (!w || !h) return null;
+    if (w > maxSize || h > maxSize) {
+      const ratio = Math.min(maxSize / w, maxSize / h);
+      w = Math.round(w * ratio);
+      h = Math.round(h * ratio);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg', quality);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sample a downscaled canvas and estimate color / structure features.
+ */
+export async function extractImageFeatures(src: string): Promise<ImageFeatures> {
+  if (!src || src.startsWith('data:image/jpeg;base64,xx')) {
+    return { ...EMPTY_FEATURES };
+  }
+
+  try {
+    const prepared = (await toAnalysisDataUrl(src, 64, 0.6)) ?? src;
+    const img = await loadImage(prepared, 3000);
     const size = 64;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return { ...EMPTY };
+    if (!ctx) return { ...EMPTY_FEATURES };
     ctx.drawImage(img, 0, 0, size, size);
     const { data } = ctx.getImageData(0, 0, size, size);
 
@@ -114,15 +167,15 @@ export async function extractImageFeatures(src: string): Promise<ImageFeatures> 
       warmRatio: warm / n,
     };
   } catch {
-    return { ...EMPTY };
+    return { ...EMPTY_FEATURES };
   }
 }
 
 export async function extractPhotosFeatures(urls: string[]): Promise<ImageFeatures> {
-  if (urls.length === 0) return { ...EMPTY };
+  if (urls.length === 0) return { ...EMPTY_FEATURES };
   const feats = await Promise.all(urls.map((u) => extractImageFeatures(u)));
-  const keys = Object.keys(EMPTY) as (keyof ImageFeatures)[];
-  const avg = { ...EMPTY };
+  const keys = Object.keys(EMPTY_FEATURES) as (keyof ImageFeatures)[];
+  const avg = { ...EMPTY_FEATURES };
   for (const k of keys) {
     avg[k] = feats.reduce((s, f) => s + f[k], 0) / feats.length;
   }

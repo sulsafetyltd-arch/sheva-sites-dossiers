@@ -67,21 +67,29 @@ export default function SafetyInspectorPage() {
       return;
     }
     setAnalyzing(true);
-    patch({ status: 'analyzing' });
+    const snapshot = report;
     try {
+      await persist({ ...snapshot, status: 'analyzing' });
       const result = await analyzeSafetyPhotos({
-        domain: report.domain,
-        photos: report.photos,
-        siteName: report.siteName,
-        notes: report.notes,
+        domain: snapshot.domain,
+        photos: snapshot.photos,
+        siteName: snapshot.siteName,
+        notes: snapshot.notes,
       });
-      const keptManual = report.detections.filter(
+
+      if (result.detections.length === 0) {
+        toast.error('לא זוהו ליקויים. נסו תמונה ברורה יותר או בחרו מרשימה.');
+        await persist({ ...snapshot, status: 'draft' });
+        return;
+      }
+
+      const keptManual = snapshot.detections.filter(
         (d) => d.source === 'manual' || d.source === 'catalog',
       );
       const aiTitles = new Set(result.detections.map((d) => d.title));
       const keptWithoutOverlap = keptManual.filter((d) => !aiTitles.has(d.title));
       const next: SafetyReport = {
-        ...report,
+        ...snapshot,
         detections: [...keptWithoutOverlap, ...result.detections],
         status: 'ready',
         analyzedAt: new Date().toISOString(),
@@ -91,14 +99,15 @@ export default function SafetyInspectorPage() {
       setTab('findings');
       toast.success(
         result.mode === 'vision-api'
-          ? 'ניתוח תמונה הושלם'
-          : 'זוהו ליקויים לפי תחום הבדיקה (מצב מקומי)',
+          ? `ניתוח Vision הושלם · ${result.detections.length} ממצאים`
+          : `ניתוח תמונות הושלם · ${result.detections.length} ממצאים`,
       );
-      if (result.summary) toast.message(result.summary);
+      if (result.warning) toast.message(result.warning);
+      else if (result.summary) toast.message(result.summary);
     } catch (err) {
       console.error(err);
-      toast.error('ניתוח נכשל, נסו שוב');
-      patch({ status: 'draft' });
+      toast.error('ניתוח נכשל. בדקו את התמונות ונסו שוב, או בחרו ליקויים מהרשימה.');
+      await persist({ ...report, status: 'draft' });
     } finally {
       setAnalyzing(false);
     }
@@ -198,9 +207,14 @@ export default function SafetyInspectorPage() {
             {report.analysisMode && (
               <p className="text-center text-xs text-muted-foreground">
                 מצב ניתוח אחרון:{' '}
-                {report.analysisMode === 'vision-api' ? 'OpenAI Vision' : 'AI מקומי לפי תחום'}
+                {report.analysisMode === 'vision-api'
+                  ? 'OpenAI Vision (ענן)'
+                  : 'ניתוח תמונה במכשיר לפי תחום'}
               </p>
             )}
+            <p className="text-center text-xs text-muted-foreground">
+              טיפ: הוסיפו הערת שטח קצרה לפני הזיהוי לדיוק גבוה יותר. אם הניתוח נתקע — רעננו ונסו שוב.
+            </p>
           </TabsContent>
 
           <TabsContent value="findings" className="mt-4 space-y-4">

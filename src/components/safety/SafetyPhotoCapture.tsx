@@ -39,25 +39,27 @@ export function SafetyPhotoCapture({
         const photoId = crypto.randomUUID();
         try {
           const blob = await resizeImageToBlob(file, MAX_SIZE, 0.75);
-          const previewUrl = URL.createObjectURL(blob);
-          let url = previewUrl;
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+          let url = dataUrl;
           try {
             url = await uploadImage(blob, `safety/${reportId}`, `${photoId}.jpg`);
           } catch (err) {
-            console.warn('Cloud upload failed, keeping local preview:', err);
-            toast.message('התמונה נשמרה מקומית (העלאה לענן נכשלה)');
-            // convert blob to data URL for persistence
-            url = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
+            console.warn('Cloud upload failed, keeping local image:', err);
+            toast.message('התמונה נשמרה במכשיר (העלאה לענן נכשלה)');
+            url = dataUrl;
           }
+
           next.push({
             id: photoId,
             url,
-            previewUrl,
+            // Always keep a data URL for reliable on-device AI analysis
+            previewUrl: dataUrl,
             caption: '',
             timestamp: new Date().toISOString(),
           });
