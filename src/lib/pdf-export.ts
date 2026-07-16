@@ -35,10 +35,7 @@ async function inlineImages(container: HTMLElement): Promise<() => void> {
   return () => originals.forEach(({ img, src }) => (img.src = src));
 }
 
-export async function exportToPdf(
-  contentElement: HTMLElement,
-  fileName: string,
-): Promise<void> {
+export async function createPdfBlob(contentElement: HTMLElement): Promise<Blob> {
   const body = document.body;
   body.classList.add('pdf-capturing');
   const restoreImages = await inlineImages(contentElement);
@@ -115,5 +112,23 @@ export async function exportToPdf(
     );
   }
 
-  pdf.save(fileName);
+  return pdf.output('blob');
+}
+
+export function downloadPdfBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function exportToPdf(
+  contentElement: HTMLElement,
+  fileName: string,
+): Promise<void> {
+  downloadPdfBlob(await createPdfBlob(contentElement), fileName);
 }

@@ -8,7 +8,8 @@ import {
   reportTypeLabel,
 } from '@/types/safety-audit';
 import { Button } from '@/components/ui/button';
-import { exportToPdf } from '@/lib/pdf-export';
+import { createPdfBlob, downloadPdfBlob, exportToPdf } from '@/lib/pdf-export';
+import { Download, Mail, MessageCircle, Share2, X } from 'lucide-react';
 
 const severityLabel: Record<string, string> = {
   high: 'גבוהה',
@@ -46,6 +47,10 @@ const SafetyAuditPreview = () => {
   const [defects, setDefects] = useState<SafetyAuditDefect[]>([]);
   const [photos, setPhotos] = useState<ReportPhoto[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareFallback, setShareFallback] = useState(false);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [generatedPdf, setGeneratedPdf] = useState<Blob | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -87,6 +92,60 @@ const SafetyAuditPreview = () => {
     }
   };
 
+  const pdfFileName = () =>
+    `דוח-בטיחות-${report?.reportNumber || 'ללא-מספר'}-${report?.siteName || report?.projectName || 'אתר'}.pdf`
+      .replace(/[\\/:*?"<>|]/g, '-');
+
+  const shareText = () =>
+    `שלום, מצורף דו״ח ביקורת בטיחות ${report?.reportNumber || ''} עבור ${report?.recipient || 'הלקוח'}, באתר ${report?.siteName || report?.projectName || ''}.`;
+
+  const getPdf = async () => {
+    if (generatedPdf) return generatedPdf;
+    const element = document.getElementById('printable');
+    if (!element) throw new Error('לא ניתן ליצור את קובץ הדוח');
+    const blob = await createPdfBlob(element);
+    setGeneratedPdf(blob);
+    return blob;
+  };
+
+  const onShare = async () => {
+    setSharing(true);
+    setShareMessage(null);
+    try {
+      const blob = await getPdf();
+      const file = new File([blob], pdfFileName(), { type: 'application/pdf' });
+      const shareData: ShareData = {
+        title: `דו״ח ביקורת בטיחות ${report?.reportNumber || ''}`,
+        text: shareText(),
+        files: [file],
+      };
+
+      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+        await navigator.share(shareData);
+        setShareMessage('הדוח הועבר לשיתוף');
+      } else {
+        downloadPdfBlob(blob, pdfFileName());
+        setShareFallback(true);
+        setShareMessage('ה־PDF הורד. בחר WhatsApp או מייל וצרף את הקובץ שהורד.');
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setShareFallback(true);
+      setShareMessage(error instanceof Error ? error.message : 'השיתוף נכשל');
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const shareViaWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText())}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const shareViaEmail = () => {
+    const subject = `דו״ח ביקורת בטיחות ${report?.reportNumber || ''}`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`${shareText()}\n\nיש לצרף להודעה את קובץ ה-PDF שהורד.`)}`;
+  };
+
   if (!report) return <div className="p-4" dir="rtl">טוען…</div>;
 
   const isConstruction = report.reportType === 'construction';
@@ -111,10 +170,46 @@ const SafetyAuditPreview = () => {
             </Link>
             <h1 className="text-xl font-bold text-slate-800">תצוגה לשליחה ללקוח</h1>
           </div>
-          <Button onClick={onExport} disabled={exporting} className="min-w-[140px]">
-            {exporting ? 'מייצא PDF…' : 'ייצוא PDF'}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onExport} disabled={exporting || sharing} className="gap-1">
+              <Download className="w-4 h-4" />
+              {exporting ? 'מייצא…' : 'הורד PDF'}
+            </Button>
+            <Button onClick={() => void onShare()} disabled={sharing || exporting} className="gap-1 min-w-[120px]">
+              <Share2 className="w-4 h-4" />
+              {sharing ? 'מכין…' : 'שתף דוח'}
+            </Button>
+          </div>
         </div>
+
+        {(shareFallback || shareMessage) && (
+          <div className="print:hidden rounded-xl border bg-white p-4 shadow-sm space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-sm text-slate-700">{shareMessage}</div>
+              <button type="button" onClick={() => { setShareFallback(false); setShareMessage(null); }} aria-label="סגור">
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            {shareFallback && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <Button type="button" onClick={shareViaWhatsApp} className="gap-1 bg-[#25D366] hover:bg-[#1fb857] text-white">
+                  <MessageCircle className="w-4 h-4" /> WhatsApp
+                </Button>
+                <Button type="button" variant="outline" onClick={shareViaEmail} className="gap-1">
+                  <Mail className="w-4 h-4" /> מייל
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-1"
+                  onClick={async () => downloadPdfBlob(await getPdf(), pdfFileName())}
+                >
+                  <Download className="w-4 h-4" /> הורד שוב
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="overflow-x-auto rounded-sm">
         <article
