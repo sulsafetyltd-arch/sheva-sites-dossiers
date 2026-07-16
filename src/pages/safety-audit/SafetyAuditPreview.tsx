@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { getReport, listDefects, listReportPhotos } from '@/lib/safety-audit-store';
+import { getReport, listDefects, listReportPhotos, getPublicUrl } from '@/lib/safety-audit-store';
 import type { SafetyAuditDefect, SafetyAuditReport } from '@/types/safety-audit';
-import { CHECKLIST_TOPICS } from '@/types/safety-audit';
+import {
+  CONSTRUCTION_GENERAL_NOTES,
+  getChecklistTopics,
+  reportTypeLabel,
+} from '@/types/safety-audit';
 import { Button } from '@/components/ui/button';
 import { exportToPdf } from '@/lib/pdf-export';
-import { getPublicUrl } from '@/lib/safety-audit-store';
 
 const severityLabel: Record<string, string> = {
   high: 'גבוהה',
@@ -53,6 +56,9 @@ const SafetyAuditPreview = () => {
 
   if (!report) return <div className="p-4" dir="rtl">טוען…</div>;
 
+  const isConstruction = report.reportType === 'construction';
+  const topics = getChecklistTopics(report.reportType);
+
   const statusMark = (key: string, want: 'ok' | 'not_ok' | 'na') => {
     const s = report.checklist?.[key]?.status;
     return s === want ? '☑' : '☐';
@@ -66,14 +72,19 @@ const SafetyAuditPreview = () => {
             <Link to={`/safety/editor/${report.id}`} className="text-sm underline text-slate-600">
               ← חזרה לעריכה
             </Link>
-            <h1 className="text-2xl font-bold">תצוגת דוח</h1>
+            <h1 className="text-2xl font-bold">
+              תצוגת דוח · {reportTypeLabel(report.reportType)}
+            </h1>
           </div>
           <Button onClick={onExport} disabled={exporting}>
             {exporting ? 'מייצא…' : 'ייצוא PDF'}
           </Button>
         </div>
 
-        <div id="printable" className="bg-white text-black p-6 shadow print:shadow-none space-y-5 text-sm leading-relaxed">
+        <div
+          id="printable"
+          className="bg-white text-black p-6 shadow print:shadow-none space-y-5 text-sm leading-relaxed"
+        >
           <div className="flex justify-between gap-4 border-b pb-3">
             <div>
               <div className="font-bold text-base">סול בטיחות בע״מ</div>
@@ -87,132 +98,241 @@ const SafetyAuditPreview = () => {
 
           <div>
             <div>לכבוד: {report.recipient || '______________________________'}</div>
-            <h2 className="text-lg font-bold mt-3">הנדון: דו״ח ביקורת בטיחות באתר העבודה</h2>
+            <h2 className="text-lg font-bold mt-3">
+              {isConstruction
+                ? `הנדון: דו״ח ביקורת בטיחות באתר הבנייה: ${report.projectName || report.siteName || '__________________'}`
+                : 'הנדון: דו״ח ביקורת בטיחות באתר העבודה'}
+            </h2>
           </div>
 
-          <section>
-            <h3 className="font-bold text-base mb-2">1. סיכום מנהלים</h3>
-            <div>
-              דירוג סיכון כולל:{' '}
-              {(['low', 'medium', 'high'] as const).map((k) => (
-                <span key={k} className="ml-3">
-                  {report.riskLevel === k ? '☑' : '☐'} {riskLabel[k]}
-                </span>
-              ))}
-            </div>
-            <div className="mt-1">
-              נדרשת פעולה מיידית: {report.immediateAction ? '☑ כן ☐ לא' : '☐ כן ☑ לא'}
-            </div>
-            <div className="mt-2 whitespace-pre-wrap border p-2 min-h-[60px]">
-              {report.executiveSummary || ''}
-            </div>
-          </section>
-
-          <section>
-            <h3 className="font-bold text-base mb-2">2. פרטי הביקורת</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-              <div>שם האתר / כתובת: {report.siteName || '—'}</div>
-              <div>שם המבצע (הקבלן): {report.contractor || '—'}</div>
-              <div>תאריך הביקורת: {report.auditDate || '—'}</div>
-              <div>עורך הביקורת: {report.auditor || '—'}</div>
-              <div>נוכחים בביקורת: {report.attendees || '—'}</div>
-              <div>מנהל עבודה באתר: {report.siteManager || '—'}</div>
-              <div>שעות העבודה באתר: {report.workHours || '—'}</div>
-              <div>מספר עובדים בשטח: {report.workersCount ?? '—'}</div>
-              <div>שלב עבודה: {report.workStage || '—'}</div>
-            </div>
-          </section>
-
-          <section>
-            <h3 className="font-bold text-base mb-2">3. ממצאי הביקורת — רשימת בדיקה</h3>
-            <table className="w-full border-collapse text-xs sm:text-sm">
-              <thead>
-                <tr className="bg-slate-100">
-                  <th className="border p-1 text-right">נושא הבדיקה</th>
-                  <th className="border p-1">תקין</th>
-                  <th className="border p-1">לא תקין</th>
-                  <th className="border p-1">לא רלוונטי</th>
-                  <th className="border p-1 text-right">הערות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {CHECKLIST_TOPICS.map((t) => (
-                  <tr key={t.key}>
-                    <td className="border p-1">{t.title}</td>
-                    <td className="border p-1 text-center">{statusMark(t.key, 'ok')}</td>
-                    <td className="border p-1 text-center">{statusMark(t.key, 'not_ok')}</td>
-                    <td className="border p-1 text-center">{statusMark(t.key, 'na')}</td>
-                    <td className="border p-1">{report.checklist?.[t.key]?.notes || ''}</td>
-                  </tr>
+          {!isConstruction && (
+            <section>
+              <h3 className="font-bold text-base mb-2">1. סיכום מנהלים</h3>
+              <div>
+                דירוג סיכון כולל:{' '}
+                {(['low', 'medium', 'high'] as const).map((k) => (
+                  <span key={k} className="ml-3">
+                    {report.riskLevel === k ? '☑' : '☐'} {riskLabel[k]}
+                  </span>
                 ))}
-              </tbody>
-            </table>
+              </div>
+              <div className="mt-1">
+                נדרשת פעולה מיידית: {report.immediateAction ? '☑ כן ☐ לא' : '☐ כן ☑ לא'}
+              </div>
+              <div className="mt-2 whitespace-pre-wrap border p-2 min-h-[60px]">
+                {report.executiveSummary || ''}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <h3 className="font-bold text-base mb-2">
+              {isConstruction ? 'פירוט כללי' : '2. פרטי הביקורת'}
+            </h3>
+            {isConstruction ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                  <div>פרויקט / אתר: {report.projectName || report.siteName || '—'}</div>
+                  <div>גוש: {report.block || '—'} · מגרש: {report.parcel || '—'}</div>
+                  <div>
+                    שם המבצע: {report.auditor || '—'} · תפקיד: {report.auditorRole || 'ממונה בטיחות'}
+                  </div>
+                  <div>תאריך ביקורת: {report.auditDate || '—'}</div>
+                  <div>מנהל העבודה: {report.siteManager || '—'}</div>
+                  <div>מספר פועלים: {report.workersCount ?? '—'}</div>
+                </div>
+                <div>
+                  1. נערכה ביקורת בטיחות בהשתתפות מר {report.siteManager || '____________'} מנהל
+                  העבודה.
+                </div>
+                <div>
+                  2. באתר עובדים כ-{report.workersCount ?? '_____'} פועלים כולל קבלני משנה ועובדי
+                  חברה.
+                </div>
+                <div className="whitespace-pre-wrap border p-2 min-h-[50px]">
+                  <div className="font-medium mb-1">שלבי עבודה:</div>
+                  {report.workStagesDetail || ''}
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                <div>שם האתר / כתובת: {report.siteName || '—'}</div>
+                <div>שם המבצע (הקבלן): {report.contractor || '—'}</div>
+                <div>תאריך הביקורת: {report.auditDate || '—'}</div>
+                <div>עורך הביקורת: {report.auditor || '—'}</div>
+                <div>נוכחים בביקורת: {report.attendees || '—'}</div>
+                <div>מנהל עבודה באתר: {report.siteManager || '—'}</div>
+                <div>שעות העבודה באתר: {report.workHours || '—'}</div>
+                <div>מספר עובדים בשטח: {report.workersCount ?? '—'}</div>
+                <div>שלב עבודה: {report.workStage || '—'}</div>
+              </div>
+            )}
           </section>
 
           <section>
-            <h3 className="font-bold text-base mb-2">4. ליקויים, מפגעים ופעולות מתקנות</h3>
-            <table className="w-full border-collapse text-xs sm:text-sm">
-              <thead>
-                <tr className="bg-slate-100">
-                  <th className="border p-1">#</th>
-                  <th className="border p-1 text-right">תיאור הליקוי / המפגע</th>
-                  <th className="border p-1">דרגת חומרה</th>
-                  <th className="border p-1 text-right">פעולה מתקנת</th>
-                  <th className="border p-1">אחראי</th>
-                  <th className="border p-1">תאריך יעד</th>
-                </tr>
-              </thead>
-              <tbody>
-                {defects.length === 0 && (
-                  <tr>
-                    <td className="border p-2 text-center" colSpan={6}>
-                      לא תועדו ליקויים
-                    </td>
+            <h3 className="font-bold text-base mb-2">
+              {isConstruction ? 'להלן ממצאי דו״ח הביקורת' : '3. ממצאי הביקורת — רשימת בדיקה'}
+            </h3>
+            {isConstruction ? (
+              <table className="w-full border-collapse text-[11px] sm:text-xs">
+                <thead>
+                  <tr className="bg-slate-100">
+                    <th className="border p-1">מס״ד</th>
+                    <th className="border p-1">פרק</th>
+                    <th className="border p-1 text-right">מהות הבדיקה</th>
+                    <th className="border p-1">תקין</th>
+                    <th className="border p-1">לא תקין</th>
+                    <th className="border p-1 text-right">ממצאים והמלצות</th>
+                    <th className="border p-1">אחראי</th>
+                    <th className="border p-1 text-right">הערות</th>
                   </tr>
-                )}
-                {defects.map((d, idx) => (
-                  <tr key={d.id}>
-                    <td className="border p-1 text-center">{idx + 1}</td>
-                    <td className="border p-1">{d.description}</td>
-                    <td className="border p-1 text-center">{severityLabel[d.severity] || d.severity}</td>
-                    <td className="border p-1">{d.correctiveAction || '—'}</td>
-                    <td className="border p-1">{d.responsible || '—'}</td>
-                    <td className="border p-1">{d.dueDate || '—'}</td>
+                </thead>
+                <tbody>
+                  {topics.map((t, idx) => {
+                    const item = report.checklist?.[t.key];
+                    return (
+                      <tr key={t.key}>
+                        <td className="border p-1 text-center">{idx + 1}</td>
+                        <td className="border p-1">{t.chapter}</td>
+                        <td className="border p-1">{t.title}</td>
+                        <td className="border p-1 text-center">{statusMark(t.key, 'ok')}</td>
+                        <td className="border p-1 text-center">{statusMark(t.key, 'not_ok')}</td>
+                        <td className="border p-1">{item?.findings || ''}</td>
+                        <td className="border p-1">{item?.responsible || ''}</td>
+                        <td className="border p-1">{item?.notes || ''}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full border-collapse text-xs sm:text-sm">
+                <thead>
+                  <tr className="bg-slate-100">
+                    <th className="border p-1 text-right">נושא הבדיקה</th>
+                    <th className="border p-1">תקין</th>
+                    <th className="border p-1">לא תקין</th>
+                    <th className="border p-1">לא רלוונטי</th>
+                    <th className="border p-1 text-right">הערות</th>
                   </tr>
+                </thead>
+                <tbody>
+                  {topics.map((t) => (
+                    <tr key={t.key}>
+                      <td className="border p-1">{t.title}</td>
+                      <td className="border p-1 text-center">{statusMark(t.key, 'ok')}</td>
+                      <td className="border p-1 text-center">{statusMark(t.key, 'not_ok')}</td>
+                      <td className="border p-1 text-center">{statusMark(t.key, 'na')}</td>
+                      <td className="border p-1">{report.checklist?.[t.key]?.notes || ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+
+          {!isConstruction && (
+            <section>
+              <h3 className="font-bold text-base mb-2">4. ליקויים, מפגעים ופעולות מתקנות</h3>
+              <table className="w-full border-collapse text-xs sm:text-sm">
+                <thead>
+                  <tr className="bg-slate-100">
+                    <th className="border p-1">#</th>
+                    <th className="border p-1 text-right">תיאור הליקוי / המפגע</th>
+                    <th className="border p-1">דרגת חומרה</th>
+                    <th className="border p-1 text-right">פעולה מתקנת</th>
+                    <th className="border p-1">אחראי</th>
+                    <th className="border p-1">תאריך יעד</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {defects.length === 0 && (
+                    <tr>
+                      <td className="border p-2 text-center" colSpan={6}>
+                        לא תועדו ליקויים
+                      </td>
+                    </tr>
+                  )}
+                  {defects.map((d, idx) => (
+                    <tr key={d.id}>
+                      <td className="border p-1 text-center">{idx + 1}</td>
+                      <td className="border p-1">{d.description}</td>
+                      <td className="border p-1 text-center">{severityLabel[d.severity] || d.severity}</td>
+                      <td className="border p-1">{d.correctiveAction || '—'}</td>
+                      <td className="border p-1">{d.responsible || '—'}</td>
+                      <td className="border p-1">{d.dueDate || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )}
+
+          {isConstruction ? (
+            <section className="text-xs space-y-1">
+              <h3 className="font-bold text-sm">הערות כלליות</h3>
+              <ol className="list-decimal pr-5 space-y-0.5">
+                {CONSTRUCTION_GENERAL_NOTES.map((n, i) => (
+                  <li key={i}>{n}</li>
                 ))}
-              </tbody>
-            </table>
-          </section>
-
-          <section className="text-xs space-y-1">
-            <h3 className="font-bold text-sm">5. אסמכתאות חוקיות עיקריות</h3>
-            <ol className="list-decimal pr-5 space-y-0.5">
-              <li>פקודת הבטיחות בעבודה [נוסח חדש], התש״ל-1970.</li>
-              <li>תקנות הבטיחות בעבודה (עבודות בנייה), התשמ״ח-1988.</li>
-              <li>תקנות הבטיחות בעבודה (ציוד מגן אישי), התשנ״ז-1997.</li>
-              <li>תקנות ארגון הפיקוח על העבודה (מסירת מידע והדרכת עובדים), התשנ״ט-1999.</li>
-              <li>תקנות הבטיחות בעבודה (עבודה בגובה), התשס״ז-2007.</li>
-              <li>תקנות הבטיחות בעבודה (חשמל), התש״ן-1990.</li>
-            </ol>
-          </section>
-
-          <section className="text-xs space-y-1">
-            <h3 className="font-bold text-sm">6. הערות כלליות, הצהרה והגבלת אחריות</h3>
-            <p>1. על הקבלן לוודא כי כלל העובדים חותמים על תמצית סיכונים ועל קבלת הדרכת בטיחות ספציפית לסוג העבודה, בשפה המובנת להם.</p>
-            <p>2. על הקבלן לוודא כי כלל העבודות בפרויקט מתבצעות בהתאם לחוקים, לתקנות, לתקנים ולנהלי הבטיחות.</p>
-            <p>3. ליקויים בדרגת חומרה ״גבוהה״ מחייבים טיפול מיידי והפסקת העבודה באזור הרלוונטי עד להסרת הסיכון.</p>
-            <p>4. דו״ח זה משקף את מצב האתר במועד הביקורת בלבד, על סמך הנראה לעין ולפי המידע שנמסר לעורך.</p>
-          </section>
+              </ol>
+              <ul className="list-disc pr-5 mt-2 space-y-0.5">
+                <li>
+                  הריני לציין: בעקבות נפילות מגובה באתרי הבנייה אבקש לבדוק אישורים והדרכות לגובה כולל
+                  לקבלני משנה.
+                </li>
+                <li>ממצאי המבדק נכונים ליום המבדק בלבד!</li>
+                <li>אבקש לתקן את הליקויים ולעדכן את הח״מ!</li>
+              </ul>
+            </section>
+          ) : (
+            <>
+              <section className="text-xs space-y-1">
+                <h3 className="font-bold text-sm">5. אסמכתאות חוקיות עיקריות</h3>
+                <ol className="list-decimal pr-5 space-y-0.5">
+                  <li>פקודת הבטיחות בעבודה [נוסח חדש], התש״ל-1970.</li>
+                  <li>תקנות הבטיחות בעבודה (עבודות בנייה), התשמ״ח-1988.</li>
+                  <li>תקנות הבטיחות בעבודה (ציוד מגן אישי), התשנ״ז-1997.</li>
+                  <li>תקנות ארגון הפיקוח על העבודה (מסירת מידע והדרכת עובדים), התשנ״ט-1999.</li>
+                  <li>תקנות הבטיחות בעבודה (עבודה בגובה), התשס״ז-2007.</li>
+                  <li>תקנות הבטיחות בעבודה (חשמל), התש״ן-1990.</li>
+                </ol>
+              </section>
+              <section className="text-xs space-y-1">
+                <h3 className="font-bold text-sm">6. הערות כלליות, הצהרה והגבלת אחריות</h3>
+                <p>
+                  1. על הקבלן לוודא כי כלל העובדים חותמים על תמצית סיכונים ועל קבלת הדרכת בטיחות
+                  ספציפית לסוג העבודה, בשפה המובנת להם.
+                </p>
+                <p>
+                  2. על הקבלן לוודא כי כלל העבודות בפרויקט מתבצעות בהתאם לחוקים, לתקנות, לתקנים
+                  ולנהלי הבטיחות.
+                </p>
+                <p>
+                  3. ליקויים בדרגת חומרה ״גבוהה״ מחייבים טיפול מיידי והפסקת העבודה באזור הרלוונטי עד
+                  להסרת הסיכון.
+                </p>
+                <p>
+                  4. דו״ח זה משקף את מצב האתר במועד הביקורת בלבד, על סמך הנראה לעין ולפי המידע שנמסר
+                  לעורך.
+                </p>
+              </section>
+            </>
+          )}
 
           <section>
-            <h3 className="font-bold text-base mb-2">7. נספח א׳ — תיעוד צילומי מהאתר</h3>
+            <h3 className="font-bold text-base mb-2">נספח — תיעוד צילומי מהאתר</h3>
             {photos.length === 0 ? (
               <div className="text-slate-500">לא צורפו תמונות.</div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {photos.map((p, i) => (
                   <figure key={p.id} className="border p-2 space-y-1 break-inside-avoid">
-                    <img src={getPublicUrl(p.storagePath)} alt={p.caption || p.defectDescription} className="w-full max-h-56 object-contain bg-slate-50" />
+                    <img
+                      src={getPublicUrl(p.storagePath)}
+                      alt={p.caption || p.defectDescription}
+                      className="w-full max-h-56 object-contain bg-slate-50"
+                    />
                     <figcaption className="text-xs">
                       תמונה {i + 1}: {p.defectDescription}
                       {p.caption ? ` — ${p.caption}` : ''} ({severityLabel[p.severity] || p.severity})

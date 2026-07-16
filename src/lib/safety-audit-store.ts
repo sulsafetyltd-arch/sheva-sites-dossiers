@@ -2,6 +2,7 @@ import type {
   SafetyAuditReport,
   SafetyAuditDefect,
   SafetyAuditDefectPhoto,
+  ReportType,
 } from '@/types/safety-audit';
 
 const REPORTS_KEY = 'safety_audit_reports_v1';
@@ -34,9 +35,16 @@ function writeJson<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-function nextReportNumber(reports: SafetyAuditReport[]): string {
+function normalizeReport(r: SafetyAuditReport): SafetyAuditReport {
+  return {
+    ...r,
+    reportType: r.reportType ?? 'workplace',
+  };
+}
+
+function nextReportNumber(reports: SafetyAuditReport[], type: ReportType): string {
   const year = new Date().getFullYear();
-  const prefix = `SB-${year}-`;
+  const prefix = type === 'construction' ? `BN-${year}-` : `SB-${year}-`;
   const nums = reports
     .map((r) => r.reportNumber)
     .filter((n): n is string => !!n && n.startsWith(prefix))
@@ -47,37 +55,45 @@ function nextReportNumber(reports: SafetyAuditReport[]): string {
 }
 
 export async function listReports(): Promise<SafetyAuditReport[]> {
-  const reports = readJson<SafetyAuditReport[]>(REPORTS_KEY, []);
+  const reports = readJson<SafetyAuditReport[]>(REPORTS_KEY, []).map(normalizeReport);
   return [...reports].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 export async function getReport(id: string): Promise<SafetyAuditReport | null> {
   const reports = readJson<SafetyAuditReport[]>(REPORTS_KEY, []);
-  return reports.find((r) => r.id === id) ?? null;
+  const found = reports.find((r) => r.id === id);
+  return found ? normalizeReport(found) : null;
 }
 
 export async function createReport(
-  partial: Partial<SafetyAuditReport> & { siteName?: string }
+  partial: Partial<SafetyAuditReport> & { siteName?: string; reportType?: ReportType }
 ): Promise<SafetyAuditReport> {
   const reports = readJson<SafetyAuditReport[]>(REPORTS_KEY, []);
   const createdAt = nowIso();
+  const reportType: ReportType = partial.reportType ?? 'workplace';
   const report: SafetyAuditReport = {
     id: uid(),
-    reportNumber: partial.reportNumber ?? nextReportNumber(reports),
+    reportType,
+    reportNumber: partial.reportNumber ?? nextReportNumber(reports, reportType),
     date: partial.date ?? today(),
     recipient: partial.recipient,
     riskLevel: partial.riskLevel,
     immediateAction: partial.immediateAction ?? false,
     executiveSummary: partial.executiveSummary,
     siteName: partial.siteName,
+    projectName: partial.projectName,
+    block: partial.block,
+    parcel: partial.parcel,
     contractor: partial.contractor,
     auditDate: partial.auditDate ?? today(),
-    auditor: partial.auditor,
+    auditor: partial.auditor ?? (reportType === 'construction' ? 'שלומי סולטן' : undefined),
+    auditorRole: partial.auditorRole ?? (reportType === 'construction' ? 'ממונה בטיחות' : undefined),
     attendees: partial.attendees,
     siteManager: partial.siteManager,
     workHours: partial.workHours,
     workersCount: partial.workersCount,
     workStage: partial.workStage,
+    workStagesDetail: partial.workStagesDetail,
     status: partial.status ?? 'draft',
     siteManagerSignatureUrl: partial.siteManagerSignatureUrl,
     auditorSignatureUrl: partial.auditorSignatureUrl,
