@@ -5,6 +5,8 @@ import type { ReportType, SafetyAuditReport } from '@/types/safety-audit';
 import { reportTypeLabel } from '@/types/safety-audit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import PwaInstallCard from '@/components/safety/PwaInstallCard';
+import DataBackupCard from '@/components/safety/DataBackupCard';
 
 const SafetyAuditIndex = () => {
   const navigate = useNavigate();
@@ -63,6 +65,8 @@ const SafetyAuditIndex = () => {
           <h1 className="text-2xl font-bold text-slate-900">דוחות ביקורת בטיחות</h1>
           <p className="text-sm text-slate-600">אתרי עבודה ואתרי בנייה · צילום ליקויים · ייצוא PDF</p>
         </header>
+
+        <PwaInstallCard />
 
         <section className="rounded-xl border bg-white p-4 space-y-4 shadow-sm">
           <h2 className="font-semibold">דוח חדש</h2>
@@ -150,6 +154,8 @@ const SafetyAuditIndex = () => {
             ))}
           </ul>
         </section>
+
+        <DataBackupCard onImported={() => void refresh()} />
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import type {
 const REPORTS_KEY = 'safety_audit_reports_v1';
 const DEFECTS_KEY = 'safety_audit_defects_v1';
 const PHOTOS_KEY = 'safety_audit_defect_photos_v1';
+const BACKUP_VERSION = 1;
 
 function uid(): string {
   return crypto.randomUUID();
@@ -33,6 +34,39 @@ function readJson<T>(key: string, fallback: T): T {
 
 function writeJson<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+export interface SafetyAuditBackup {
+  version: number;
+  exportedAt: string;
+  reports: SafetyAuditReport[];
+  defects: SafetyAuditDefect[];
+  photos: SafetyAuditDefectPhoto[];
+}
+
+export function exportSafetyAuditBackup(): SafetyAuditBackup {
+  return {
+    version: BACKUP_VERSION,
+    exportedAt: nowIso(),
+    reports: readJson<SafetyAuditReport[]>(REPORTS_KEY, []).map(normalizeReport),
+    defects: readJson<SafetyAuditDefect[]>(DEFECTS_KEY, []),
+    photos: readJson<SafetyAuditDefectPhoto[]>(PHOTOS_KEY, []),
+  };
+}
+
+export function importSafetyAuditBackup(backup: SafetyAuditBackup): void {
+  if (
+    !backup ||
+    backup.version !== BACKUP_VERSION ||
+    !Array.isArray(backup.reports) ||
+    !Array.isArray(backup.defects) ||
+    !Array.isArray(backup.photos)
+  ) {
+    throw new Error('קובץ הגיבוי אינו תקין');
+  }
+  writeJson(REPORTS_KEY, backup.reports.map(normalizeReport));
+  writeJson(DEFECTS_KEY, backup.defects);
+  writeJson(PHOTOS_KEY, backup.photos);
 }
 
 function normalizeReport(r: SafetyAuditReport): SafetyAuditReport {
