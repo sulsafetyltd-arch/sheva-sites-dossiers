@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { getReport, listDefects } from '@/lib/safety-audit-store';
 import type { SafetyAuditDefect, SafetyAuditReport } from '@/types/safety-audit';
 import { Button } from '@/components/ui/button';
-import { exportNodeToPdf } from '@/lib/pdf-export';
+import { exportToPdf } from '@/lib/pdf-export';
 
 const SafetyAuditPreview = () => {
   const { id } = useParams();
@@ -23,7 +23,7 @@ const SafetyAuditPreview = () => {
   const onExport = async () => {
     const el = document.getElementById('printable');
     if (el) {
-      await exportNodeToPdf(el, `דוח-ביקורת-בטיחות-${report?.reportNumber || 'ללא-מספר'}.pdf`);
+      await exportToPdf(el, `דוח-ביקורת-בטיחות-${report?.reportNumber || 'ללא-מספר'}.pdf`);
     }
   };
 
