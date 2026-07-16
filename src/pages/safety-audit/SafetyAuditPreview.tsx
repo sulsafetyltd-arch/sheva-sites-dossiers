@@ -36,7 +36,7 @@ const PhotoThumb = ({ src, alt }: { src: string; alt: string }) => (
   <img
     src={src}
     alt={alt}
-    className="h-20 w-28 object-cover rounded border border-slate-200 bg-slate-50"
+    className="h-[68px] w-[92px] object-cover rounded border border-slate-200 bg-slate-50 mx-auto"
   />
 );
 
@@ -103,7 +103,7 @@ const SafetyAuditPreview = () => {
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#e8edf2]">
-      <div className="container mx-auto max-w-[920px] p-3 sm:p-6 space-y-4">
+      <div className="mx-auto max-w-[920px] p-3 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
           <div className="space-y-1">
             <Link to={`/safety/editor/${report.id}`} className="text-sm underline text-slate-600">
@@ -116,10 +116,11 @@ const SafetyAuditPreview = () => {
           </Button>
         </div>
 
+        <div className="overflow-x-auto rounded-sm">
         <article
           id="printable"
-          className="bg-white text-slate-900 shadow-lg print:shadow-none overflow-hidden"
-          style={{ fontFamily: 'Heebo, Arial, sans-serif' }}
+          className="report-sheet bg-white text-slate-900 shadow-lg print:shadow-none overflow-hidden mx-auto"
+          style={{ fontFamily: 'Heebo, Arial, sans-serif', width: 794, minWidth: 794 }}
         >
           {/* Letterhead */}
           <header className="bg-[#0f2744] text-white px-6 sm:px-8 py-6">
@@ -223,18 +224,26 @@ const SafetyAuditPreview = () => {
               </h3>
 
               {isConstruction ? (
-                <div className="overflow-x-auto rounded-lg border border-slate-300">
-                  <table className="w-full border-collapse text-[11px]">
+                <div className="rounded-lg border border-slate-300 overflow-hidden">
+                  <table className="w-full table-fixed border-collapse text-[10px] leading-[1.35]">
+                    <colgroup>
+                      <col style={{ width: '4%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '23%' }} />
+                      <col style={{ width: '9%' }} />
+                      <col style={{ width: '29%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '13%' }} />
+                    </colgroup>
                     <thead>
                       <tr className="bg-[#0f2744] text-white">
-                        <th className="border border-slate-600 p-2 w-8">#</th>
+                        <th className="border border-slate-600 p-1.5">#</th>
                         <th className="border border-slate-600 p-2">פרק</th>
                         <th className="border border-slate-600 p-2 text-right">מהות הבדיקה</th>
-                        <th className="border border-slate-600 p-2 w-12">תקין</th>
-                        <th className="border border-slate-600 p-2 w-14">לא תקין</th>
+                        <th className="border border-slate-600 p-2">סטטוס</th>
                         <th className="border border-slate-600 p-2 text-right">ממצאים והמלצות</th>
                         <th className="border border-slate-600 p-2">אחראי</th>
-                        <th className="border border-slate-600 p-2 w-[120px]">תיעוד צילומי</th>
+                        <th className="border border-slate-600 p-2">צילום</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -243,25 +252,29 @@ const SafetyAuditPreview = () => {
                         const rowPhotos = photosByTopic[t.key] ?? [];
                         const notOk = item?.status === 'not_ok';
                         return (
-                          <tr key={t.key} className={notOk ? 'bg-red-50/70' : idx % 2 ? 'bg-slate-50' : 'bg-white'}>
-                            <td className="border border-slate-200 p-2 text-center align-top">{idx + 1}</td>
-                            <td className="border border-slate-200 p-2 align-top whitespace-nowrap">{t.chapter}</td>
-                            <td className="border border-slate-200 p-2 align-top font-medium">{t.title}</td>
-                            <td className="border border-slate-200 p-2 text-center align-top">{statusMark(t.key, 'ok')}</td>
-                            <td className="border border-slate-200 p-2 text-center align-top">{statusMark(t.key, 'not_ok')}</td>
+                          <tr key={t.key} className={`avoid-break ${notOk ? 'bg-red-50/70' : idx % 2 ? 'bg-slate-50' : 'bg-white'}`}>
+                            <td className="border border-slate-200 p-1.5 text-center align-top">{idx + 1}</td>
+                            <td className="border border-slate-200 p-1.5 align-top break-words">{t.chapter}</td>
+                            <td className="border border-slate-200 p-1.5 align-top font-medium break-words">{t.title}</td>
+                            <td className="border border-slate-200 p-1.5 text-center align-top">
+                              <span className={`inline-block rounded px-1.5 py-0.5 font-semibold ${notOk ? 'bg-red-100 text-red-800' : item?.status === 'ok' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                                {notOk ? 'לא תקין' : item?.status === 'ok' ? 'תקין' : 'לא סומן'}
+                              </span>
+                            </td>
                             <td className="border border-slate-200 p-2 align-top">
                               <div>{item?.findings || ''}</div>
                               {item?.notes ? <div className="text-slate-500 mt-1">{item.notes}</div> : null}
                             </td>
-                            <td className="border border-slate-200 p-2 align-top">{item?.responsible || ''}</td>
+                            <td className="border border-slate-200 p-1.5 align-top break-words">{item?.responsible || ''}</td>
                             <td className="border border-slate-200 p-1.5 align-top">
                               {rowPhotos.length === 0 ? (
                                 <span className="text-slate-400">—</span>
                               ) : (
                                 <div className="flex flex-col gap-1">
-                                  {rowPhotos.map((p) => (
+                                  {rowPhotos.slice(0, 1).map((p) => (
                                     <PhotoThumb key={p.id} src={getPublicUrl(p.storagePath)} alt={t.title} />
                                   ))}
+                                  {rowPhotos.length > 1 && <span className="text-[9px] text-slate-500 text-center">+{rowPhotos.length - 1} תמונות</span>}
                                 </div>
                               )}
                             </td>
@@ -272,8 +285,15 @@ const SafetyAuditPreview = () => {
                   </table>
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-lg border border-slate-300">
-                  <table className="w-full border-collapse text-xs">
+                <div className="rounded-lg border border-slate-300 overflow-hidden">
+                  <table className="w-full table-fixed border-collapse text-[11px]">
+                    <colgroup>
+                      <col style={{ width: '35%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '28%' }} />
+                    </colgroup>
                     <thead>
                       <tr className="bg-[#0f2744] text-white">
                         <th className="border border-slate-600 p-2 text-right">נושא הבדיקה</th>
@@ -304,8 +324,17 @@ const SafetyAuditPreview = () => {
                 <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
                   4. ליקויים, מפגעים ופעולות מתקנות
                 </h3>
-                <div className="overflow-x-auto rounded-lg border border-slate-300">
-                  <table className="w-full border-collapse text-xs">
+                <div className="rounded-lg border border-slate-300 overflow-hidden">
+                  <table className="w-full table-fixed border-collapse text-[10px] leading-[1.35]">
+                    <colgroup>
+                      <col style={{ width: '4%' }} />
+                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '9%' }} />
+                      <col style={{ width: '27%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '18%' }} />
+                    </colgroup>
                     <thead>
                       <tr className="bg-[#0f2744] text-white">
                         <th className="border border-slate-600 p-2 w-8">#</th>
@@ -328,7 +357,7 @@ const SafetyAuditPreview = () => {
                       {defects.map((d, idx) => {
                         const rowPhotos = photosByDefect[d.id] ?? [];
                         return (
-                          <tr key={d.id} className={idx % 2 ? 'bg-slate-50' : 'bg-white'}>
+                          <tr key={d.id} className={`avoid-break ${idx % 2 ? 'bg-slate-50' : 'bg-white'}`}>
                             <td className="border border-slate-200 p-2 text-center align-top">{idx + 1}</td>
                             <td className="border border-slate-200 p-2 align-top">{d.description}</td>
                             <td className="border border-slate-200 p-2 text-center align-top">
@@ -352,9 +381,10 @@ const SafetyAuditPreview = () => {
                                 <span className="text-slate-400">—</span>
                               ) : (
                                 <div className="flex flex-col gap-1">
-                                  {rowPhotos.map((p) => (
+                                  {rowPhotos.slice(0, 1).map((p) => (
                                     <PhotoThumb key={p.id} src={getPublicUrl(p.storagePath)} alt={d.description} />
                                   ))}
+                                  {rowPhotos.length > 1 && <span className="text-[9px] text-slate-500 text-center">+{rowPhotos.length - 1}</span>}
                                 </div>
                               )}
                             </td>
@@ -453,6 +483,7 @@ const SafetyAuditPreview = () => {
             </div>
           </footer>
         </article>
+        </div>
       </div>
     </div>
   );

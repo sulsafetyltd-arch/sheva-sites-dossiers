@@ -149,6 +149,38 @@
   display: none;
 }
 
+/* Client-facing safety report: fixed A4-proportional canvas. */
+.report-sheet {
+  direction: rtl;
+}
+
+.report-sheet table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.report-sheet th,
+.report-sheet td {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.pdf-capturing .report-sheet {
+  width: 794px !important;
+  min-width: 794px !important;
+  max-width: 794px !important;
+  box-shadow: none !important;
+}
+
+.pdf-capturing .report-sheet table {
+  table-layout: fixed !important;
+}
+
+.pdf-capturing .report-sheet .avoid-break {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
 /* Running header/footer for print — CSS-only approach */
 .print-running-header,
 .print-running-footer {

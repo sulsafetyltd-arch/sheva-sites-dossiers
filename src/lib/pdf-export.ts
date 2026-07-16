@@ -39,28 +39,31 @@ export async function exportToPdf(
   contentElement: HTMLElement,
   fileName: string,
 ): Promise<void> {
-  // Temporarily add print-like styles for capture
   const body = document.body;
   body.classList.add('pdf-capturing');
-
-  // Convert cross-origin images to base64
   const restoreImages = await inlineImages(contentElement);
-
-  // Wait for images to settle
-  await new Promise(r => setTimeout(r, 300));
-
-  const canvas = await html2canvas(contentElement, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    backgroundColor: '#ffffff',
-    logging: false,
-    // Ensure full height capture
-    windowHeight: contentElement.scrollHeight,
-  });
-
-  body.classList.remove('pdf-capturing');
-  restoreImages();
+  let canvas: HTMLCanvasElement;
+  try {
+    await new Promise(r => setTimeout(r, 300));
+    // The report is rendered at a fixed A4-friendly width. Capturing that exact
+    // width prevents responsive/mobile styles from distorting table columns.
+    canvas = await html2canvas(contentElement, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      width: contentElement.scrollWidth,
+      height: contentElement.scrollHeight,
+      windowWidth: contentElement.scrollWidth,
+      windowHeight: contentElement.scrollHeight,
+      scrollX: 0,
+      scrollY: 0,
+    });
+  } finally {
+    body.classList.remove('pdf-capturing');
+    restoreImages();
+  }
 
   const imgData = canvas.toDataURL('image/jpeg', 0.92);
   const imgWidth = canvas.width;

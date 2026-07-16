@@ -23,7 +23,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SignaturePad from '@/components/dossier/SignaturePad';
-import { PenLine } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, ClipboardCheck, FileText, PenLine, TriangleAlert } from 'lucide-react';
+
+const STEPS = [
+  { label: 'פרטי הדוח', icon: FileText },
+  { label: 'בדיקות', icon: ClipboardCheck },
+  { label: 'ליקויים', icon: TriangleAlert },
+  { label: 'חתימות', icon: PenLine },
+] as const;
 
 const SafetyAuditEditor = () => {
   const { id } = useParams();
@@ -34,12 +41,26 @@ const SafetyAuditEditor = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
+  const [activeChapter, setActiveChapter] = useState<string | null>(null);
 
   const topics = useMemo(
     () => getChecklistTopics(report?.reportType ?? 'workplace'),
     [report?.reportType]
   );
   const isConstruction = report?.reportType === 'construction';
+  const chapters = useMemo(
+    () => Array.from(new Set(topics.map((topic) => topic.chapter || 'כל הבדיקות'))),
+    [topics]
+  );
+  const currentChapter = activeChapter && chapters.includes(activeChapter) ? activeChapter : chapters[0];
+  const visibleTopics = isConstruction
+    ? topics.filter((topic) => (topic.chapter || 'כל הבדיקות') === currentChapter)
+    : topics;
+  const completedChecks = topics.filter((topic) => {
+    const status = report?.checklist?.[topic.key]?.status;
+    return status === 'ok' || status === 'not_ok' || (!isConstruction && status === 'na');
+  }).length;
 
   useEffect(() => {
     (async () => {
@@ -231,6 +252,32 @@ const SafetyAuditEditor = () => {
         {message && <div className="rounded-lg bg-emerald-50 text-emerald-800 p-3 text-sm">{message}</div>}
         {error && <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</div>}
 
+        <nav className="sticky top-0 z-20 -mx-4 px-4 py-3 bg-slate-50/95 backdrop-blur border-y">
+          <div className="grid grid-cols-4 gap-1">
+            {STEPS.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => setStep(index)}
+                  className={`rounded-lg px-1 py-2 text-xs flex flex-col sm:flex-row items-center justify-center gap-1.5 transition ${
+                    step === index ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="h-1 bg-slate-200 rounded-full mt-2 overflow-hidden">
+            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+          </div>
+        </nav>
+
+        {step === 0 && (
+        <>
         {!isConstruction && (
           <section className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
             <h2 className="text-lg font-semibold">1. סיכום מנהלים</h2>
@@ -324,13 +371,39 @@ const SafetyAuditEditor = () => {
             <Textarea dir="rtl" placeholder="שלבי עבודה" value={report.workStagesDetail || ''} onChange={(e) => setReport({ ...report, workStagesDetail: e.target.value })} />
           )}
         </section>
+        </>
+        )}
 
+        {step === 1 && (
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : '3. רשימת בדיקה'}</h2>
-          {topics.map((t, idx) => {
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : '3. רשימת בדיקה'}</h2>
+              <div className="text-xs text-slate-500">{completedChecks} מתוך {topics.length} בדיקות הושלמו</div>
+            </div>
+            <div className="text-sm font-medium text-emerald-700">{Math.round((completedChecks / topics.length) * 100)}%</div>
+          </div>
+          {isConstruction && (
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+              {chapters.map((chapter) => (
+                <Button
+                  key={chapter}
+                  type="button"
+                  size="sm"
+                  variant={currentChapter === chapter ? 'default' : 'outline'}
+                  className="shrink-0"
+                  onClick={() => setActiveChapter(chapter)}
+                >
+                  {chapter}
+                </Button>
+              ))}
+            </div>
+          )}
+          {visibleTopics.map((t) => {
+            const idx = topics.findIndex((topic) => topic.key === t.key);
             const current = report.checklist?.[t.key] ?? { status: 'na' as ChecklistStatus };
             return (
-              <div key={t.key} className="rounded-xl border bg-white p-4 space-y-2 shadow-sm">
+              <div key={t.key} className={`rounded-xl border bg-white p-3 space-y-2 shadow-sm ${current.status === 'not_ok' ? 'border-red-300' : ''}`}>
                 <div className="flex flex-wrap items-baseline gap-2">
                   <span className="text-xs text-slate-400">{idx + 1}.</span>
                   {t.chapter && <span className="text-xs rounded bg-slate-100 px-2 py-0.5 text-slate-600">{t.chapter}</span>}
@@ -349,18 +422,22 @@ const SafetyAuditEditor = () => {
                     </Button>
                   )}
                 </div>
-                {isConstruction && (
+                {isConstruction && current.status === 'not_ok' && (
                   <>
                     <Textarea dir="rtl" placeholder="ממצאים והמלצות לביצוע" value={current.findings ?? ''} onChange={(e) => setChecklist(t.key, { findings: e.target.value })} />
                     <Input dir="rtl" placeholder="אחראי ליישום המלצה" value={current.responsible ?? ''} onChange={(e) => setChecklist(t.key, { responsible: e.target.value })} />
                   </>
                 )}
-                <Textarea dir="rtl" placeholder="הערות" value={current.notes ?? ''} onChange={(e) => setChecklist(t.key, { notes: e.target.value })} />
+                {current.status === 'not_ok' && (
+                  <Textarea dir="rtl" placeholder="הערות נוספות (אופציונלי)" value={current.notes ?? ''} onChange={(e) => setChecklist(t.key, { notes: e.target.value })} />
+                )}
               </div>
             );
           })}
         </section>
+        )}
 
+        {step === 2 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold">{isConstruction ? 'ליקויים ותיעוד צילומי' : '4. ליקויים ופעולות מתקנות'}</h2>
@@ -410,7 +487,9 @@ const SafetyAuditEditor = () => {
             </div>
           ))}
         </section>
+        )}
 
+        {step === 3 && (
         <section className="rounded-xl border bg-white p-4 space-y-4 shadow-sm">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <PenLine className="w-5 h-5" />
@@ -435,14 +514,31 @@ const SafetyAuditEditor = () => {
             </div>
           </div>
         </section>
+        )}
 
         <div className="fixed bottom-0 inset-x-0 border-t bg-white/95 backdrop-blur p-3 flex gap-2 justify-center sm:static sm:border-0 sm:bg-transparent sm:p-0">
-          <Button className="flex-1 sm:flex-none" variant="secondary" onClick={saveBasics} disabled={saving}>
-            שמירה
-          </Button>
-          <Button className="flex-1 sm:flex-none" asChild>
-            <Link to={`/safety/preview/${report.id}`}>תצוגה / PDF</Link>
-          </Button>
+          {step > 0 && (
+            <Button className="flex-1 sm:flex-none gap-1" variant="outline" onClick={() => setStep((value) => value - 1)}>
+              <ChevronRight className="w-4 h-4" /> הקודם
+            </Button>
+          )}
+          {step < STEPS.length - 1 ? (
+            <Button
+              className="flex-1 sm:flex-none gap-1"
+              onClick={async () => {
+                await saveBasics();
+                setStep((value) => value + 1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              disabled={saving}
+            >
+              הבא <ChevronLeft className="w-4 h-4" />
+            </Button>
+          ) : (
+            <Button className="flex-1 sm:flex-none gap-1" asChild>
+              <Link to={`/safety/preview/${report.id}`}><Check className="w-4 h-4" /> סיום ותצוגת PDF</Link>
+            </Button>
+          )}
         </div>
       </div>
     </div>
