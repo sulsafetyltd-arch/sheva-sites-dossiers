@@ -4,6 +4,18 @@ export type ChecklistStatus = 'ok' | 'not_ok' | 'na';
 export type DefectSeverity = 'high' | 'medium' | 'low';
 export type ReportType = 'workplace' | 'construction';
 
+export interface SafetyAuditClient {
+  id: string;
+  name: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ChecklistItemState {
   status: ChecklistStatus;
   notes?: string;
@@ -13,6 +25,7 @@ export interface ChecklistItemState {
 
 export interface SafetyAuditReport {
   id: string;
+  clientId: string;
   reportType: ReportType;
   reportNumber?: string;
   date: string; // ISO date

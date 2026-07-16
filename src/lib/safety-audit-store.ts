@@ -2,13 +2,16 @@ import type {
   SafetyAuditReport,
   SafetyAuditDefect,
   SafetyAuditDefectPhoto,
+  SafetyAuditClient,
   ReportType,
 } from '@/types/safety-audit';
 
+const CLIENTS_KEY = 'safety_audit_clients_v1';
 const REPORTS_KEY = 'safety_audit_reports_v1';
 const DEFECTS_KEY = 'safety_audit_defects_v1';
 const PHOTOS_KEY = 'safety_audit_defect_photos_v1';
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2;
+const LEGACY_CLIENT_ID = 'legacy-existing-reports';
 
 function uid(): string {
   return crypto.randomUUID();
@@ -39,15 +42,18 @@ function writeJson<T>(key: string, value: T): void {
 export interface SafetyAuditBackup {
   version: number;
   exportedAt: string;
+  clients: SafetyAuditClient[];
   reports: SafetyAuditReport[];
   defects: SafetyAuditDefect[];
   photos: SafetyAuditDefectPhoto[];
 }
 
 export function exportSafetyAuditBackup(): SafetyAuditBackup {
+  migrateClientsAndReports();
   return {
     version: BACKUP_VERSION,
     exportedAt: nowIso(),
+    clients: readJson<SafetyAuditClient[]>(CLIENTS_KEY, []),
     reports: readJson<SafetyAuditReport[]>(REPORTS_KEY, []).map(normalizeReport),
     defects: readJson<SafetyAuditDefect[]>(DEFECTS_KEY, []),
     photos: readJson<SafetyAuditDefectPhoto[]>(PHOTOS_KEY, []),
@@ -57,23 +63,104 @@ export function exportSafetyAuditBackup(): SafetyAuditBackup {
 export function importSafetyAuditBackup(backup: SafetyAuditBackup): void {
   if (
     !backup ||
-    backup.version !== BACKUP_VERSION ||
+    ![1, BACKUP_VERSION].includes(backup.version) ||
     !Array.isArray(backup.reports) ||
     !Array.isArray(backup.defects) ||
     !Array.isArray(backup.photos)
   ) {
     throw new Error('קובץ הגיבוי אינו תקין');
   }
+  const clients = Array.isArray(backup.clients) ? backup.clients : [];
+  writeJson(CLIENTS_KEY, clients);
   writeJson(REPORTS_KEY, backup.reports.map(normalizeReport));
   writeJson(DEFECTS_KEY, backup.defects);
   writeJson(PHOTOS_KEY, backup.photos);
+  migrateClientsAndReports();
 }
 
 function normalizeReport(r: SafetyAuditReport): SafetyAuditReport {
   return {
     ...r,
+    clientId: r.clientId || LEGACY_CLIENT_ID,
     reportType: r.reportType ?? 'workplace',
   };
+}
+
+function migrateClientsAndReports(): void {
+  const reports = readJson<SafetyAuditReport[]>(REPORTS_KEY, []);
+  const hasUnassigned = reports.some((report) => !report.clientId);
+  if (!hasUnassigned) return;
+
+  const clients = readJson<SafetyAuditClient[]>(CLIENTS_KEY, []);
+  if (!clients.some((client) => client.id === LEGACY_CLIENT_ID)) {
+    const timestamp = nowIso();
+    clients.unshift({
+      id: LEGACY_CLIENT_ID,
+      name: 'דוחות קיימים',
+      notes: 'נוצר אוטומטית עבור דוחות שנוצרו לפני הוספת ניהול הלקוחות',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    writeJson(CLIENTS_KEY, clients);
+  }
+  writeJson(
+    REPORTS_KEY,
+    reports.map((report) => normalizeReport(report))
+  );
+}
+
+export async function listClients(): Promise<SafetyAuditClient[]> {
+  migrateClientsAndReports();
+  return readJson<SafetyAuditClient[]>(CLIENTS_KEY, []).sort((a, b) =>
+    a.name.localeCompare(b.name, 'he')
+  );
+}
+
+export async function getClient(id: string): Promise<SafetyAuditClient | null> {
+  migrateClientsAndReports();
+  return readJson<SafetyAuditClient[]>(CLIENTS_KEY, []).find((client) => client.id === id) ?? null;
+}
+
+export async function createClient(
+  partial: Pick<SafetyAuditClient, 'name'> & Partial<SafetyAuditClient>
+): Promise<SafetyAuditClient> {
+  const clients = readJson<SafetyAuditClient[]>(CLIENTS_KEY, []);
+  const timestamp = nowIso();
+  const client: SafetyAuditClient = {
+    id: uid(),
+    name: partial.name.trim(),
+    contactName: partial.contactName?.trim() || undefined,
+    phone: partial.phone?.trim() || undefined,
+    email: partial.email?.trim() || undefined,
+    address: partial.address?.trim() || undefined,
+    notes: partial.notes?.trim() || undefined,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  if (!client.name) throw new Error('יש להזין שם לקוח');
+  clients.push(client);
+  writeJson(CLIENTS_KEY, clients);
+  return client;
+}
+
+export async function updateClient(
+  id: string,
+  partial: Partial<SafetyAuditClient>
+): Promise<SafetyAuditClient> {
+  const clients = readJson<SafetyAuditClient[]>(CLIENTS_KEY, []);
+  const index = clients.findIndex((client) => client.id === id);
+  if (index < 0) throw new Error('לקוח לא נמצא');
+  const updated = { ...clients[index], ...partial, id, updatedAt: nowIso() };
+  clients[index] = updated;
+  writeJson(CLIENTS_KEY, clients);
+  return updated;
+}
+
+export async function deleteClient(id: string): Promise<void> {
+  const reports = await listReportsByClient(id);
+  for (const report of reports) await deleteReport(report.id);
+  const clients = readJson<SafetyAuditClient[]>(CLIENTS_KEY, []);
+  writeJson(CLIENTS_KEY, clients.filter((client) => client.id !== id));
 }
 
 function nextReportNumber(reports: SafetyAuditReport[], type: ReportType): string {
@@ -89,8 +176,13 @@ function nextReportNumber(reports: SafetyAuditReport[], type: ReportType): strin
 }
 
 export async function listReports(): Promise<SafetyAuditReport[]> {
+  migrateClientsAndReports();
   const reports = readJson<SafetyAuditReport[]>(REPORTS_KEY, []).map(normalizeReport);
   return [...reports].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+
+export async function listReportsByClient(clientId: string): Promise<SafetyAuditReport[]> {
+  return (await listReports()).filter((report) => report.clientId === clientId);
 }
 
 export async function getReport(id: string): Promise<SafetyAuditReport | null> {
@@ -105,8 +197,10 @@ export async function createReport(
   const reports = readJson<SafetyAuditReport[]>(REPORTS_KEY, []);
   const createdAt = nowIso();
   const reportType: ReportType = partial.reportType ?? 'workplace';
+  if (!partial.clientId) throw new Error('יש לבחור לקוח לפני יצירת דוח');
   const report: SafetyAuditReport = {
     id: uid(),
+    clientId: partial.clientId,
     reportType,
     reportNumber: partial.reportNumber ?? nextReportNumber(reports, reportType),
     date: partial.date ?? today(),

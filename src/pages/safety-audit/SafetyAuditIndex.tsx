@@ -1,26 +1,32 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { listReports, createReport, deleteReport } from '@/lib/safety-audit-store';
-import type { ReportType, SafetyAuditReport } from '@/types/safety-audit';
-import { reportTypeLabel } from '@/types/safety-audit';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { createClient, deleteClient, listClients, listReports } from '@/lib/safety-audit-store';
+import type { SafetyAuditClient, SafetyAuditReport } from '@/types/safety-audit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PwaInstallCard from '@/components/safety/PwaInstallCard';
 import DataBackupCard from '@/components/safety/DataBackupCard';
+import { Building2, Mail, MapPin, Phone, Plus, Search, Trash2 } from 'lucide-react';
 
 const SafetyAuditIndex = () => {
-  const navigate = useNavigate();
+  const [clients, setClients] = useState<SafetyAuditClient[]>([]);
   const [reports, setReports] = useState<SafetyAuditReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [siteName, setSiteName] = useState('');
-  const [reportType, setReportType] = useState<ReportType>('workplace');
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  const [name, setName] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
   const [creating, setCreating] = useState(false);
 
   const refresh = async () => {
     try {
-      const items = await listReports();
-      setReports(items);
+      const [clientItems, reportItems] = await Promise.all([listClients(), listReports()]);
+      setClients(clientItems);
+      setReports(reportItems);
       setError(null);
     } catch (e: any) {
       setError(e?.message ?? 'שגיאה בטעינת דוחות');
@@ -33,29 +39,49 @@ const SafetyAuditIndex = () => {
     void refresh();
   }, []);
 
-  const onCreate = async () => {
+  const onCreateClient = async () => {
     setCreating(true);
     try {
-      const report = await createReport({
-        reportType,
-        siteName: siteName.trim() || 'אתר ללא שם',
-        projectName: reportType === 'construction' ? siteName.trim() || undefined : undefined,
-        status: 'draft',
+      await createClient({
+        name,
+        contactName,
+        phone,
+        email,
+        address,
       });
-      setSiteName('');
-      navigate(`/safety/editor/${report.id}`);
+      setName('');
+      setContactName('');
+      setPhone('');
+      setEmail('');
+      setAddress('');
+      setShowForm(false);
+      await refresh();
     } catch (e: any) {
-      setError(e?.message ?? 'שגיאה ביצירת דוח');
+      setError(e?.message ?? 'שגיאה ביצירת לקוח');
     } finally {
       setCreating(false);
     }
   };
 
-  const onDelete = async (id: string) => {
-    if (!confirm('למחוק את הדוח?')) return;
-    await deleteReport(id);
+  const onDeleteClient = async (client: SafetyAuditClient) => {
+    const count = reports.filter((report) => report.clientId === client.id).length;
+    if (!confirm(`למחוק את ${client.name}${count ? ` ואת ${count} הדוחות שלו` : ''}?`)) return;
+    await deleteClient(client.id);
     await refresh();
   };
+
+  const reportCount = (clientId: string) =>
+    reports.filter((report) => report.clientId === clientId).length;
+
+  const visibleClients = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase('he');
+    if (!query) return clients;
+    return clients.filter((client) =>
+      [client.name, client.contactName, client.phone, client.email, client.address]
+        .filter(Boolean)
+        .some((value) => value!.toLocaleLowerCase('he').includes(query))
+    );
+  }, [clients, search]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
@@ -63,96 +89,91 @@ const SafetyAuditIndex = () => {
         <header className="space-y-1 pt-2">
           <p className="text-sm text-slate-500">סול בטיחות בע״מ</p>
           <h1 className="text-2xl font-bold text-slate-900">דוחות ביקורת בטיחות</h1>
-          <p className="text-sm text-slate-600">אתרי עבודה ואתרי בנייה · צילום ליקויים · ייצוא PDF</p>
+          <p className="text-sm text-slate-600">בחר לקוח כדי לצפות וליצור את הדוחות שלו</p>
         </header>
 
         <PwaInstallCard />
 
-        <section className="rounded-xl border bg-white p-4 space-y-4 shadow-sm">
-          <h2 className="font-semibold">דוח חדש</h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setReportType('workplace')}
-              className={`rounded-xl border p-4 text-right transition ${
-                reportType === 'workplace'
-                  ? 'border-slate-900 bg-slate-900 text-white'
-                  : 'border-slate-200 bg-slate-50 hover:border-slate-400'
-              }`}
-            >
-              <div className="font-semibold">אתר עבודה</div>
-              <div className={`text-sm mt-1 ${reportType === 'workplace' ? 'text-slate-200' : 'text-slate-500'}`}>
-                צ׳קליסט 10 נושאים · סיכום מנהלים · ליקויים
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setReportType('construction')}
-              className={`rounded-xl border p-4 text-right transition ${
-                reportType === 'construction'
-                  ? 'border-slate-900 bg-slate-900 text-white'
-                  : 'border-slate-200 bg-slate-50 hover:border-slate-400'
-              }`}
-            >
-              <div className="font-semibold">אתר בנייה</div>
-              <div className={`text-sm mt-1 ${reportType === 'construction' ? 'text-slate-200' : 'text-slate-500'}`}>
-                צ׳קליסט 26 סעיפים · פיגומים · עגורן · פירים
-              </div>
-            </button>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input
+              dir="rtl"
+              className="pr-9 bg-white"
+              placeholder="חיפוש לקוח"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
           </div>
-
-          <Input
-            dir="rtl"
-            placeholder={reportType === 'construction' ? 'שם הפרויקט / האתר' : 'שם האתר / כתובת'}
-            value={siteName}
-            onChange={(e) => setSiteName(e.target.value)}
-          />
-          <Button className="w-full sm:w-auto" onClick={onCreate} disabled={creating}>
-            {creating ? 'יוצר…' : `צור דוח ${reportTypeLabel(reportType)}`}
+          <Button onClick={() => setShowForm((value) => !value)} className="gap-1 shrink-0">
+            <Plus className="w-4 h-4" /> לקוח חדש
           </Button>
-        </section>
+        </div>
+
+        {showForm && (
+          <section className="rounded-xl border-2 border-slate-900 bg-white p-4 space-y-3 shadow-sm">
+            <h2 className="font-semibold">הוספת לקוח</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Input dir="rtl" placeholder="שם הלקוח / החברה *" value={name} onChange={(e) => setName(e.target.value)} />
+              <Input dir="rtl" placeholder="איש קשר" value={contactName} onChange={(e) => setContactName(e.target.value)} />
+              <Input dir="rtl" type="tel" placeholder="טלפון" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Input dir="rtl" type="email" placeholder="דוא״ל" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input dir="rtl" className="sm:col-span-2" placeholder="כתובת" value={address} onChange={(e) => setAddress(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={onCreateClient} disabled={creating || !name.trim()}>
+                {creating ? 'שומר…' : 'שמור לקוח'}
+              </Button>
+              <Button variant="ghost" onClick={() => setShowForm(false)}>ביטול</Button>
+            </div>
+          </section>
+        )}
 
         {loading && <div className="text-slate-600">טוען…</div>}
         {error && <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</div>}
 
-        <section className="space-y-2">
-          <h2 className="font-semibold text-slate-800">דוחות שמורים במכשיר</h2>
-          {reports.length === 0 && !loading && (
-            <div className="text-sm text-slate-500">אין דוחות עדיין. בחר סוג דוח וצור חדש למעלה.</div>
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-slate-800">לקוחות</h2>
+            <span className="text-xs text-slate-500">{clients.length} לקוחות</span>
+          </div>
+          {visibleClients.length === 0 && !loading && (
+            <div className="rounded-xl border border-dashed bg-white p-8 text-center">
+              <Building2 className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+              <div className="font-medium">{search ? 'לא נמצאו לקוחות' : 'עדיין אין לקוחות'}</div>
+              <div className="text-sm text-slate-500 mt-1">הוסף לקוח ראשון כדי ליצור עבורו דוחות.</div>
+            </div>
           )}
-          <ul className="space-y-2">
-            {reports.map((r) => (
-              <li key={r.id} className="rounded-xl border bg-white p-4 shadow-sm space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`text-xs rounded-full px-2 py-0.5 ${
-                      r.reportType === 'construction'
-                        ? 'bg-amber-100 text-amber-900'
-                        : 'bg-sky-100 text-sky-900'
-                    }`}
-                  >
-                    {reportTypeLabel(r.reportType)}
-                  </span>
-                  <div className="font-medium text-slate-900">{r.siteName || r.projectName || 'ללא שם'}</div>
-                </div>
-                <div className="text-sm text-slate-500">
-                  {r.reportNumber || '—'} · {r.status === 'final' ? 'סופי' : 'טיוטה'} · {r.date}
-                </div>
-                <div className="flex flex-wrap gap-2 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {visibleClients.map((client) => (
+              <div key={client.id} className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                <Link to={`/safety/client/${client.id}`} className="block p-4 hover:bg-slate-50 transition">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-lg truncate">{client.name}</h3>
+                      {client.contactName && <div className="text-sm text-slate-500">{client.contactName}</div>}
+                    </div>
+                    <span className="rounded-full bg-slate-900 text-white text-xs px-2.5 py-1 shrink-0">
+                      {reportCount(client.id)} דוחות
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1 text-xs text-slate-500">
+                    {client.phone && <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />{client.phone}</div>}
+                    {client.email && <div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{client.email}</div>}
+                    {client.address && <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{client.address}</div>}
+                  </div>
+                </Link>
+                <div className="border-t px-3 py-2 flex justify-between items-center">
                   <Button asChild size="sm">
-                    <Link to={`/safety/editor/${r.id}`}>עריכה</Link>
+                    <Link to={`/safety/client/${client.id}`}>פתח לקוח</Link>
                   </Button>
-                  <Button asChild size="sm" variant="secondary">
-                    <Link to={`/safety/preview/${r.id}`}>תצוגה / PDF</Link>
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => onDelete(r.id)}>
-                    מחק
+                  <Button size="icon" variant="ghost" className="text-slate-400 hover:text-red-600" onClick={() => void onDeleteClient(client)}>
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </section>
 
         <DataBackupCard onImported={() => void refresh()} />

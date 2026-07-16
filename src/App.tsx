@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound.tsx";
 import SafetyAuditIndex from "./pages/safety-audit/SafetyAuditIndex.tsx";
 import SafetyAuditEditor from "./pages/safety-audit/SafetyAuditEditor.tsx";
 import SafetyAuditPreview from "./pages/safety-audit/SafetyAuditPreview.tsx";
+import SafetyClientReports from "./pages/safety-audit/SafetyClientReports.tsx";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/reports/:id" element={<DossierReports />} />
           {/* Safety Audit module */}
           <Route path="/safety" element={<SafetyAuditIndex />} />
+          <Route path="/safety/client/:clientId" element={<SafetyClientReports />} />
           <Route path="/safety/editor/:id" element={<SafetyAuditEditor />} />
           <Route path="/safety/preview/:id" element={<SafetyAuditPreview />} />
           <Route path="*" element={<NotFound />} />

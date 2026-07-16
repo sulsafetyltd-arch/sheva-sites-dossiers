@@ -224,8 +224,8 @@ const SafetyAuditEditor = () => {
       <div className="container mx-auto max-w-3xl p-4 space-y-6 pb-24">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <Link to="/safety" className="text-sm text-slate-500 underline">
-              ← כל הדוחות
+            <Link to={`/safety/client/${report.clientId}`} className="text-sm text-slate-500 underline">
+              ← דוחות הלקוח
             </Link>
             <div className="flex items-center gap-2 mt-1">
               <span
