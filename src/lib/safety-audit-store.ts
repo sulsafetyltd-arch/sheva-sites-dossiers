@@ -202,7 +202,13 @@ export async function listDefectPhotos(defectId: string): Promise<SafetyAuditDef
 }
 
 export async function listReportPhotos(reportId: string): Promise<
-  Array<SafetyAuditDefectPhoto & { defectDescription: string; severity: string }>
+  Array<
+    SafetyAuditDefectPhoto & {
+      defectDescription: string;
+      severity: string;
+      checklistTopicKey?: string;
+    }
+  >
 > {
   const defects = await listDefects(reportId);
   const photos = readJson<SafetyAuditDefectPhoto[]>(PHOTOS_KEY, []);
@@ -215,6 +221,7 @@ export async function listReportPhotos(reportId: string): Promise<
         ...p,
         defectDescription: d.description,
         severity: d.severity,
+        checklistTopicKey: d.checklistTopicKey,
       };
     });
 }

@@ -41,6 +41,8 @@ export interface SafetyAuditReport {
   status: ReportStatus;
   siteManagerSignatureUrl?: string;
   auditorSignatureUrl?: string;
+  siteManagerSignedAt?: string;
+  auditorSignedAt?: string;
   checklist?: Record<string, ChecklistItemState>;
   createdAt: string;
   updatedAt: string;

@@ -22,6 +22,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import SignaturePad from '@/components/dossier/SignaturePad';
+import { PenLine } from 'lucide-react';
 
 const SafetyAuditEditor = () => {
   const { id } = useParams();
@@ -100,6 +102,10 @@ const SafetyAuditEditor = () => {
         executiveSummary: report.executiveSummary,
         checklist: report.checklist,
         auditDate: report.auditDate,
+        siteManagerSignatureUrl: report.siteManagerSignatureUrl,
+        auditorSignatureUrl: report.auditorSignatureUrl,
+        siteManagerSignedAt: report.siteManagerSignedAt,
+        auditorSignedAt: report.auditorSignedAt,
       });
       setReport(saved);
       setMessage('נשמר');
@@ -116,9 +122,7 @@ const SafetyAuditEditor = () => {
       const topic = topics.find((t) => t.key === topicKey);
       const d = await createDefect(id, {
         checklistTopicKey: topicKey,
-        description:
-          description ||
-          (topic ? `ליקוי ב: ${topic.title}` : 'תיאור ליקוי חדש'),
+        description: description || (topic ? `ליקוי ב: ${topic.title}` : 'תיאור ליקוי חדש'),
         severity: 'medium',
         responsible: topic?.defaultResponsible,
         correctiveAction: topic?.defaultFindings,
@@ -167,6 +171,29 @@ const SafetyAuditEditor = () => {
     }
   };
 
+  const onSiteManagerSign = async (dataUrl: string | null) => {
+    if (!report || !id) return;
+    const patch = {
+      siteManagerSignatureUrl: dataUrl || undefined,
+      siteManagerSignedAt: dataUrl ? new Date().toISOString() : undefined,
+      siteManager: report.siteManager,
+    };
+    setReport({ ...report, ...patch });
+    await updateReport(id, patch);
+    setMessage(dataUrl ? 'חתימת מנהל העבודה נשמרה' : 'החתימה נמחקה');
+  };
+
+  const onAuditorSign = async (dataUrl: string | null) => {
+    if (!report || !id) return;
+    const patch = {
+      auditorSignatureUrl: dataUrl || undefined,
+      auditorSignedAt: dataUrl ? new Date().toISOString() : undefined,
+    };
+    setReport({ ...report, ...patch });
+    await updateReport(id, patch);
+    setMessage(dataUrl ? 'חתימת ממונה הבטיחות נשמרה' : 'החתימה נמחקה');
+  };
+
   if (loading) return <div className="p-4" dir="rtl">טוען…</div>;
   if (error && !report) return <div className="p-4 text-red-600" dir="rtl">{error}</div>;
   if (!report) return <div className="p-4" dir="rtl">לא נמצא דוח</div>;
@@ -208,10 +235,7 @@ const SafetyAuditEditor = () => {
           <section className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
             <h2 className="text-lg font-semibold">1. סיכום מנהלים</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Select
-                value={report.riskLevel || ''}
-                onValueChange={(v) => setReport({ ...report, riskLevel: v as any })}
-              >
+              <Select value={report.riskLevel || ''} onValueChange={(v) => setReport({ ...report, riskLevel: v as any })}>
                 <SelectTrigger>
                   <SelectValue placeholder="דירוג סיכון כולל" />
                 </SelectTrigger>
@@ -248,42 +272,20 @@ const SafetyAuditEditor = () => {
             {isConstruction ? 'פרטי הביקורת באתר הבנייה' : '2. פרטי הביקורת'}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Input
-              dir="rtl"
-              placeholder="לכבוד"
-              value={report.recipient || ''}
-              onChange={(e) => setReport({ ...report, recipient: e.target.value })}
-            />
+            <Input dir="rtl" placeholder="לכבוד" value={report.recipient || ''} onChange={(e) => setReport({ ...report, recipient: e.target.value })} />
             {isConstruction ? (
               <>
                 <Input
                   dir="rtl"
                   placeholder="פרויקט / אתר"
                   value={report.projectName || report.siteName || ''}
-                  onChange={(e) =>
-                    setReport({ ...report, projectName: e.target.value, siteName: e.target.value })
-                  }
+                  onChange={(e) => setReport({ ...report, projectName: e.target.value, siteName: e.target.value })}
                 />
-                <Input
-                  dir="rtl"
-                  placeholder="גוש"
-                  value={report.block || ''}
-                  onChange={(e) => setReport({ ...report, block: e.target.value })}
-                />
-                <Input
-                  dir="rtl"
-                  placeholder="מגרש"
-                  value={report.parcel || ''}
-                  onChange={(e) => setReport({ ...report, parcel: e.target.value })}
-                />
+                <Input dir="rtl" placeholder="גוש" value={report.block || ''} onChange={(e) => setReport({ ...report, block: e.target.value })} />
+                <Input dir="rtl" placeholder="מגרש" value={report.parcel || ''} onChange={(e) => setReport({ ...report, parcel: e.target.value })} />
               </>
             ) : (
-              <Input
-                dir="rtl"
-                placeholder="שם האתר / כתובת"
-                value={report.siteName || ''}
-                onChange={(e) => setReport({ ...report, siteName: e.target.value })}
-              />
+              <Input dir="rtl" placeholder="שם האתר / כתובת" value={report.siteName || ''} onChange={(e) => setReport({ ...report, siteName: e.target.value })} />
             )}
             <Input
               dir="rtl"
@@ -296,142 +298,64 @@ const SafetyAuditEditor = () => {
               }
             />
             {isConstruction && (
-              <Input
-                dir="rtl"
-                placeholder="תפקיד המבצע"
-                value={report.auditorRole || ''}
-                onChange={(e) => setReport({ ...report, auditorRole: e.target.value })}
-              />
+              <Input dir="rtl" placeholder="תפקיד המבצע" value={report.auditorRole || ''} onChange={(e) => setReport({ ...report, auditorRole: e.target.value })} />
             )}
-            <Input
-              dir="rtl"
-              type="date"
-              value={report.auditDate || ''}
-              onChange={(e) => setReport({ ...report, auditDate: e.target.value })}
-            />
+            <Input dir="rtl" type="date" value={report.auditDate || ''} onChange={(e) => setReport({ ...report, auditDate: e.target.value })} />
             {!isConstruction && (
-              <Input
-                dir="rtl"
-                placeholder="עורך הביקורת"
-                value={report.auditor || ''}
-                onChange={(e) => setReport({ ...report, auditor: e.target.value })}
-              />
+              <Input dir="rtl" placeholder="עורך הביקורת" value={report.auditor || ''} onChange={(e) => setReport({ ...report, auditor: e.target.value })} />
             )}
-            <Input
-              dir="rtl"
-              placeholder="מנהל עבודה באתר"
-              value={report.siteManager || ''}
-              onChange={(e) => setReport({ ...report, siteManager: e.target.value })}
-            />
+            <Input dir="rtl" placeholder="מנהל עבודה באתר" value={report.siteManager || ''} onChange={(e) => setReport({ ...report, siteManager: e.target.value })} />
             <Input
               dir="rtl"
               type="number"
               placeholder={isConstruction ? 'מספר פועלים (כולל קבלני משנה)' : 'מספר עובדים בשטח'}
               value={report.workersCount ?? ''}
-              onChange={(e) =>
-                setReport({
-                  ...report,
-                  workersCount: e.target.value === '' ? undefined : Number(e.target.value),
-                })
-              }
+              onChange={(e) => setReport({ ...report, workersCount: e.target.value === '' ? undefined : Number(e.target.value) })}
             />
             {!isConstruction && (
               <>
-                <Input
-                  dir="rtl"
-                  placeholder="נוכחים בביקורת"
-                  value={report.attendees || ''}
-                  onChange={(e) => setReport({ ...report, attendees: e.target.value })}
-                />
-                <Input
-                  dir="rtl"
-                  placeholder="שעות העבודה באתר"
-                  value={report.workHours || ''}
-                  onChange={(e) => setReport({ ...report, workHours: e.target.value })}
-                />
-                <Input
-                  dir="rtl"
-                  placeholder="שלב עבודה"
-                  value={report.workStage || ''}
-                  onChange={(e) => setReport({ ...report, workStage: e.target.value })}
-                />
+                <Input dir="rtl" placeholder="נוכחים בביקורת" value={report.attendees || ''} onChange={(e) => setReport({ ...report, attendees: e.target.value })} />
+                <Input dir="rtl" placeholder="שעות העבודה באתר" value={report.workHours || ''} onChange={(e) => setReport({ ...report, workHours: e.target.value })} />
+                <Input dir="rtl" placeholder="שלב עבודה" value={report.workStage || ''} onChange={(e) => setReport({ ...report, workStage: e.target.value })} />
               </>
             )}
           </div>
           {isConstruction && (
-            <Textarea
-              dir="rtl"
-              placeholder="שלבי עבודה"
-              value={report.workStagesDetail || ''}
-              onChange={(e) => setReport({ ...report, workStagesDetail: e.target.value })}
-            />
+            <Textarea dir="rtl" placeholder="שלבי עבודה" value={report.workStagesDetail || ''} onChange={(e) => setReport({ ...report, workStagesDetail: e.target.value })} />
           )}
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">
-            {isConstruction ? 'ממצאי הביקורת' : '3. רשימת בדיקה'}
-          </h2>
+          <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : '3. רשימת בדיקה'}</h2>
           {topics.map((t, idx) => {
             const current = report.checklist?.[t.key] ?? { status: 'na' as ChecklistStatus };
             return (
               <div key={t.key} className="rounded-xl border bg-white p-4 space-y-2 shadow-sm">
                 <div className="flex flex-wrap items-baseline gap-2">
                   <span className="text-xs text-slate-400">{idx + 1}.</span>
-                  {t.chapter && (
-                    <span className="text-xs rounded bg-slate-100 px-2 py-0.5 text-slate-600">
-                      {t.chapter}
-                    </span>
-                  )}
+                  {t.chapter && <span className="text-xs rounded bg-slate-100 px-2 py-0.5 text-slate-600">{t.chapter}</span>}
                   <div className="font-medium">{t.title}</div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant={current.status === 'ok' ? 'default' : 'secondary'}
-                    onClick={() => setChecklist(t.key, { status: 'ok' })}
-                  >
+                  <Button size="sm" variant={current.status === 'ok' ? 'default' : 'secondary'} onClick={() => setChecklist(t.key, { status: 'ok' })}>
                     תקין
                   </Button>
-                  <Button
-                    size="sm"
-                    variant={current.status === 'not_ok' ? 'destructive' : 'secondary'}
-                    onClick={() => void markNotOk(t.key)}
-                  >
+                  <Button size="sm" variant={current.status === 'not_ok' ? 'destructive' : 'secondary'} onClick={() => void markNotOk(t.key)}>
                     לא תקין
                   </Button>
                   {!isConstruction && (
-                    <Button
-                      size="sm"
-                      variant={current.status === 'na' ? 'default' : 'secondary'}
-                      onClick={() => setChecklist(t.key, { status: 'na' })}
-                    >
+                    <Button size="sm" variant={current.status === 'na' ? 'default' : 'secondary'} onClick={() => setChecklist(t.key, { status: 'na' })}>
                       לא רלוונטי
                     </Button>
                   )}
                 </div>
                 {isConstruction && (
                   <>
-                    <Textarea
-                      dir="rtl"
-                      placeholder="ממצאים והמלצות לביצוע"
-                      value={current.findings ?? ''}
-                      onChange={(e) => setChecklist(t.key, { findings: e.target.value })}
-                    />
-                    <Input
-                      dir="rtl"
-                      placeholder="אחראי ליישום המלצה"
-                      value={current.responsible ?? ''}
-                      onChange={(e) => setChecklist(t.key, { responsible: e.target.value })}
-                    />
+                    <Textarea dir="rtl" placeholder="ממצאים והמלצות לביצוע" value={current.findings ?? ''} onChange={(e) => setChecklist(t.key, { findings: e.target.value })} />
+                    <Input dir="rtl" placeholder="אחראי ליישום המלצה" value={current.responsible ?? ''} onChange={(e) => setChecklist(t.key, { responsible: e.target.value })} />
                   </>
                 )}
-                <Textarea
-                  dir="rtl"
-                  placeholder="הערות"
-                  value={current.notes ?? ''}
-                  onChange={(e) => setChecklist(t.key, { notes: e.target.value })}
-                />
+                <Textarea dir="rtl" placeholder="הערות" value={current.notes ?? ''} onChange={(e) => setChecklist(t.key, { notes: e.target.value })} />
               </div>
             );
           })}
@@ -439,9 +363,7 @@ const SafetyAuditEditor = () => {
 
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">
-              {isConstruction ? 'ליקויים ותיעוד צילומי' : '4. ליקויים ופעולות מתקנות'}
-            </h2>
+            <h2 className="text-lg font-semibold">{isConstruction ? 'ליקויים ותיעוד צילומי' : '4. ליקויים ופעולות מתקנות'}</h2>
             <Button size="sm" onClick={() => addDefect()}>
               הוסף ליקוי
             </Button>
@@ -449,11 +371,7 @@ const SafetyAuditEditor = () => {
           {defects.map((d, idx) => (
             <div key={d.id} className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
               <div className="text-sm text-slate-500">ליקוי #{idx + 1}</div>
-              <Textarea
-                dir="rtl"
-                value={d.description}
-                onChange={(e) => changeDefect(d, 'description', e.target.value)}
-              />
+              <Textarea dir="rtl" value={d.description} onChange={(e) => changeDefect(d, 'description', e.target.value)} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <Select value={d.severity} onValueChange={(v) => changeDefect(d, 'severity', v)}>
                   <SelectTrigger>
@@ -465,26 +383,10 @@ const SafetyAuditEditor = () => {
                     <SelectItem value="low">נמוכה</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input
-                  dir="rtl"
-                  type="date"
-                  value={d.dueDate || ''}
-                  onChange={(e) => changeDefect(d, 'dueDate', e.target.value)}
-                />
-                <Input
-                  dir="rtl"
-                  placeholder="פעולה מתקנת / המלצה"
-                  value={d.correctiveAction || ''}
-                  onChange={(e) => changeDefect(d, 'correctiveAction', e.target.value)}
-                />
-                <Input
-                  dir="rtl"
-                  placeholder="אחראי לביצוע"
-                  value={d.responsible || ''}
-                  onChange={(e) => changeDefect(d, 'responsible', e.target.value)}
-                />
+                <Input dir="rtl" type="date" value={d.dueDate || ''} onChange={(e) => changeDefect(d, 'dueDate', e.target.value)} />
+                <Input dir="rtl" placeholder="פעולה מתקנת / המלצה" value={d.correctiveAction || ''} onChange={(e) => changeDefect(d, 'correctiveAction', e.target.value)} />
+                <Input dir="rtl" placeholder="אחראי לביצוע" value={d.responsible || ''} onChange={(e) => changeDefect(d, 'responsible', e.target.value)} />
               </div>
-
               <div className="space-y-2">
                 <div className="text-sm font-medium">צילומי ליקוי</div>
                 <Input
@@ -498,28 +400,40 @@ const SafetyAuditEditor = () => {
                 />
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {(photosByDefect[d.id] ?? []).map((p) => (
-                    <figure key={p.id} className="space-y-1">
-                      <img
-                        src={getPublicUrl(p.storagePath)}
-                        alt={p.caption || d.description}
-                        className="h-28 w-full object-cover rounded-lg border"
-                      />
-                    </figure>
+                    <img key={p.id} src={getPublicUrl(p.storagePath)} alt={d.description} className="h-28 w-full object-cover rounded-lg border" />
                   ))}
                 </div>
               </div>
-
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  deleteDefect(d.id).then(() => setDefects((prev) => prev.filter((x) => x.id !== d.id)))
-                }
-              >
+              <Button size="sm" variant="ghost" onClick={() => deleteDefect(d.id).then(() => setDefects((prev) => prev.filter((x) => x.id !== d.id)))}>
                 מחק ליקוי
               </Button>
             </div>
           ))}
+        </section>
+
+        <section className="rounded-xl border bg-white p-4 space-y-4 shadow-sm">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <PenLine className="w-5 h-5" />
+            חתימות דיגיטליות
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <div className="font-medium">חתימת מנהל עבודה</div>
+              <Input dir="rtl" placeholder="שם מנהל העבודה" value={report.siteManager || ''} onChange={(e) => setReport({ ...report, siteManager: e.target.value })} />
+              <SignaturePad value={report.siteManagerSignatureUrl} onChange={(url) => void onSiteManagerSign(url)} width={340} height={140} />
+              {report.siteManagerSignedAt && (
+                <div className="text-xs text-slate-500">נחתם: {new Date(report.siteManagerSignedAt).toLocaleString('he-IL')}</div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="font-medium">חתימת ממונה בטיחות</div>
+              <Input dir="rtl" placeholder="שם ממונה הבטיחות" value={report.auditor || ''} onChange={(e) => setReport({ ...report, auditor: e.target.value })} />
+              <SignaturePad value={report.auditorSignatureUrl} onChange={(url) => void onAuditorSign(url)} width={340} height={140} />
+              {report.auditorSignedAt && (
+                <div className="text-xs text-slate-500">נחתם: {new Date(report.auditorSignedAt).toLocaleString('he-IL')}</div>
+              )}
+            </div>
+          </div>
         </section>
 
         <div className="fixed bottom-0 inset-x-0 border-t bg-white/95 backdrop-blur p-3 flex gap-2 justify-center sm:static sm:border-0 sm:bg-transparent sm:p-0">
