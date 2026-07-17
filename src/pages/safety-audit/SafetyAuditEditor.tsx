@@ -18,7 +18,11 @@ import type {
   SafetyAuditDefectPhoto,
   SafetyAuditReport,
 } from '@/types/safety-audit';
-import { getChecklistTopics, reportTypeLabel } from '@/types/safety-audit';
+import {
+  CORRECTIVE_ACTION_SUGGESTIONS,
+  getChecklistTopics,
+  reportTypeLabel,
+} from '@/types/safety-audit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -223,6 +227,19 @@ const SafetyAuditEditor = () => {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'שגיאה בעדכון ליקוי');
     }
+  };
+
+  const addCorrectiveAction = (defect: SafetyAuditDefect, action: string) => {
+    if (!action) return;
+    const currentActions = (defect.correctiveAction || '')
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const nextValue = currentActions.includes(action)
+      ? currentActions.join('\n')
+      : [...currentActions, action].join('\n');
+    changeDefectLocal(defect, 'correctiveAction', nextValue);
+    void persistDefect(defect, 'correctiveAction', nextValue);
   };
 
   const onUploadPhoto = async (defectId: string, file?: File | null) => {
@@ -610,13 +627,28 @@ const SafetyAuditEditor = () => {
                   onChange={(e) => changeDefectLocal(d, 'dueDate', e.target.value)}
                   onBlur={(e) => void persistDefect(d, 'dueDate', e.target.value)}
                 />
-                <Input
-                  dir="rtl"
-                  placeholder="פעולה מתקנת / המלצה"
-                  value={d.correctiveAction || ''}
-                  onChange={(e) => changeDefectLocal(d, 'correctiveAction', e.target.value)}
-                  onBlur={(e) => void persistDefect(d, 'correctiveAction', e.target.value)}
-                />
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium">פעולה מתקנת / המלצה</label>
+                  <select
+                    dir="rtl"
+                    value=""
+                    onChange={(event) => addCorrectiveAction(d, event.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    aria-label="בחירת פעולה מתקנת מוצעת"
+                  >
+                    <option value="">בחר פעולה מוכנה להוספה…</option>
+                    {CORRECTIVE_ACTION_SUGGESTIONS.map((action) => (
+                      <option key={action} value={action}>{action}</option>
+                    ))}
+                  </select>
+                  <Textarea
+                    dir="rtl"
+                    placeholder="ניתן לבחור פעולות מהרשימה ולערוך או להוסיף טקסט חופשי"
+                    value={d.correctiveAction || ''}
+                    onChange={(event) => changeDefectLocal(d, 'correctiveAction', event.target.value)}
+                    onBlur={(event) => void persistDefect(d, 'correctiveAction', event.target.value)}
+                  />
+                </div>
                 <Input
                   dir="rtl"
                   placeholder="אחראי לביצוע"

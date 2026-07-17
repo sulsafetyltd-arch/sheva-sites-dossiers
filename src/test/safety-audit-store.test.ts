@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { mapSafetyReportRow } from '@/lib/safety-audit-store';
-import { getChecklistTopics, reportTypeLabel } from '@/types/safety-audit';
+import {
+  CORRECTIVE_ACTION_SUGGESTIONS,
+  getChecklistTopics,
+  reportTypeLabel,
+} from '@/types/safety-audit';
 
 describe('safety report database mapping', () => {
   it('preserves issuer stamp, signature and professional details', () => {
@@ -58,5 +62,11 @@ describe('safety report database mapping', () => {
     expect(report.reportType).toBe('infrastructure');
     expect(reportTypeLabel(report.reportType)).toBe('אתר תשתיות');
     expect(getChecklistTopics(report.reportType)).toHaveLength(48);
+  });
+
+  it('offers editable corrective action suggestions for common hazards', () => {
+    expect(CORRECTIVE_ACTION_SUGGESTIONS.length).toBeGreaterThanOrEqual(10);
+    expect(CORRECTIVE_ACTION_SUGGESTIONS.some((action) => action.includes('בודק מוסמך'))).toBe(true);
+    expect(CORRECTIVE_ACTION_SUGGESTIONS.some((action) => action.includes('ציוד מגן אישי'))).toBe(true);
   });
 });
