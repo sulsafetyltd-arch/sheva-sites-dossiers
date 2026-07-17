@@ -103,7 +103,7 @@ test('authorized auditor completes checklist and creates one defect', async ({ p
     const path = url.pathname;
 
     if (path === '/auth/v1/user') return json(route, user);
-    if (path === '/auth/v1/.well-known/jwks.json') return json(route, { keys: [publicJwk] });
+    if (path.endsWith('/.well-known/jwks.json')) return json(route, { keys: [publicJwk] });
     if (path === '/rest/v1/profiles') return json(route, profile);
     if (path === '/rest/v1/safety_audit_reports' && request.method() === 'GET') {
       return json(route, report);
