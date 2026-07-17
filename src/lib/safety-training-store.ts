@@ -15,6 +15,10 @@ function fail(error: { message?: string } | null): void {
 const text = (value: unknown) => (typeof value === 'string' && value ? value : undefined);
 
 function mapSession(row: Row): SafetyTrainingSession {
+  const formDetails =
+    row.form_details && typeof row.form_details === 'object'
+      ? row.form_details as SafetyTrainingSession['formDetails']
+      : undefined;
   return {
     id: String(row.id),
     clientId: String(row.client_id),
@@ -33,12 +37,17 @@ function mapSession(row: Row): SafetyTrainingSession {
     instructorLicenseNumber: text(row.instructor_license_number),
     instructorSignatureDataUrl: text(row.instructor_signature_data_url),
     instructorSignedAt: text(row.instructor_signed_at),
+    formDetails,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
 }
 
 function mapParticipant(row: Row): SafetyTrainingParticipant {
+  const personalDetails =
+    row.personal_details && typeof row.personal_details === 'object'
+      ? row.personal_details as Partial<SafetyTrainingParticipant>
+      : {};
   return {
     id: String(row.id),
     sessionId: String(row.session_id),
@@ -47,6 +56,11 @@ function mapParticipant(row: Row): SafetyTrainingParticipant {
     employeeIdNumber: text(row.employee_id_number),
     employer: text(row.employer),
     jobTitle: text(row.job_title),
+    firstName: text(personalDetails.firstName),
+    lastName: text(personalDetails.lastName),
+    fatherName: text(personalDetails.fatherName),
+    birthYear: typeof personalDetails.birthYear === 'number' ? personalDetails.birthYear : undefined,
+    address: text(personalDetails.address),
     signatureStoragePath: text(row.signature_storage_path),
     signedAt: text(row.signed_at),
     remarks: text(row.remarks),
@@ -138,6 +152,7 @@ export async function updateTrainingSession(
     instructorLicenseNumber: 'instructor_license_number',
     instructorSignatureDataUrl: 'instructor_signature_data_url',
     instructorSignedAt: 'instructor_signed_at',
+    formDetails: 'form_details',
   };
   for (const [key, column] of Object.entries(names)) {
     if (key in patch) fields[column] = patch[key as keyof SafetyTrainingSession] ?? null;
@@ -196,6 +211,15 @@ export async function updateTrainingParticipant(
   };
   for (const [key, column] of Object.entries(names)) {
     if (key in patch) fields[column] = patch[key as keyof SafetyTrainingParticipant] ?? null;
+  }
+  if (['firstName', 'lastName', 'fatherName', 'birthYear', 'address'].some((key) => key in patch)) {
+    fields.personal_details = {
+      firstName: patch.firstName,
+      lastName: patch.lastName,
+      fatherName: patch.fatherName,
+      birthYear: patch.birthYear,
+      address: patch.address,
+    };
   }
   const { data, error } = await supabase
     .from('safety_training_participants')

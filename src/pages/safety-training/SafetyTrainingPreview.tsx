@@ -11,7 +11,12 @@ import {
 import { createPdfBlob, downloadPdfBlob, exportToPdf } from '@/lib/pdf-export';
 import type { SafetyAuditClient } from '@/types/safety-audit';
 import type { SafetyTrainingParticipant, SafetyTrainingSession } from '@/types/safety-training';
-import { TRAINING_CATEGORY_DETAILS, trainingCategoryLabel } from '@/types/safety-training';
+import {
+  HEIGHT_TRAINING_PROGRAM,
+  HEIGHT_TRAINING_TOPICS,
+  TRAINING_CATEGORY_DETAILS,
+  trainingCategoryLabel,
+} from '@/types/safety-training';
 
 export default function SafetyTrainingPreview() {
   const { id } = useParams();
@@ -101,6 +106,8 @@ export default function SafetyTrainingPreview() {
 
   if (!session) return <div dir="rtl" className="p-6">{error || 'טוען…'}</div>;
   const details = TRAINING_CATEGORY_DETAILS[session.category];
+  const heightDetails = session.formDetails ?? {};
+  const selectedHeightTopics = heightDetails.selectedTopics ?? [...HEIGHT_TRAINING_TOPICS];
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#e8edf2]">
@@ -148,9 +155,16 @@ export default function SafetyTrainingPreview() {
               <div>
                 <div className="text-xs tracking-[0.2em] text-slate-300">סול בטיחות בע״מ</div>
                 <h2 className="text-2xl font-bold mt-1">
-                  {isCertificate ? 'אישור השתתפות בהדרכת עבודה בגובה' : trainingCategoryLabel(session.category)}
+                  {isCertificate
+                    ? 'אישור על הדרכת עובד לביצוע עבודה בגובה'
+                    : session.category === 'work_at_height'
+                      ? 'רשימת עובדים שהודרכו בקורס עבודה בגובה כללי'
+                      : trainingCategoryLabel(session.category)}
                 </h2>
-                <div className="text-sm text-slate-200 mt-2">{client?.name} · {session.location || 'ללא מיקום'}</div>
+                <div className="text-sm text-slate-200 mt-2">
+                  {isCertificate ? 'לפי תקנה 5(2)' : session.category === 'work_at_height' ? 'עיוני + מעשי · בהתאם לתקנות הבטיחות בעבודה (עבודה בגובה), התשס״ז–2007' : ''}
+                </div>
+                <div className="text-sm text-slate-200 mt-1">{client?.name} · {session.location || 'ללא מיקום'}</div>
               </div>
               <div className="text-left text-sm bg-white/10 rounded-lg px-4 py-3">
                 <div>{session.sessionNumber}</div>
@@ -159,35 +173,76 @@ export default function SafetyTrainingPreview() {
             </header>
 
             {isCertificate && selectedParticipant ? (
-              <div className="px-12 py-12 space-y-8 text-center">
-                <div className="text-lg">הרינו לאשר כי</div>
-                <div>
-                  <div className="text-3xl font-bold text-[#0f2744]">{selectedParticipant.employeeName}</div>
-                  <div className="mt-2 text-slate-600">ת.ז. / דרכון: {selectedParticipant.employeeIdNumber || '____________'}</div>
-                </div>
-                <p className="text-lg leading-loose">
-                  השתתף/ה בהדרכת בטיחות בנושא עבודה בגובה בתאריך {session.trainingDate},
-                  בהיקף של {session.durationHours || '___'} שעות ובשפה {session.language || 'עברית'}.
-                </p>
-                <div className="rounded-xl bg-slate-50 border p-5 text-right">
-                  <h3 className="font-bold mb-2">נושאי ההדרכה</h3>
-                  <ul className="list-disc pr-5 space-y-1">{details.content.map((item) => <li key={item}>{item}</li>)}</ul>
-                </div>
-                <div className="grid grid-cols-2 gap-12 pt-8 text-sm">
-                  <div className="border-t pt-2">
-                    {selectedParticipant.signatureStoragePath && (
-                      <img src={signatureUrls[selectedParticipant.signatureStoragePath]} alt="חתימת העובד" className="h-16 mx-auto object-contain" />
-                    )}
-                    חתימת המשתתף/ת
+              <div className="px-10 py-7 space-y-4 text-[12px] leading-relaxed">
+                <div className="text-left font-semibold">מס׳ אישור: {session.sessionNumber}-{participants.indexOf(selectedParticipant) + 1}</div>
+                <section className="rounded-lg border p-3">
+                  <h3 className="font-bold text-[#0f2744]">(א) המבצע</h3>
+                  <div>תופש המפעל / מבצע הבנייה / בעל מכונת הרמה / אחר</div>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    <div>שם החברה: {heightDetails.companyName || client?.name || '____________'}</div>
+                    <div>ח.פ.: {heightDetails.companyRegistrationNumber || '____________'}</div>
+                    <div>כתובת: {heightDetails.companyAddress || '____________'}</div>
+                    <div>מיקוד: {heightDetails.companyPostalCode || '____________'} · טלפון: {heightDetails.companyPhone || '____________'}</div>
                   </div>
-                  <div className="border-t pt-2">
-                    {session.instructorSignatureDataUrl && <img src={session.instructorSignatureDataUrl} alt="חתימת המדריך" className="h-16 mx-auto object-contain" />}
-                    {session.instructorName || 'שם המדריך'} · {session.instructorLicenseNumber || 'מס׳ הסמכה'}
+                </section>
+                <section className="rounded-lg border p-3">
+                  <h3 className="font-bold text-[#0f2744]">(ב) פרטי מדריך העבודה בגובה</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>שם ומשפחה: {session.instructorName || '____________'}</div>
+                    <div>ת.ז.: {heightDetails.instructorIdNumber || '____________'}</div>
+                    <div>ותק וניסיון: {heightDetails.instructorExperienceYears ?? '___'} שנים</div>
+                    <div>הסמכה בתוקף עד: {heightDetails.instructorAuthorizationExpiry || '____________'}</div>
+                    <div>כתובת: {heightDetails.instructorAddress || '____________'}</div>
+                    <div>טלפון: {session.instructorPhone || '____________'} · דוא״ל: {heightDetails.instructorEmail || '____________'}</div>
                   </div>
-                </div>
-                <p className="text-[10px] text-slate-500 pt-8">
-                  אישור זה מתעד השתתפות בהדרכה. תוקפו המקצועי כפוף להסמכת המדריך, לתחומי ההדרכה ולדרישות הדין.
-                </p>
+                </section>
+                <section className="rounded-lg border p-3">
+                  <h3 className="font-bold text-[#0f2744]">(ג) פרטי העובד שהודרך לביצוע עבודה בגובה</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>שם משפחה: {selectedParticipant.lastName || '____________'}</div>
+                    <div>שם פרטי: {selectedParticipant.firstName || '____________'}</div>
+                    <div>שם האב: {selectedParticipant.fatherName || '____________'}</div>
+                    <div>ת.ז.: {selectedParticipant.employeeIdNumber || '____________'}</div>
+                    <div>שנת לידה: {selectedParticipant.birthYear || '____________'}</div>
+                    <div>מקצוע: {selectedParticipant.jobTitle || '____________'}</div>
+                    <div className="col-span-2">כתובת: {selectedParticipant.address || '____________'}</div>
+                  </div>
+                </section>
+                <section className="rounded-lg border p-3">
+                  <h3 className="font-bold text-[#0f2744]">(ד) תוקף האישור</h3>
+                  <div>האישור בתוקף מיום {heightDetails.validFrom || '____________'} עד יום {heightDetails.validUntil || '____________'}</div>
+                  <div className="text-[10px]">ההכשרה היא על הנושאים המסומנים בלבד.</div>
+                </section>
+                <section className="rounded-lg border p-3">
+                  <h3 className="font-bold text-[#0f2744]">(ה) הצהרת המדריך</h3>
+                  <p>
+                    אני החתום מטה מצהיר כי העובד שפרטיו מפורטים לעיל הודרך על ידי לשמש כאדם העובד בגובה
+                    בתחומים המסומנים, וכי הוא עומד בדרישות הפרקים ב׳ ו־ג׳ לתקנות הבטיחות בעבודה
+                    (עבודה בגובה), התשס״ז–2007.
+                  </p>
+                  <div className="grid grid-cols-2 gap-1 mt-1">
+                    {HEIGHT_TRAINING_TOPICS.map((topic) => <div key={topic}>{selectedHeightTopics.includes(topic) ? '☑' : '☐'} {topic}</div>)}
+                  </div>
+                  {heightDetails.translatorLanguage && <div className="mt-1">ההדרכה תורגמה לשפה {heightDetails.translatorLanguage} על ידי {heightDetails.translatorName || '____________'}.</div>}
+                  <div className="mt-1">האישור תקף רק לעבודה במסגרת {heightDetails.certificateScope || '____________'} בלבד.</div>
+                </section>
+                <section className="rounded-lg border p-3">
+                  <h3 className="font-bold text-[#0f2744]">(ו) הצהרת העובד בגובה</h3>
+                  <p>
+                    אני מצהיר כי הנתונים האישיים לעיל נכונים, כי הודרכתי לבצע עבודה בגובה כנדרש בתקנה 5(2),
+                    ההסבר ניתן בשפה מתאימה וברורה והובן על ידי, וכי אצטייד בציוד מגן אישי לפני תחילת העבודה בגובה.
+                  </p>
+                  <div className="grid grid-cols-2 gap-12 pt-3 text-center">
+                    <div className="border-t pt-1">
+                      {selectedParticipant.signatureStoragePath && <img src={signatureUrls[selectedParticipant.signatureStoragePath]} alt="חתימת העובד" className="h-12 mx-auto object-contain" />}
+                      {selectedParticipant.employeeName} · חתימת העובד
+                    </div>
+                    <div className="border-t pt-1">
+                      {session.instructorSignatureDataUrl && <img src={session.instructorSignatureDataUrl} alt="חתימת המדריך" className="h-12 mx-auto object-contain" />}
+                      {session.instructorName || 'שם המדריך'} · מדריך מוסמך לעבודה בגובה
+                    </div>
+                  </div>
+                </section>
               </div>
             ) : (
               <div className="px-8 py-6 space-y-6">
@@ -196,26 +251,43 @@ export default function SafetyTrainingPreview() {
                   <div><span className="text-slate-500">מדריך:</span> {session.instructorName || '—'}</div>
                   <div><span className="text-slate-500">משך:</span> {session.durationHours || '—'} שעות</div>
                   <div><span className="text-slate-500">שפה:</span> {session.language || '—'}</div>
+                  {session.category === 'work_at_height' && <div><span className="text-slate-500">מנהל המפעל / הפרויקט:</span> {heightDetails.managerName || '—'}</div>}
                 </section>
                 <section>
                   <h3 className="font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">תוכן ההדרכה</h3>
-                  <ul className="list-disc pr-5 text-sm space-y-1">{details.content.map((item) => <li key={item}>{item}</li>)}</ul>
+                  <ul className="list-disc pr-5 text-sm space-y-1">
+                    {(session.category === 'work_at_height' ? selectedHeightTopics : details.content).map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                  {session.category === 'work_at_height' && (
+                    <>
+                      <h4 className="font-semibold mt-3">תוכנית ומטרות ההדרכה</h4>
+                      <ul className="list-disc pr-5 text-sm space-y-1">
+                        {HEIGHT_TRAINING_PROGRAM.map((item) => <li key={item}>{item}</li>)}
+                      </ul>
+                      <p className="text-[10px] text-slate-500 mt-2">
+                        ההדרכה מיועדת לעובד בגיר מעל גיל 18 המבצע עבודה בגובה. יש למסור תעודת זהות או רישיון נהיגה בתוקף לפני תחילת ההדרכה.
+                      </p>
+                    </>
+                  )}
                   {session.notes && <div className="mt-2 whitespace-pre-wrap text-sm">{session.notes}</div>}
                 </section>
                 <section>
                   <h3 className="font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">רשימת המשתתפים וחתימות</h3>
                   <table className="w-full table-fixed border-collapse text-[11px]">
                     <thead><tr className="bg-[#0f2744] text-white">
-                      <th className="border p-2 w-8">#</th><th className="border p-2">שם העובד</th>
-                      <th className="border p-2">ת.ז.</th><th className="border p-2">מעסיק / תפקיד</th>
+                      <th className="border p-2 w-8">#</th>
+                      {session.category === 'work_at_height' ? <><th className="border p-2">שם פרטי</th><th className="border p-2">שם משפחה</th></> : <th className="border p-2">שם העובד</th>}
+                      <th className="border p-2">ת.ז.</th><th className="border p-2">שם הקבלן</th>
                       <th className="border p-2 w-32">חתימה</th>
                     </tr></thead>
                     <tbody>{participants.map((participant, index) => (
                       <tr key={participant.id} className="avoid-break">
                         <td className="border p-2 text-center">{index + 1}</td>
-                        <td className="border p-2">{participant.employeeName}</td>
+                        {session.category === 'work_at_height'
+                          ? <><td className="border p-2">{participant.firstName}</td><td className="border p-2">{participant.lastName}</td></>
+                          : <td className="border p-2">{participant.employeeName}</td>}
                         <td className="border p-2">{participant.employeeIdNumber || ''}</td>
-                        <td className="border p-2">{[participant.employer, participant.jobTitle].filter(Boolean).join(' / ')}</td>
+                        <td className="border p-2">{participant.employer || ''}</td>
                         <td className="border p-1 text-center">
                           {participant.signatureStoragePath && <img src={signatureUrls[participant.signatureStoragePath]} alt="חתימה" className="h-10 max-w-28 mx-auto object-contain" />}
                         </td>
@@ -224,9 +296,21 @@ export default function SafetyTrainingPreview() {
                   </table>
                 </section>
                 <section className="pt-6 flex justify-end">
-                  <div className="w-64 text-center border-t pt-2 text-sm">
+                  <div className="grid grid-cols-3 gap-8 w-full text-center text-sm">
+                  <div className="border-t pt-2">
                     {session.instructorSignatureDataUrl && <img src={session.instructorSignatureDataUrl} alt="חתימת המדריך" className="h-16 mx-auto object-contain" />}
                     {session.instructorName || 'שם המדריך'} · {session.instructorLicenseNumber || 'מס׳ הסמכה'}
+                  </div>
+                  {session.category === 'work_at_height' && <>
+                    <div className="border-t pt-2">
+                      {heightDetails.managerSignatureDataUrl && <img src={heightDetails.managerSignatureDataUrl} alt="חתימת מנהל העבודה" className="h-16 mx-auto object-contain" />}
+                      {heightDetails.managerName || 'מנהל העבודה / הפרויקט'}
+                    </div>
+                    <div className="border-t pt-2">
+                      {heightDetails.translatorSignatureDataUrl && <img src={heightDetails.translatorSignatureDataUrl} alt="חתימת המתרגם" className="h-16 mx-auto object-contain" />}
+                      {heightDetails.translatorName || 'תרגום (אם נדרש)'} {heightDetails.translatorLanguage || ''}
+                    </div>
+                  </>}
                   </div>
                 </section>
               </div>

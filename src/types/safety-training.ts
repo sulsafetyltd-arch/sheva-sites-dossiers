@@ -1,6 +1,47 @@
 export type TrainingCategory = 'general' | 'fire' | 'work_at_height';
 export type TrainingStatus = 'draft' | 'final';
 
+export const HEIGHT_TRAINING_TOPICS = [
+  'מבוא כללי',
+  'מעל לפיגומים נייחים',
+  'מעל גגות שטוחים בלבד',
+  'מתוך במות הרמה מתרוממות ללא נהיגה ופיגומים ממוכנים',
+  'מתוך סלים להרמת אדם',
+  'מעל מבנה קונסטרוקציה',
+  'בתוך מקום מוקף',
+] as const;
+
+export const HEIGHT_TRAINING_PROGRAM = [
+  'מהי עבודה בגובה ומהן דרישות החוק',
+  'זיהוי הסיכונים השונים הקיימים בעבודה בגובה והגורמים התורמים לתאונה',
+  'הכרת השיטות להגנה מפני נפילה בעבודה בגובה',
+  'תרגול שימוש ברתמות ובאמצעי מגן למניעת נפילה ולבלימת נפילה',
+  'תרגול מעשי של עבודה בגובה ולמידה מאירועים',
+  'עבודה בטוחה על סולמות, במות הרמה, סלי הרמה, פיגומים, גגות ומבני קונסטרוקציה',
+] as const;
+
+export interface HeightTrainingFormDetails {
+  companyName?: string;
+  companyRegistrationNumber?: string;
+  companyAddress?: string;
+  companyPostalCode?: string;
+  companyPhone?: string;
+  managerName?: string;
+  managerSignatureDataUrl?: string;
+  translatorLanguage?: string;
+  translatorName?: string;
+  translatorSignatureDataUrl?: string;
+  instructorIdNumber?: string;
+  instructorExperienceYears?: number;
+  instructorAuthorizationExpiry?: string;
+  instructorAddress?: string;
+  instructorEmail?: string;
+  validFrom?: string;
+  validUntil?: string;
+  certificateScope?: string;
+  selectedTopics?: string[];
+}
+
 export interface SafetyTrainingSession {
   id: string;
   clientId: string;
@@ -19,6 +60,7 @@ export interface SafetyTrainingSession {
   instructorLicenseNumber?: string;
   instructorSignatureDataUrl?: string;
   instructorSignedAt?: string;
+  formDetails?: HeightTrainingFormDetails;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,6 +73,11 @@ export interface SafetyTrainingParticipant {
   employeeIdNumber?: string;
   employer?: string;
   jobTitle?: string;
+  firstName?: string;
+  lastName?: string;
+  fatherName?: string;
+  birthYear?: number;
+  address?: string;
   signatureStoragePath?: string;
   signedAt?: string;
   remarks?: string;

@@ -16,7 +16,11 @@ import {
   updateTrainingSession,
 } from '@/lib/safety-training-store';
 import type { SafetyTrainingParticipant, SafetyTrainingSession } from '@/types/safety-training';
-import { TRAINING_CATEGORY_DETAILS, trainingCategoryLabel } from '@/types/safety-training';
+import {
+  HEIGHT_TRAINING_TOPICS,
+  TRAINING_CATEGORY_DETAILS,
+  trainingCategoryLabel,
+} from '@/types/safety-training';
 
 export default function SafetyTrainingEditor() {
   const { id } = useParams();
@@ -71,6 +75,23 @@ export default function SafetyTrainingEditor() {
       if (!session.instructorSignatureDataUrl) {
         setError('יש להשלים את חתימת המדריך לפני סיום ההדרכה');
         return false;
+      }
+      if (session.category === 'work_at_height') {
+        const details = session.formDetails;
+        if (!details?.validFrom || !details.validUntil) {
+          setError('יש להזין את תאריכי תוקף האישורים');
+          return false;
+        }
+        if (!session.instructorLicenseNumber || !details.instructorIdNumber) {
+          setError('יש להשלים את פרטי ההסמכה ותעודת הזהות של מדריך העבודה בגובה');
+          return false;
+        }
+        if (participants.some((participant) =>
+          !participant.firstName || !participant.lastName || !participant.employeeIdNumber
+        )) {
+          setError('באישור עבודה בגובה חובה להשלים שם פרטי, שם משפחה ותעודת זהות לכל עובד');
+          return false;
+        }
       }
     }
     setSaving(true);
@@ -142,6 +163,9 @@ export default function SafetyTrainingEditor() {
 
   if (!session) return <div dir="rtl" className="p-6">{error || 'טוען…'}</div>;
   const details = TRAINING_CATEGORY_DETAILS[session.category];
+  const heightDetails = session.formDetails ?? {};
+  const setHeightDetails = (patch: Partial<NonNullable<SafetyTrainingSession['formDetails']>>) =>
+    setSession({ ...session, formDetails: { ...heightDetails, ...patch } });
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
@@ -185,6 +209,73 @@ export default function SafetyTrainingEditor() {
           </div>
         </section>
 
+        {session.category === 'work_at_height' && (
+          <section className="rounded-xl border bg-white p-4 space-y-4">
+            <h2 className="font-semibold">פרטי טופס ואישור עבודה בגובה</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input value={heightDetails.companyName || ''} onChange={(event) => setHeightDetails({ companyName: event.target.value })} placeholder="שם החברה / מבצע הבנייה" />
+              <Input value={heightDetails.companyRegistrationNumber || ''} onChange={(event) => setHeightDetails({ companyRegistrationNumber: event.target.value })} placeholder="ח.פ." />
+              <Input value={heightDetails.companyAddress || ''} onChange={(event) => setHeightDetails({ companyAddress: event.target.value })} placeholder="כתובת החברה" />
+              <Input value={heightDetails.companyPostalCode || ''} onChange={(event) => setHeightDetails({ companyPostalCode: event.target.value })} placeholder="מיקוד" />
+              <Input value={heightDetails.companyPhone || ''} onChange={(event) => setHeightDetails({ companyPhone: event.target.value })} placeholder="טלפון החברה" />
+              <Input value={heightDetails.managerName || ''} onChange={(event) => setHeightDetails({ managerName: event.target.value })} placeholder="מנהל המפעל / העבודה / הפרויקט" />
+            </div>
+
+            <h3 className="font-medium">פרטי מדריך העבודה בגובה</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input value={heightDetails.instructorIdNumber || ''} onChange={(event) => setHeightDetails({ instructorIdNumber: event.target.value })} placeholder="תעודת זהות המדריך" />
+              <Input type="number" value={heightDetails.instructorExperienceYears ?? ''} onChange={(event) => setHeightDetails({ instructorExperienceYears: event.target.value ? Number(event.target.value) : undefined })} placeholder="ותק וניסיון בשנים" />
+              <Input type="date" value={heightDetails.instructorAuthorizationExpiry || ''} onChange={(event) => setHeightDetails({ instructorAuthorizationExpiry: event.target.value })} aria-label="תוקף הסמכת המדריך" />
+              <Input value={heightDetails.instructorAddress || ''} onChange={(event) => setHeightDetails({ instructorAddress: event.target.value })} placeholder="כתובת המדריך" />
+              <Input type="email" value={heightDetails.instructorEmail || ''} onChange={(event) => setHeightDetails({ instructorEmail: event.target.value })} placeholder="דוא״ל המדריך" />
+            </div>
+
+            <h3 className="font-medium">תוקף ותחומי ההדרכה</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="text-sm">בתוקף מיום<Input type="date" value={heightDetails.validFrom || ''} onChange={(event) => setHeightDetails({ validFrom: event.target.value })} /></label>
+              <label className="text-sm">בתוקף עד יום<Input type="date" value={heightDetails.validUntil || ''} onChange={(event) => setHeightDetails({ validUntil: event.target.value })} /></label>
+              <Input className="sm:col-span-2" value={heightDetails.certificateScope || ''} onChange={(event) => setHeightDetails({ certificateScope: event.target.value })} placeholder="האישור תקף לעבודה במסגרת..." />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {HEIGHT_TRAINING_TOPICS.map((topic) => {
+                const selected = (heightDetails.selectedTopics ?? HEIGHT_TRAINING_TOPICS).includes(topic);
+                return (
+                  <label key={topic} className="flex items-start gap-2 rounded-lg border p-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => setHeightDetails({
+                        selectedTopics: selected
+                          ? (heightDetails.selectedTopics ?? [...HEIGHT_TRAINING_TOPICS]).filter((item) => item !== topic)
+                          : [...(heightDetails.selectedTopics ?? []), topic],
+                      })}
+                    />
+                    {topic}
+                  </label>
+                );
+              })}
+            </div>
+
+            <h3 className="font-medium">תרגום ההדרכה (אם נדרש)</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input value={heightDetails.translatorLanguage || ''} onChange={(event) => setHeightDetails({ translatorLanguage: event.target.value })} placeholder="שפת התרגום" />
+              <Input value={heightDetails.translatorName || ''} onChange={(event) => setHeightDetails({ translatorName: event.target.value })} placeholder="שם המתרגם" />
+            </div>
+            {heightDetails.translatorName && (
+              <SignaturePad
+                value={heightDetails.translatorSignatureDataUrl}
+                onChange={(dataUrl) => setHeightDetails({ translatorSignatureDataUrl: dataUrl || undefined })}
+              />
+            )}
+
+            <h3 className="font-medium">חתימת מנהל העבודה / הפרויקט</h3>
+            <SignaturePad
+              value={heightDetails.managerSignatureDataUrl}
+              onChange={(dataUrl) => setHeightDetails({ managerSignatureDataUrl: dataUrl || undefined })}
+            />
+          </section>
+        )}
+
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -204,10 +295,24 @@ export default function SafetyTrainingEditor() {
                 <Button size="icon" variant="ghost" onClick={() => void removeParticipant(participant)}><Trash2 className="w-4 h-4 text-red-600" /></Button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <Input value={participant.employeeName} onChange={(event) => changeParticipant(participant.id, { employeeName: event.target.value })} onBlur={() => void persistParticipant(participant)} placeholder="שם מלא" />
+                {session.category === 'work_at_height' ? (
+                  <>
+                    <Input value={participant.firstName || ''} onChange={(event) => changeParticipant(participant.id, { firstName: event.target.value, employeeName: `${event.target.value} ${participant.lastName || ''}`.trim() })} onBlur={() => void persistParticipant(participant)} placeholder="שם פרטי" />
+                    <Input value={participant.lastName || ''} onChange={(event) => changeParticipant(participant.id, { lastName: event.target.value, employeeName: `${participant.firstName || ''} ${event.target.value}`.trim() })} onBlur={() => void persistParticipant(participant)} placeholder="שם משפחה" />
+                  </>
+                ) : (
+                  <Input value={participant.employeeName} onChange={(event) => changeParticipant(participant.id, { employeeName: event.target.value })} onBlur={() => void persistParticipant(participant)} placeholder="שם מלא" />
+                )}
                 <Input value={participant.employeeIdNumber || ''} onChange={(event) => changeParticipant(participant.id, { employeeIdNumber: event.target.value })} onBlur={() => void persistParticipant(participant)} placeholder="תעודת זהות / דרכון" />
                 <Input value={participant.employer || ''} onChange={(event) => changeParticipant(participant.id, { employer: event.target.value })} onBlur={() => void persistParticipant(participant)} placeholder="מעסיק / קבלן" />
                 <Input value={participant.jobTitle || ''} onChange={(event) => changeParticipant(participant.id, { jobTitle: event.target.value })} onBlur={() => void persistParticipant(participant)} placeholder="תפקיד" />
+                {session.category === 'work_at_height' && (
+                  <>
+                    <Input value={participant.fatherName || ''} onChange={(event) => changeParticipant(participant.id, { fatherName: event.target.value })} onBlur={() => void persistParticipant(participant)} placeholder="שם האב" />
+                    <Input type="number" value={participant.birthYear ?? ''} onChange={(event) => changeParticipant(participant.id, { birthYear: event.target.value ? Number(event.target.value) : undefined })} onBlur={() => void persistParticipant(participant)} placeholder="שנת לידה" />
+                    <Input className="sm:col-span-2" value={participant.address || ''} onChange={(event) => changeParticipant(participant.id, { address: event.target.value })} onBlur={() => void persistParticipant(participant)} placeholder="כתובת העובד" />
+                  </>
+                )}
               </div>
               {participant.signatureStoragePath && signingId !== participant.id ? (
                 <div className="flex items-center justify-between rounded-lg bg-emerald-50 p-3">
