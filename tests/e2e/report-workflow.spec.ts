@@ -47,14 +47,14 @@ async function seedAuthenticatedSession(page: Page) {
     const encode = (value: object) =>
       btoa(JSON.stringify(value)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
     const accessToken = [
-      encode({ alg: 'HS256', typ: 'JWT' }),
+      encode({ alg: 'none', typ: 'JWT' }),
       encode({
         sub: session.user.id,
         role: 'authenticated',
         aud: 'authenticated',
         exp: session.expires_at,
       }),
-      'test-signature',
+      '',
     ].join('.');
     localStorage.setItem(key, JSON.stringify({ ...session, access_token: accessToken }));
   }, {
