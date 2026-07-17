@@ -239,35 +239,3 @@ create policy reports_access_delete on public.safety_audit_reports
   for delete to authenticated
   using (public.is_safety_admin());
 
--- Legacy dossier writes are no longer anonymous. Keep public reads for
--- backwards-compatible image URLs, but require an active authenticated user
--- for table and storage mutations.
-drop policy if exists "Allow all access to dossiers" on public.dossiers;
-drop policy if exists "Allow all access to dossier_tasks" on public.dossier_tasks;
-drop policy if exists dossiers_active_users on public.dossiers;
-drop policy if exists dossier_tasks_active_users on public.dossier_tasks;
-create policy dossiers_active_users on public.dossiers
-  for all to authenticated
-  using (exists (select 1 from public.profiles where id = auth.uid() and is_active))
-  with check (exists (select 1 from public.profiles where id = auth.uid() and is_active));
-create policy dossier_tasks_active_users on public.dossier_tasks
-  for all to authenticated
-  using (exists (select 1 from public.profiles where id = auth.uid() and is_active))
-  with check (exists (select 1 from public.profiles where id = auth.uid() and is_active));
-
-drop policy if exists "Anyone can upload dossier files" on storage.objects;
-drop policy if exists "Anyone can delete dossier files" on storage.objects;
-drop policy if exists dossier_files_authenticated_insert on storage.objects;
-drop policy if exists dossier_files_authenticated_delete on storage.objects;
-create policy dossier_files_authenticated_insert on storage.objects
-  for insert to authenticated
-  with check (
-    bucket_id = 'dossier-files'
-    and exists (select 1 from public.profiles where id = auth.uid() and is_active)
-  );
-create policy dossier_files_authenticated_delete on storage.objects
-  for delete to authenticated
-  using (
-    bucket_id = 'dossier-files'
-    and exists (select 1 from public.profiles where id = auth.uid() and is_active)
-  );
