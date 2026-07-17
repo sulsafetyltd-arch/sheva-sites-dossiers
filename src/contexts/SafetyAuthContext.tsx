@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { clearSafetyFileCache } from '@/lib/safety-audit-store';
 
 export type SafetyRole = 'admin' | 'member';
 
@@ -50,8 +51,10 @@ export function SafetyAuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<SafetyProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const profileRequest = useRef(0);
 
   const loadProfile = async (userId?: string) => {
+    const request = ++profileRequest.current;
     const id = userId ?? session?.user.id;
     if (!id) {
       setProfile(null);
@@ -59,6 +62,7 @@ export function SafetyAuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     const { data, error } = await supabase.from('profiles').select('*').eq('id', id).single();
+    if (request !== profileRequest.current) return;
     if (error) {
       setProfile(null);
       setProfileError(
@@ -85,6 +89,7 @@ export function SafetyAuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       setSession(nextSession);
       if (!nextSession) {
+        clearSafetyFileCache();
         setProfile(null);
         setProfileError(null);
         setLoading(false);
@@ -95,9 +100,21 @@ export function SafetyAuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void supabase.auth.getSession().then(({ data }) => {
+          if (data.session) void loadProfile(data.session.user.id);
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshWhenVisible);
+
     return () => {
       mounted = false;
       listener.subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshWhenVisible);
     };
     // Session changes are handled by the Supabase listener.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,6 +130,7 @@ export function SafetyAuthProvider({ children }: { children: ReactNode }) {
       isAdmin: profile?.role === 'admin' && profile.isActive,
       refreshProfile: () => loadProfile(),
       signOut: async () => {
+        clearSafetyFileCache();
         await supabase.auth.signOut();
       },
     }),

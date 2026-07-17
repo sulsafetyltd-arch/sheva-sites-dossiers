@@ -68,8 +68,12 @@ export default function SafetyClientReports() {
 
   const removeReport = async (report: SafetyAuditReport) => {
     if (!confirm(`למחוק את הדוח ${report.reportNumber}?`)) return;
-    await deleteReport(report.id);
-    await refresh();
+    try {
+      await deleteReport(report.id);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'מחיקת הדוח נכשלה');
+    }
   };
 
   const saveClient = async () => {
@@ -204,9 +208,11 @@ export default function SafetyClientReports() {
                       {report.reportNumber} · {report.auditDate || report.date}
                     </div>
                   </div>
-                  <Button size="icon" variant="ghost" className="text-slate-400 hover:text-red-600" onClick={() => void removeReport(report)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  {isAdmin && (
+                    <Button size="icon" variant="ghost" className="text-slate-400 hover:text-red-600" onClick={() => void removeReport(report)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
                 <div className="flex gap-2 mt-3">
                   <Button asChild size="sm"><Link to={`/safety/editor/${report.id}`}>עריכה</Link></Button>

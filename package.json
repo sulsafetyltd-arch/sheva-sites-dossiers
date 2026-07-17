@@ -8,9 +8,11 @@
     "build": "vite build && cp dist/index.html dist/200.html && cp dist/index.html dist/404.html",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "deploy:surge": "npm run build && npx surge ./dist solbtihutlive.surge.sh"
   },
   "dependencies": {

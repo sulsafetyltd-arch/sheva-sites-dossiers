@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   getReport,
   updateReport,
@@ -7,6 +7,7 @@ import {
   createDefect,
   updateDefect,
   deleteDefect,
+  deleteDefectPhoto,
   addDefectPhoto,
   listDefectPhotos,
   getPublicUrl,
@@ -23,7 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SignaturePad from '@/components/dossier/SignaturePad';
-import { Check, ChevronLeft, ChevronRight, ClipboardCheck, FileText, PenLine, TriangleAlert } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, ClipboardCheck, FileText, PenLine, Trash2, TriangleAlert } from 'lucide-react';
 
 const STEPS = [
   { label: 'פרטי הדוח', icon: FileText },
@@ -34,6 +35,7 @@ const STEPS = [
 
 const SafetyAuditEditor = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [report, setReport] = useState<SafetyAuditReport | null>(null);
   const [defects, setDefects] = useState<SafetyAuditDefect[]>([]);
   const [photosByDefect, setPhotosByDefect] = useState<Record<string, SafetyAuditDefectPhoto[]>>({});
@@ -43,6 +45,8 @@ const SafetyAuditEditor = () => {
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [activeChapter, setActiveChapter] = useState<string | null>(null);
+  const [uploadingDefects, setUploadingDefects] = useState<Set<string>>(new Set());
+  const creatingTopics = useRef(new Set<string>());
 
   const topics = useMemo(
     () => getChecklistTopics(report?.reportType ?? 'workplace'),
@@ -63,24 +67,27 @@ const SafetyAuditEditor = () => {
   }).length;
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         if (!id) return;
-        const r = await getReport(id);
-        const d = await listDefects(id);
+        const [r, d] = await Promise.all([getReport(id), listDefects(id)]);
+        if (cancelled) return;
         setReport(r);
         setDefects(d);
-        const map: Record<string, SafetyAuditDefectPhoto[]> = {};
-        for (const defect of d) {
-          map[defect.id] = await listDefectPhotos(defect.id);
-        }
+        const photoLists = await Promise.all(d.map((defect) => listDefectPhotos(defect.id)));
+        if (cancelled) return;
+        const map = Object.fromEntries(d.map((defect, index) => [defect.id, photoLists[index]]));
         setPhotosByDefect(map);
-      } catch (e: any) {
-        setError(e?.message ?? 'שגיאה');
+      } catch (cause) {
+        if (!cancelled) setError(cause instanceof Error ? cause.message : 'שגיאה');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const setChecklist = (
@@ -98,8 +105,8 @@ const SafetyAuditEditor = () => {
     });
   };
 
-  const saveBasics = async () => {
-    if (!report || !id) return;
+  const saveBasics = async (): Promise<boolean> => {
+    if (!report || !id) return false;
     setSaving(true);
     setMessage(null);
     try {
@@ -126,13 +133,17 @@ const SafetyAuditEditor = () => {
         auditDate: report.auditDate,
         siteManagerSignatureUrl: report.siteManagerSignatureUrl,
         auditorSignatureUrl: report.auditorSignatureUrl,
+        auditorStampUrl: report.auditorStampUrl,
         siteManagerSignedAt: report.siteManagerSignedAt,
         auditorSignedAt: report.auditorSignedAt,
       });
       setReport(saved);
+      setError(null);
       setMessage('נשמר');
-    } catch (e: any) {
-      setError(e?.message ?? 'שגיאה בשמירה');
+      return true;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'שגיאה בשמירה');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -140,6 +151,9 @@ const SafetyAuditEditor = () => {
 
   const addDefect = async (topicKey?: string, description?: string) => {
     if (!id) return;
+    const lockKey = topicKey ?? `manual-${crypto.randomUUID()}`;
+    if (creatingTopics.current.has(lockKey)) return;
+    creatingTopics.current.add(lockKey);
     try {
       const topic = topics.find((t) => t.key === topicKey);
       const d = await createDefect(id, {
@@ -150,39 +164,67 @@ const SafetyAuditEditor = () => {
         correctiveAction: topic?.defaultFindings,
         sortOrder: defects.length,
       });
-      setDefects((prev) => [...prev, d]);
+      setDefects((prev) => prev.some((existing) => existing.id === d.id) ? prev : [...prev, d]);
       setPhotosByDefect((prev) => ({ ...prev, [d.id]: [] }));
       setError(null);
-    } catch (e: any) {
-      setError(`הוספת הליקוי נכשלה: ${e?.message ?? 'שגיאה לא ידועה'}`);
+    } catch (cause) {
+      setError(`הוספת הליקוי נכשלה: ${cause instanceof Error ? cause.message : 'שגיאה לא ידועה'}`);
+    } finally {
+      creatingTopics.current.delete(lockKey);
     }
   };
 
   const markNotOk = async (topicKey: string) => {
+    if (!report || !id) return;
     const topic = topics.find((t) => t.key === topicKey);
     const current = report?.checklist?.[topicKey];
-    setChecklist(topicKey, {
+    const nextItem = {
+      ...(current ?? { status: 'na' as ChecklistStatus }),
       status: 'not_ok',
       findings: current?.findings || topic?.defaultFindings || '',
       responsible: current?.responsible || topic?.defaultResponsible || 'מנהל העבודה',
       notes: current?.notes,
-    });
-    if (!defects.some((d) => d.checklistTopicKey === topicKey)) {
-      await addDefect(topicKey, topic?.defaultFindings || topic?.title);
+    } as const;
+    const nextChecklist = { ...(report.checklist ?? {}), [topicKey]: nextItem };
+    setReport({ ...report, checklist: nextChecklist });
+    try {
+      await updateReport(id, { checklist: nextChecklist });
+      if (!defects.some((d) => d.checklistTopicKey === topicKey)) {
+        await addDefect(topicKey, topic?.defaultFindings || topic?.title);
+      }
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'שמירת הבדיקה נכשלה');
     }
   };
 
-  const changeDefect = async (defect: SafetyAuditDefect, field: keyof SafetyAuditDefect, value: any) => {
+  const changeDefectLocal = (
+    defect: SafetyAuditDefect,
+    field: keyof SafetyAuditDefect,
+    value: SafetyAuditDefect[keyof SafetyAuditDefect],
+  ) => {
+    setDefects((current) =>
+      current.map((item) => item.id === defect.id ? { ...item, [field]: value } : item),
+    );
+  };
+
+  const persistDefect = async (
+    defect: SafetyAuditDefect,
+    field: keyof SafetyAuditDefect,
+    value: SafetyAuditDefect[keyof SafetyAuditDefect],
+  ) => {
     try {
       const updated = await updateDefect(defect.id, { [field]: value });
       setDefects((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
-    } catch (e: any) {
-      setError(e?.message ?? 'שגיאה בעדכון ליקוי');
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'שגיאה בעדכון ליקוי');
     }
   };
 
   const onUploadPhoto = async (defectId: string, file?: File | null) => {
-    if (!file) return;
+    if (!file || uploadingDefects.has(defectId)) return;
+    setUploadingDefects((current) => new Set(current).add(defectId));
     try {
       const photo = await addDefectPhoto(defectId, file);
       setPhotosByDefect((prev) => ({
@@ -190,8 +232,42 @@ const SafetyAuditEditor = () => {
         [defectId]: [...(prev[defectId] ?? []), photo],
       }));
       setError(null);
-    } catch (e: any) {
-      setError(`העלאת התמונה נכשלה: ${e?.message ?? 'שגיאה לא ידועה'}`);
+    } catch (cause) {
+      setError(`העלאת התמונה נכשלה: ${cause instanceof Error ? cause.message : 'שגיאה לא ידועה'}`);
+    } finally {
+      setUploadingDefects((current) => {
+        const next = new Set(current);
+        next.delete(defectId);
+        return next;
+      });
+    }
+  };
+
+  const removePhoto = async (photo: SafetyAuditDefectPhoto) => {
+    try {
+      await deleteDefectPhoto(photo);
+      setPhotosByDefect((current) => ({
+        ...current,
+        [photo.defectId]: (current[photo.defectId] ?? []).filter((item) => item.id !== photo.id),
+      }));
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'מחיקת התמונה נכשלה');
+    }
+  };
+
+  const removeDefect = async (defect: SafetyAuditDefect) => {
+    try {
+      await deleteDefect(defect.id);
+      setDefects((current) => current.filter((item) => item.id !== defect.id));
+      setPhotosByDefect((current) => {
+        const next = { ...current };
+        delete next[defect.id];
+        return next;
+      });
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'מחיקת הליקוי נכשלה');
     }
   };
 
@@ -202,9 +278,17 @@ const SafetyAuditEditor = () => {
       siteManagerSignedAt: dataUrl ? new Date().toISOString() : undefined,
       siteManager: report.siteManager,
     };
+    const previous = report;
     setReport({ ...report, ...patch });
-    await updateReport(id, patch);
-    setMessage(dataUrl ? 'חתימת מנהל העבודה נשמרה' : 'החתימה נמחקה');
+    try {
+      const saved = await updateReport(id, patch);
+      setReport(saved);
+      setError(null);
+      setMessage(dataUrl ? 'חתימת מנהל העבודה נשמרה' : 'החתימה נמחקה');
+    } catch (cause) {
+      setReport(previous);
+      setError(cause instanceof Error ? cause.message : 'שמירת החתימה נכשלה');
+    }
   };
 
   const onAuditorSign = async (dataUrl: string | null) => {
@@ -213,9 +297,17 @@ const SafetyAuditEditor = () => {
       auditorSignatureUrl: dataUrl || undefined,
       auditorSignedAt: dataUrl ? new Date().toISOString() : undefined,
     };
+    const previous = report;
     setReport({ ...report, ...patch });
-    await updateReport(id, patch);
-    setMessage(dataUrl ? 'חתימת ממונה הבטיחות נשמרה' : 'החתימה נמחקה');
+    try {
+      const saved = await updateReport(id, patch);
+      setReport(saved);
+      setError(null);
+      setMessage(dataUrl ? 'חתימת ממונה הבטיחות נשמרה' : 'החתימה נמחקה');
+    } catch (cause) {
+      setReport(previous);
+      setError(cause instanceof Error ? cause.message : 'שמירת החתימה נכשלה');
+    }
   };
 
   if (loading) return <div className="p-4" dir="rtl">טוען…</div>;
@@ -444,16 +536,27 @@ const SafetyAuditEditor = () => {
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold">{isConstruction ? 'ליקויים ותיעוד צילומי' : '4. ליקויים ופעולות מתקנות'}</h2>
-            <Button size="sm" onClick={() => addDefect()}>
+            <Button size="sm" onClick={() => void addDefect()}>
               הוסף ליקוי
             </Button>
           </div>
           {defects.map((d, idx) => (
             <div key={d.id} className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
               <div className="text-sm text-slate-500">ליקוי #{idx + 1}</div>
-              <Textarea dir="rtl" value={d.description} onChange={(e) => changeDefect(d, 'description', e.target.value)} />
+              <Textarea
+                dir="rtl"
+                value={d.description}
+                onChange={(e) => changeDefectLocal(d, 'description', e.target.value)}
+                onBlur={(e) => void persistDefect(d, 'description', e.target.value)}
+              />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <Select value={d.severity} onValueChange={(v) => changeDefect(d, 'severity', v)}>
+                <Select
+                  value={d.severity}
+                  onValueChange={(value) => {
+                    changeDefectLocal(d, 'severity', value as SafetyAuditDefect['severity']);
+                    void persistDefect(d, 'severity', value as SafetyAuditDefect['severity']);
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="דרגת חומרה" />
                   </SelectTrigger>
@@ -463,9 +566,27 @@ const SafetyAuditEditor = () => {
                     <SelectItem value="low">נמוכה</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input dir="rtl" type="date" value={d.dueDate || ''} onChange={(e) => changeDefect(d, 'dueDate', e.target.value)} />
-                <Input dir="rtl" placeholder="פעולה מתקנת / המלצה" value={d.correctiveAction || ''} onChange={(e) => changeDefect(d, 'correctiveAction', e.target.value)} />
-                <Input dir="rtl" placeholder="אחראי לביצוע" value={d.responsible || ''} onChange={(e) => changeDefect(d, 'responsible', e.target.value)} />
+                <Input
+                  dir="rtl"
+                  type="date"
+                  value={d.dueDate || ''}
+                  onChange={(e) => changeDefectLocal(d, 'dueDate', e.target.value)}
+                  onBlur={(e) => void persistDefect(d, 'dueDate', e.target.value)}
+                />
+                <Input
+                  dir="rtl"
+                  placeholder="פעולה מתקנת / המלצה"
+                  value={d.correctiveAction || ''}
+                  onChange={(e) => changeDefectLocal(d, 'correctiveAction', e.target.value)}
+                  onBlur={(e) => void persistDefect(d, 'correctiveAction', e.target.value)}
+                />
+                <Input
+                  dir="rtl"
+                  placeholder="אחראי לביצוע"
+                  value={d.responsible || ''}
+                  onChange={(e) => changeDefectLocal(d, 'responsible', e.target.value)}
+                  onBlur={(e) => void persistDefect(d, 'responsible', e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <div className="text-sm font-medium">צילומי ליקוי</div>
@@ -473,18 +594,32 @@ const SafetyAuditEditor = () => {
                   type="file"
                   accept="image/*"
                   capture="environment"
+                  disabled={uploadingDefects.has(d.id)}
                   onChange={(e) => {
                     void onUploadPhoto(d.id, e.target.files?.[0]);
                     e.currentTarget.value = '';
                   }}
                 />
+                {uploadingDefects.has(d.id) && <div className="text-xs text-slate-500">מעלה תמונה…</div>}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {(photosByDefect[d.id] ?? []).map((p) => (
-                    <img key={p.id} src={getPublicUrl(p.storagePath)} alt={d.description} className="h-28 w-full object-cover rounded-lg border" />
+                    <div key={p.id} className="relative">
+                      <img src={getPublicUrl(p.storagePath)} alt={d.description} className="h-28 w-full object-cover rounded-lg border" />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="destructive"
+                        className="absolute top-1 left-1 h-7 w-7"
+                        aria-label="מחק תמונה"
+                        onClick={() => void removePhoto(p)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   ))}
                 </div>
               </div>
-              <Button size="sm" variant="ghost" onClick={() => deleteDefect(d.id).then(() => setDefects((prev) => prev.filter((x) => x.id !== d.id)))}>
+              <Button size="sm" variant="ghost" onClick={() => void removeDefect(d)}>
                 מחק ליקוי
               </Button>
             </div>
@@ -539,7 +674,8 @@ const SafetyAuditEditor = () => {
             <Button
               className="flex-1 sm:flex-none gap-1"
               onClick={async () => {
-                await saveBasics();
+                const saved = await saveBasics();
+                if (!saved) return;
                 setStep((value) => value + 1);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
@@ -548,8 +684,15 @@ const SafetyAuditEditor = () => {
               הבא <ChevronLeft className="w-4 h-4" />
             </Button>
           ) : (
-            <Button className="flex-1 sm:flex-none gap-1" asChild>
-              <Link to={`/safety/preview/${report.id}`}><Check className="w-4 h-4" /> סיום ותצוגת PDF</Link>
+            <Button
+              className="flex-1 sm:flex-none gap-1"
+              disabled={saving}
+              onClick={async () => {
+                const saved = await saveBasics();
+                if (saved) navigate(`/safety/preview/${report.id}`);
+              }}
+            >
+              <Check className="w-4 h-4" /> סיום ותצוגת PDF
             </Button>
           )}
         </div>

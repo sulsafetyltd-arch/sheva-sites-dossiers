@@ -96,15 +96,24 @@ select 'audit-files', 'audit-files', true
 where not exists (select 1 from storage.buckets where id = 'audit-files');
 
 -- Storage RLS
-create policy if not exists "Public Access Audit Files"
-on storage.objects
-for select using (bucket_id = 'audit-files');
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'Public Access Audit Files') then
+    create policy "Public Access Audit Files" on storage.objects
+      for select using (bucket_id = 'audit-files');
+  end if;
+end $$;
 
-create policy if not exists "Upload Audit Files"
-on storage.objects
-for insert with check (bucket_id = 'audit-files');
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'Upload Audit Files') then
+    create policy "Upload Audit Files" on storage.objects
+      for insert with check (bucket_id = 'audit-files');
+  end if;
+end $$;
 
-create policy if not exists "Delete Audit Files"
-on storage.objects
-for delete using (bucket_id = 'audit-files');
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'Delete Audit Files') then
+    create policy "Delete Audit Files" on storage.objects
+      for delete using (bucket_id = 'audit-files');
+  end if;
+end $$;
 

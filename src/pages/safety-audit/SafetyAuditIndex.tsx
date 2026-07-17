@@ -77,8 +77,12 @@ const SafetyAuditIndex = () => {
   const onDeleteClient = async (client: SafetyAuditClient) => {
     const count = reports.filter((report) => report.clientId === client.id).length;
     if (!confirm(`למחוק את ${client.name}${count ? ` ואת ${count} הדוחות שלו` : ''}?`)) return;
-    await deleteClient(client.id);
-    await refresh();
+    try {
+      await deleteClient(client.id);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'מחיקת הלקוח נכשלה');
+    }
   };
 
   const reportCount = (clientId: string) =>

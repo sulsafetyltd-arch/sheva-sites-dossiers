@@ -18,7 +18,11 @@ export interface SafetyAuditBackup {
 }
 
 const AUDIT_BUCKET = 'audit-files';
-const signedUrlCache = new Map<string, string>();
+const SIGNED_URL_TTL_SECONDS = 60 * 60;
+const SIGNED_URL_REFRESH_MARGIN_MS = 5 * 60 * 1000;
+const EMPTY_IMAGE =
+  'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -79,6 +83,7 @@ function mapReport(row: Record<string, any>): SafetyAuditReport {
     status: row.status,
     siteManagerSignatureUrl: row.site_manager_signature_url ?? undefined,
     auditorSignatureUrl: row.auditor_signature_url ?? undefined,
+    auditorStampUrl: row.auditor_stamp_url ?? undefined,
     siteManagerSignedAt: row.site_manager_signed_at ?? undefined,
     auditorSignedAt: row.auditor_signed_at ?? undefined,
     checklist: row.checklist ?? {},
@@ -114,13 +119,33 @@ function mapPhoto(row: Record<string, any>): SafetyAuditDefectPhoto {
 }
 
 async function cacheSignedUrls(paths: string[]): Promise<void> {
-  const missing = [...new Set(paths.filter((path) => path && !signedUrlCache.has(path)))];
+  const now = Date.now();
+  const missing = [
+    ...new Set(
+      paths.filter((path) => {
+        if (!path) return false;
+        const cached = signedUrlCache.get(path);
+        return !cached || cached.expiresAt - SIGNED_URL_REFRESH_MARGIN_MS <= now;
+      }),
+    ),
+  ];
   await Promise.all(
     missing.map(async (path) => {
-      const { data, error } = await supabase.storage.from(AUDIT_BUCKET).createSignedUrl(path, 60 * 60 * 24 * 7);
-      if (!error && data?.signedUrl) signedUrlCache.set(path, data.signedUrl);
+      const { data, error } = await supabase.storage
+        .from(AUDIT_BUCKET)
+        .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+      throwIfError(error);
+      if (!data?.signedUrl) throw new Error('לא ניתן לטעון תמונת ליקוי');
+      signedUrlCache.set(path, {
+        url: data.signedUrl,
+        expiresAt: now + SIGNED_URL_TTL_SECONDS * 1000,
+      });
     }),
   );
+}
+
+export function clearSafetyFileCache(): void {
+  signedUrlCache.clear();
 }
 
 export async function listClients(): Promise<SafetyAuditClient[]> {
@@ -168,6 +193,7 @@ export async function updateClient(
   id: string,
   partial: Partial<SafetyAuditClient>,
 ): Promise<SafetyAuditClient> {
+  if ('name' in partial && !partial.name?.trim()) throw new Error('שם הלקוח אינו יכול להיות ריק');
   const payload: Record<string, unknown> = { updated_at: nowIso() };
   if ('name' in partial) payload.name = partial.name?.trim();
   if ('contactName' in partial) payload.contact_name = partial.contactName?.trim() || null;
@@ -205,20 +231,12 @@ async function pathsForReports(reportIds: string[]): Promise<string[]> {
 export async function deleteClient(id: string): Promise<void> {
   const reports = await listReportsByClient(id);
   const paths = await pathsForReports(reports.map((report) => report.id));
+  if (paths.length) {
+    const { error } = await supabase.storage.from(AUDIT_BUCKET).remove(paths);
+    throwIfError(error);
+  }
   const { error } = await supabase.from('safety_audit_clients').delete().eq('id', id);
   throwIfError(error);
-  if (paths.length) await supabase.storage.from(AUDIT_BUCKET).remove(paths);
-}
-
-function nextReportNumber(reports: SafetyAuditReport[], type: ReportType): string {
-  const year = new Date().getFullYear();
-  const prefix = type === 'construction' ? `BN-${year}-` : `SB-${year}-`;
-  const numbers = reports
-    .map((report) => report.reportNumber)
-    .filter((number): number is string => Boolean(number?.startsWith(prefix)))
-    .map((number) => Number(number.slice(prefix.length)))
-    .filter(Number.isFinite);
-  return `${prefix}${String((numbers.length ? Math.max(...numbers) : 0) + 1).padStart(3, '0')}`;
 }
 
 export async function listReports(): Promise<SafetyAuditReport[]> {
@@ -255,21 +273,28 @@ export async function createReport(
 ): Promise<SafetyAuditReport> {
   if (!partial.clientId) throw new Error('יש לבחור לקוח לפני יצירת דוח');
   const reportType = partial.reportType ?? 'workplace';
-  const reports = await listReports();
   const { data: authData } = await supabase.auth.getUser();
-  const { data: issuerProfile } = authData.user
+  const { data: issuerProfile, error: profileError } = authData.user
     ? await supabase
         .from('profiles')
         .select('full_name,job_title,phone,signature_data_url,stamp_data_url')
         .eq('id', authData.user.id)
         .single()
     : { data: null };
+  throwIfError(profileError ?? null);
+  if (!issuerProfile?.full_name) {
+    throw new Error('יש להשלים שם מלא בפרופיל האישי לפני יצירת דוח');
+  }
+  const { data: allocatedNumber, error: numberError } = partial.reportNumber
+    ? { data: partial.reportNumber, error: null }
+    : await supabase.rpc('allocate_safety_report_number', { p_report_type: reportType });
+  throwIfError(numberError);
   const { data, error } = await supabase
     .from('safety_audit_reports')
     .insert({
       client_id: partial.clientId,
       report_type: reportType,
-      report_number: partial.reportNumber ?? nextReportNumber(reports, reportType),
+      report_number: allocatedNumber,
       date: partial.date ?? today(),
       recipient: partial.recipient ?? null,
       risk_level: partial.riskLevel ?? null,
@@ -293,8 +318,7 @@ export async function createReport(
       status: partial.status ?? 'draft',
       auditor_signature_url: partial.auditorSignatureUrl ?? issuerProfile?.signature_data_url ?? null,
       auditor_stamp_url: partial.auditorStampUrl ?? issuerProfile?.stamp_data_url ?? null,
-      auditor_signed_at:
-        partial.auditorSignedAt ?? (issuerProfile?.signature_data_url ? nowIso() : null),
+      auditor_signed_at: partial.auditorSignedAt ?? null,
       checklist: partial.checklist ?? {},
       created_by: authData.user?.id ?? null,
     })
@@ -346,7 +370,13 @@ export async function updateReport(
 ): Promise<SafetyAuditReport> {
   const payload: Record<string, unknown> = { updated_at: nowIso() };
   for (const [key, value] of Object.entries(partial)) {
-    if (key === 'id' || key === 'createdAt' || key === 'updatedAt') continue;
+    if (
+      key === 'id' ||
+      key === 'clientId' ||
+      key === 'reportNumber' ||
+      key === 'createdAt' ||
+      key === 'updatedAt'
+    ) continue;
     const column = reportColumnMap[key as keyof SafetyAuditReport];
     if (column) payload[column] = value ?? null;
   }
@@ -362,9 +392,12 @@ export async function updateReport(
 
 export async function deleteReport(id: string): Promise<void> {
   const paths = await pathsForReports([id]);
+  if (paths.length) {
+    const { error } = await supabase.storage.from(AUDIT_BUCKET).remove(paths);
+    throwIfError(error);
+  }
   const { error } = await supabase.from('safety_audit_reports').delete().eq('id', id);
   throwIfError(error);
-  if (paths.length) await supabase.storage.from(AUDIT_BUCKET).remove(paths);
 }
 
 export async function listDefects(reportId: string): Promise<SafetyAuditDefect[]> {
@@ -429,10 +462,13 @@ export async function deleteDefect(id: string): Promise<void> {
     .select('storage_path')
     .eq('defect_id', id);
   throwIfError(photoError);
+  const paths = (photos ?? []).map((photo) => photo.storage_path);
+  if (paths.length) {
+    const { error } = await supabase.storage.from(AUDIT_BUCKET).remove(paths);
+    throwIfError(error);
+  }
   const { error } = await supabase.from('safety_audit_defects').delete().eq('id', id);
   throwIfError(error);
-  const paths = (photos ?? []).map((photo) => photo.storage_path);
-  if (paths.length) await supabase.storage.from(AUDIT_BUCKET).remove(paths);
 }
 
 export async function listDefectPhotos(defectId: string): Promise<SafetyAuditDefectPhoto[]> {
@@ -465,8 +501,9 @@ export async function listReportPhotos(reportId: string): Promise<
   const photos = (data ?? []).map(mapPhoto);
   await cacheSignedUrls(photos.map((photo) => photo.storagePath));
   const byId = new Map(defects.map((defect) => [defect.id, defect]));
-  return photos.map((photo) => {
-    const defect = byId.get(photo.defectId)!;
+  return photos.flatMap((photo) => {
+    const defect = byId.get(photo.defectId);
+    if (!defect) return [];
     return {
       ...photo,
       defectDescription: defect.description,
@@ -520,8 +557,21 @@ export async function addDefectPhoto(
   return mapPhoto(data);
 }
 
+export async function deleteDefectPhoto(photo: SafetyAuditDefectPhoto): Promise<void> {
+  const { error: storageError } = await supabase.storage
+    .from(AUDIT_BUCKET)
+    .remove([photo.storagePath]);
+  throwIfError(storageError);
+  const { error } = await supabase
+    .from('safety_audit_defect_photos')
+    .delete()
+    .eq('id', photo.id);
+  throwIfError(error);
+  signedUrlCache.delete(photo.storagePath);
+}
+
 export function getPublicUrl(storagePath: string): string {
-  return signedUrlCache.get(storagePath) ?? storagePath;
+  return signedUrlCache.get(storagePath)?.url ?? EMPTY_IMAGE;
 }
 
 // Local backups remain readable as a safety net during the cloud migration.
@@ -656,6 +706,7 @@ export async function migrateLegacySafetyData(): Promise<{
   const reportsById = new Map(backup.reports.map((report) => [report.id, report]));
   const defectsById = new Map(backup.defects.map((defect) => [defect.id, defect]));
   let migratedPhotos = 0;
+  const failedPhotos: string[] = [];
   for (const photo of backup.photos) {
     const defect = defectsById.get(photo.defectId);
     const report = defect ? reportsById.get(defect.reportId) : undefined;
@@ -667,7 +718,7 @@ export async function migrateLegacySafetyData(): Promise<{
     const path = `${clientId}/${reportId}/${defectId}/${photoId}.jpg`;
     try {
       const source = await fetch(photo.storagePath);
-      if (!source.ok) continue;
+      if (!source.ok) throw new Error('Legacy photo is unavailable');
       const blob = await source.blob();
       const { error: uploadError } = await supabase.storage
         .from(AUDIT_BUCKET)
@@ -684,11 +735,17 @@ export async function migrateLegacySafetyData(): Promise<{
       throwIfError(rowError);
       migratedPhotos += 1;
     } catch {
+      failedPhotos.push(photo.id);
       // Keep migrating the remaining data; the local backup is retained so a
       // failed legacy photo can be recovered manually.
     }
   }
 
+  if (failedPhotos.length) {
+    throw new Error(
+      `הנתונים הועברו, אך ${failedPhotos.length} תמונות לא הועלו. ניתן לנסות שוב בלי לאבד את המקור.`,
+    );
+  }
   localStorage.setItem(LEGACY_MIGRATION_KEY, nowIso());
   return {
     clients: backup.clients.length,

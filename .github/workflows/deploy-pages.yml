@@ -32,6 +32,14 @@ jobs:
           cache: 'npm'
       - name: Install deps
         run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Browser smoke tests
+        run: npm run test:e2e -- --project=chromium
       - name: Build
         run: npm run build
         env:

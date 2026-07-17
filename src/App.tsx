@@ -16,6 +16,7 @@ import SafetyLogin from "./pages/safety-audit/SafetyLogin.tsx";
 import SafetyUserManagement from "./pages/safety-audit/SafetyUserManagement.tsx";
 import SafetyUserProfile from "./pages/safety-audit/SafetyUserProfile.tsx";
 import RequireSafetyAuth from "./components/safety/RequireSafetyAuth.tsx";
+import RequireSafetyAdmin from "./components/safety/RequireSafetyAdmin.tsx";
 import { SafetyAuthProvider } from "./contexts/SafetyAuthContext.tsx";
 
 const queryClient = new QueryClient();
@@ -28,13 +29,13 @@ const App = () => (
       <BrowserRouter>
         <SafetyAuthProvider>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/editor/:id" element={<DossierEditor />} />
-            <Route path="/preview/:id" element={<DossierPreview />} />
-            <Route path="/reports/:id" element={<DossierReports />} />
+            <Route path="/" element={<RequireSafetyAuth><Index /></RequireSafetyAuth>} />
+            <Route path="/editor/:id" element={<RequireSafetyAuth><DossierEditor /></RequireSafetyAuth>} />
+            <Route path="/preview/:id" element={<RequireSafetyAuth><DossierPreview /></RequireSafetyAuth>} />
+            <Route path="/reports/:id" element={<RequireSafetyAuth><DossierReports /></RequireSafetyAuth>} />
             <Route path="/safety/login" element={<SafetyLogin />} />
             <Route path="/safety" element={<RequireSafetyAuth><SafetyAuditIndex /></RequireSafetyAuth>} />
-            <Route path="/safety/users" element={<RequireSafetyAuth><SafetyUserManagement /></RequireSafetyAuth>} />
+            <Route path="/safety/users" element={<RequireSafetyAuth><RequireSafetyAdmin><SafetyUserManagement /></RequireSafetyAdmin></RequireSafetyAuth>} />
             <Route path="/safety/profile" element={<RequireSafetyAuth><SafetyUserProfile /></RequireSafetyAuth>} />
             <Route path="/safety/client/:clientId" element={<RequireSafetyAuth><SafetyClientReports /></RequireSafetyAuth>} />
             <Route path="/safety/editor/:id" element={<RequireSafetyAuth><SafetyAuditEditor /></RequireSafetyAuth>} />

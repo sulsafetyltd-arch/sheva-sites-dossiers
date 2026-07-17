@@ -46,22 +46,39 @@ const SafetyAuditPreview = () => {
   const [report, setReport] = useState<SafetyAuditReport | null>(null);
   const [defects, setDefects] = useState<SafetyAuditDefect[]>([]);
   const [photos, setPhotos] = useState<ReportPhoto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareFallback, setShareFallback] = useState(false);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
-  const [generatedPdf, setGeneratedPdf] = useState<Blob | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      if (!id) return;
-      const r = await getReport(id);
-      const d = await listDefects(id);
-      const p = await listReportPhotos(id);
-      setReport(r);
-      setDefects(d);
-      setPhotos(p);
+      try {
+        if (!id) throw new Error('מזהה הדוח חסר');
+        const [nextReport, nextDefects, nextPhotos] = await Promise.all([
+          getReport(id),
+          listDefects(id),
+          listReportPhotos(id),
+        ]);
+        if (cancelled) return;
+        setReport(nextReport);
+        setDefects(nextDefects);
+        setPhotos(nextPhotos);
+        setLoadError(nextReport ? null : 'הדוח לא נמצא או שאין לך הרשאה לצפות בו');
+      } catch (cause) {
+        if (!cancelled) {
+          setLoadError(cause instanceof Error ? cause.message : 'טעינת הדוח נכשלה');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const photosByDefect = useMemo(() => {
@@ -87,6 +104,9 @@ const SafetyAuditPreview = () => {
     setExporting(true);
     try {
       await exportToPdf(el, `דוח-ביקורת-בטיחות-${report?.reportNumber || 'ללא-מספר'}.pdf`);
+      setShareMessage(null);
+    } catch (cause) {
+      setShareMessage(cause instanceof Error ? cause.message : 'יצירת ה־PDF נכשלה');
     } finally {
       setExporting(false);
     }
@@ -100,12 +120,9 @@ const SafetyAuditPreview = () => {
     `שלום, מצורף דו״ח ביקורת בטיחות ${report?.reportNumber || ''} עבור ${report?.recipient || 'הלקוח'}, באתר ${report?.siteName || report?.projectName || ''}.`;
 
   const getPdf = async () => {
-    if (generatedPdf) return generatedPdf;
     const element = document.getElementById('printable');
     if (!element) throw new Error('לא ניתן ליצור את קובץ הדוח');
-    const blob = await createPdfBlob(element);
-    setGeneratedPdf(blob);
-    return blob;
+    return createPdfBlob(element);
   };
 
   const onShare = async () => {
@@ -146,7 +163,15 @@ const SafetyAuditPreview = () => {
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`${shareText()}\n\nיש לצרף להודעה את קובץ ה-PDF שהורד.`)}`;
   };
 
-  if (!report) return <div className="p-4" dir="rtl">טוען…</div>;
+  if (loading) return <div className="p-4" dir="rtl">טוען…</div>;
+  if (loadError || !report) {
+    return (
+      <div className="p-6 text-center space-y-3" dir="rtl">
+        <div className="text-red-700">{loadError || 'הדוח לא נמצא'}</div>
+        <Link to="/safety" className="underline text-slate-600">חזרה ללקוחות</Link>
+      </div>
+    );
+  }
 
   const isConstruction = report.reportType === 'construction';
   const topics = getChecklistTopics(report.reportType);
@@ -499,7 +524,7 @@ const SafetyAuditPreview = () => {
                 </h3>
                 <div className="space-y-3">
                   {defects
-                    .filter((d) => !d.checklistTopicKey || (photosByDefect[d.id]?.length ?? 0) > 0)
+                    .filter((d) => !d.checklistTopicKey)
                     .map((d, idx) => (
                       <div key={d.id} className="rounded-lg border border-slate-200 p-3 flex flex-col sm:flex-row gap-3">
                         <div className="flex-1 space-y-1">
