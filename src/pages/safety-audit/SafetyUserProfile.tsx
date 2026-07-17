@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BadgeCheck, ImagePlus, Save, Trash2 } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Camera, FolderOpen, Save, Trash2 } from 'lucide-react';
 import SignaturePad from '@/components/dossier/SignaturePad';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -127,27 +127,47 @@ export default function SafetyUserProfile() {
             <h2 className="font-semibold">חותמת</h2>
             <p className="text-xs text-slate-500 mt-1">צלם או העלה תמונה ברורה של החותמת על רקע בהיר.</p>
           </div>
-          {stamp ? (
+          {stamp && (
             <div className="rounded-lg border bg-slate-50 p-3 flex items-center justify-between gap-3">
               <img src={stamp} alt="חותמת המשתמש" className="h-28 max-w-[220px] object-contain mix-blend-multiply" />
-              <Button type="button" variant="ghost" size="icon" className="text-red-600" onClick={() => setStamp(undefined)}>
+              <Button type="button" variant="ghost" size="icon" className="text-red-600" onClick={() => setStamp(undefined)} aria-label="מחיקת החותמת">
                 <Trash2 className="w-4 h-4" />
               </Button>
             </div>
-          ) : (
-            <label className="rounded-lg border-2 border-dashed p-7 flex flex-col items-center gap-2 cursor-pointer hover:bg-slate-50">
-              <ImagePlus className="w-8 h-8 text-slate-400" />
-              <span className="text-sm font-medium">{processingStamp ? 'מעבד תמונה…' : 'העלה או צלם חותמת'}</span>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label className={`rounded-lg border-2 border-dashed p-5 flex flex-col items-center gap-2 hover:bg-slate-50 ${processingStamp ? 'cursor-wait opacity-60' : 'cursor-pointer'}`}>
+              <FolderOpen className="w-7 h-7 text-slate-500" />
+              <span className="text-sm font-medium">{processingStamp ? 'מעבד תמונה…' : stamp ? 'החלף מהגלריה / קבצים' : 'בחר מהגלריה / קבצים'}</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={processingStamp}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = '';
+                  void uploadStamp(file);
+                }}
+              />
+            </label>
+            <label className={`rounded-lg border-2 border-dashed p-5 flex flex-col items-center gap-2 hover:bg-slate-50 ${processingStamp ? 'cursor-wait opacity-60' : 'cursor-pointer'}`}>
+              <Camera className="w-7 h-7 text-slate-500" />
+              <span className="text-sm font-medium">צלם חותמת במצלמה</span>
               <input
                 type="file"
                 accept="image/*"
                 capture="environment"
                 className="hidden"
                 disabled={processingStamp}
-                onChange={(event) => void uploadStamp(event.target.files?.[0])}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = '';
+                  void uploadStamp(file);
+                }}
               />
             </label>
-          )}
+          </div>
         </section>
 
         {error && <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</div>}
