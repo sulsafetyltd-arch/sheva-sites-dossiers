@@ -113,6 +113,11 @@ test('authorized auditor completes checklist and creates one defect', async ({ p
     if (path === '/rest/v1/safety_audit_defects' && request.method() === 'GET') {
       return json(route, defects);
     }
+    if (path === '/rest/v1/safety_audit_defects' && request.method() === 'PATCH') {
+      const updated = { ...defects[0], ...(request.postDataJSON() as object) };
+      defects[0] = updated;
+      return json(route, updated);
+    }
     if (path === '/rest/v1/rpc/create_safety_defect') {
       const payload = request.postDataJSON();
       const existing = defects.find((item) => item.checklist_topic_key === payload.p_checklist_topic_key);
@@ -159,6 +164,10 @@ test('authorized auditor completes checklist and creates one defect', async ({ p
 
   await expect(page.getByText('ליקוי #1')).toBeVisible();
   await expect(page.locator('textarea').first()).toHaveValue(/הסדרי תנועה ושילוט/);
+  await page.getByLabel('בחירת פעולה מתקנת מוצעת').selectOption({
+    label: 'לספק ציוד מגן אישי מתאים ולוודא שימוש ואכיפה בפועל',
+  });
+  await expect(page.getByPlaceholder(/ניתן לבחור פעולות/)).toHaveValue(/ציוד מגן אישי/);
   expect(defects).toHaveLength(1);
   expect((report.checklist as Record<string, { status: string }>).traffic_and_signage.status).toBe('not_ok');
 });
