@@ -12,7 +12,7 @@ import { reportTypeLabel } from '@/types/safety-audit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
-import { ArrowRight, Building2, Mail, MapPin, Pencil, Phone, Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, Building2, GraduationCap, Mail, MapPin, Pencil, Phone, Plus, Trash2 } from 'lucide-react';
 
 export default function SafetyClientReports() {
   const { isAdmin } = useSafetyAuth();
@@ -148,9 +148,16 @@ export default function SafetyClientReports() {
 
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-lg">דוחות הלקוח</h2>
-          <Button onClick={() => setShowNewReport((value) => !value)} className="gap-1">
-            <Plus className="w-4 h-4" /> דוח חדש
-          </Button>
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Button asChild variant="outline" className="gap-1">
+              <Link to={`/safety/training/client/${client.id}`}>
+                <GraduationCap className="w-4 h-4" /> הדרכות בטיחות
+              </Link>
+            </Button>
+            <Button onClick={() => setShowNewReport((value) => !value)} className="gap-1">
+              <Plus className="w-4 h-4" /> דוח חדש
+            </Button>
+          </div>
         </div>
 
         {showNewReport && (
