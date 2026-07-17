@@ -15,6 +15,8 @@ export default function SafetyLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const destination = (location.state as { from?: string } | null)?.from || '/safety';
@@ -29,6 +31,7 @@ export default function SafetyLogin() {
     setSubmitting(true);
     setError(null);
     setMessage(null);
+    setNeedsConfirmation(false);
     try {
       if (mode === 'register') {
         const { data, error: signUpError } = await supabase.auth.signUp({
@@ -55,9 +58,36 @@ export default function SafetyLogin() {
         navigate(destination, { replace: true });
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'הפעולה נכשלה');
+      const rawMessage = cause instanceof Error ? cause.message : '';
+      if (rawMessage.toLowerCase().includes('email not confirmed')) {
+        setNeedsConfirmation(true);
+        setError('כתובת המייל עדיין לא אומתה. יש ללחוץ על הקישור שנשלח למייל.');
+      } else if (rawMessage.toLowerCase().includes('invalid login credentials')) {
+        setError('כתובת המייל או הסיסמה אינם נכונים.');
+      } else {
+        setError(rawMessage || 'הפעולה נכשלה');
+      }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const resendConfirmation = async () => {
+    setResending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim(),
+        options: { emailRedirectTo: `${window.location.origin}/safety` },
+      });
+      if (resendError) throw resendError;
+      setMessage('מייל אימות חדש נשלח. יש לבדוק גם בתיקיית הספאם.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'שליחת מייל האימות נכשלה');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -117,7 +147,22 @@ export default function SafetyLogin() {
           </div>
         </div>
 
-        {error && <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</div>}
+        {error && (
+          <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm space-y-2">
+            <div>{error}</div>
+            {needsConfirmation && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={resending || !email.trim()}
+                onClick={() => void resendConfirmation()}
+              >
+                {resending ? 'שולח…' : 'שלח שוב מייל אימות'}
+              </Button>
+            )}
+          </div>
+        )}
         {message && <div className="rounded-lg bg-emerald-50 text-emerald-700 p-3 text-sm">{message}</div>}
 
         <Button
