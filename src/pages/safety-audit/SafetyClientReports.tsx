@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   createReport,
@@ -27,7 +27,7 @@ export default function SafetyClientReports() {
   const [reportType, setReportType] = useState<ReportType>('workplace');
   const [siteName, setSiteName] = useState('');
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     if (!clientId) return;
     try {
       const [clientItem, reportItems] = await Promise.all([
@@ -42,11 +42,11 @@ export default function SafetyClientReports() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clientId]);
 
   useEffect(() => {
     void refresh();
-  }, [clientId]);
+  }, [refresh]);
 
   const create = async () => {
     if (!client || !clientId) return;

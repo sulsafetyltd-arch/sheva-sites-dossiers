@@ -34,6 +34,8 @@ jobs:
         run: npm ci
       - name: Typecheck
         run: npm run typecheck
+      - name: Lint safety application
+        run: npm run lint:safety
       - name: Unit tests
         run: npm test
       - name: Install Playwright browser
