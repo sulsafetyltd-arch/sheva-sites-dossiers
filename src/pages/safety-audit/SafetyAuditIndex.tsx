@@ -39,8 +39,8 @@ const SafetyAuditIndex = () => {
       setClients(clientItems);
       setReports(reportItems);
       setError(null);
-    } catch (e: any) {
-      setError(e?.message ?? 'שגיאה בטעינת דוחות');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'שגיאה בטעינת דוחות');
     } finally {
       setLoading(false);
     }
@@ -67,8 +67,8 @@ const SafetyAuditIndex = () => {
       setAddress('');
       setShowForm(false);
       await refresh();
-    } catch (e: any) {
-      setError(e?.message ?? 'שגיאה ביצירת לקוח');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'שגיאה ביצירת לקוח');
     } finally {
       setCreating(false);
     }
