@@ -17,6 +17,7 @@ import {
 } from '@/lib/safety-training-store';
 import type { SafetyTrainingParticipant, SafetyTrainingSession } from '@/types/safety-training';
 import {
+  GENERAL_TRAINING_TOPICS,
   HEIGHT_TRAINING_TOPICS,
   TRAINING_CATEGORY_DETAILS,
   trainingCategoryLabel,
@@ -208,6 +209,46 @@ export default function SafetyTrainingEditor() {
             <ul className="list-disc pr-5">{details.content.map((item) => <li key={item}>{item}</li>)}</ul>
           </div>
         </section>
+
+        {session.category === 'general' && (
+          <section className="rounded-xl border bg-white p-4 space-y-4">
+            <h2 className="font-semibold">פרטי טופס הדרכת בטיחות כללית</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input value={heightDetails.companyName || ''} onChange={(event) => setHeightDetails({ companyName: event.target.value })} placeholder="שם החברה / המעסיק" />
+              <Input value={heightDetails.companyRegistrationNumber || ''} onChange={(event) => setHeightDetails({ companyRegistrationNumber: event.target.value })} placeholder="ח.פ. / ע.מ." />
+              <Input value={heightDetails.siteAddress || ''} onChange={(event) => setHeightDetails({ siteAddress: event.target.value })} placeholder="כתובת האתר" />
+              <Input value={heightDetails.instructorOrganization || ''} onChange={(event) => setHeightDetails({ instructorOrganization: event.target.value })} placeholder="המדריך מטעם" />
+              <label className="text-sm">שעת התחלה<Input type="time" value={heightDetails.startTime || ''} onChange={(event) => setHeightDetails({ startTime: event.target.value })} /></label>
+              <label className="text-sm">שעת סיום<Input type="time" value={heightDetails.endTime || ''} onChange={(event) => setHeightDetails({ endTime: event.target.value })} /></label>
+            </div>
+            <div>
+              <h3 className="font-medium mb-2">נושאי ההדרכה שהועברו</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {GENERAL_TRAINING_TOPICS.map((topic) => {
+                  const selected = (heightDetails.generalSelectedTopics ?? GENERAL_TRAINING_TOPICS).includes(topic);
+                  return (
+                    <label key={topic} className="flex items-start gap-2 rounded-lg border p-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => setHeightDetails({
+                          generalSelectedTopics: selected
+                            ? (heightDetails.generalSelectedTopics ?? [...GENERAL_TRAINING_TOPICS]).filter((item) => item !== topic)
+                            : [...(heightDetails.generalSelectedTopics ?? []), topic],
+                        })}
+                      />
+                      {topic}
+                    </label>
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                <Input value={heightDetails.generalOtherTopic1 || ''} onChange={(event) => setHeightDetails({ generalOtherTopic1: event.target.value })} placeholder="נושא נוסף" />
+                <Input value={heightDetails.generalOtherTopic2 || ''} onChange={(event) => setHeightDetails({ generalOtherTopic2: event.target.value })} placeholder="נושא נוסף" />
+              </div>
+            </div>
+          </section>
+        )}
 
         {session.category === 'work_at_height' && (
           <section className="rounded-xl border bg-white p-4 space-y-4">

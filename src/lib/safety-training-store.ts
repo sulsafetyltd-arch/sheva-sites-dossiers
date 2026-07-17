@@ -5,6 +5,7 @@ import type {
   TrainingCategory,
 } from '@/types/safety-training';
 import { TRAINING_CATEGORY_DETAILS } from '@/types/safety-training';
+import { GENERAL_TRAINING_TOPICS, HEIGHT_TRAINING_TOPICS } from '@/types/safety-training';
 
 type Row = Record<string, unknown>;
 
@@ -97,12 +98,18 @@ export async function createTrainingSession(
   const { data: profile, error: profileError } = authData.user
     ? await supabase
         .from('profiles')
-        .select('full_name,job_title,phone,signature_data_url')
+        .select('full_name,job_title,phone,signature_data_url,stamp_data_url')
         .eq('id', authData.user.id)
         .single()
     : { data: null, error: null };
   fail(profileError);
   if (!profile?.full_name) throw new Error('יש להשלים שם מלא בפרופיל לפני יצירת הדרכה');
+  const { data: client, error: clientError } = await supabase
+    .from('safety_audit_clients')
+    .select('name,address,phone')
+    .eq('id', clientId)
+    .single();
+  fail(clientError);
 
   const { data: number, error: numberError } = await supabase.rpc(
     'allocate_safety_training_number',
@@ -125,6 +132,19 @@ export async function createTrainingSession(
       instructor_phone: profile.phone,
       instructor_signature_data_url: profile.signature_data_url,
       instructor_signed_at: profile.signature_data_url ? new Date().toISOString() : null,
+      form_details: {
+        companyName: client?.name,
+        companyAddress: client?.address,
+        companyPhone: client?.phone,
+        siteAddress: location || client?.address,
+        instructorOrganization: 'סול בטיחות בע״מ',
+        instructorStampDataUrl: profile.stamp_data_url,
+        ...(category === 'general'
+          ? { generalSelectedTopics: [...GENERAL_TRAINING_TOPICS] }
+          : category === 'work_at_height'
+            ? { selectedTopics: [...HEIGHT_TRAINING_TOPICS] }
+            : {}),
+      },
       created_by: authData.user?.id,
     })
     .select('*')

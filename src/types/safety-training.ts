@@ -20,6 +20,21 @@ export const HEIGHT_TRAINING_PROGRAM = [
   'עבודה בטוחה על סולמות, במות הרמה, סלי הרמה, פיגומים, גגות ומבני קונסטרוקציה',
 ] as const;
 
+export const GENERAL_TRAINING_TOPICS = [
+  'מדיניות הבטיחות וחובות העובד והמעסיק על פי חוק',
+  'גורמי סיכון בסביבת העבודה ובתפקיד',
+  'ציוד מגן אישי – חובת שימוש, התאמה ותקינות',
+  'בטיחות בעבודה בגובה',
+  'בטיחות בעבודה עם כלי עבודה וציוד מכני',
+  'בטיחות בחשמל',
+  'חומרים מסוכנים – זיהוי, שילוט, אחסון וטיפול',
+  'בטיחות אש, דרכי מילוט ונקודת כינוס',
+  'סדר וניקיון בסביבת העבודה',
+  'הרמה ושינוע ידני של מטענים',
+  'דיווח על מפגעים, כמעט תאונות ותאונות עבודה',
+  'עזרה ראשונה, נוהלי חירום ומספרי חירום',
+] as const;
+
 export interface HeightTrainingFormDetails {
   companyName?: string;
   companyRegistrationNumber?: string;
@@ -40,6 +55,14 @@ export interface HeightTrainingFormDetails {
   validUntil?: string;
   certificateScope?: string;
   selectedTopics?: string[];
+  siteAddress?: string;
+  startTime?: string;
+  endTime?: string;
+  instructorOrganization?: string;
+  instructorStampDataUrl?: string;
+  generalSelectedTopics?: string[];
+  generalOtherTopic1?: string;
+  generalOtherTopic2?: string;
 }
 
 export interface SafetyTrainingSession {

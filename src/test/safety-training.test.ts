@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  GENERAL_TRAINING_TOPICS,
   HEIGHT_TRAINING_PROGRAM,
   HEIGHT_TRAINING_TOPICS,
   TRAINING_CATEGORY_DETAILS,
@@ -10,6 +11,7 @@ describe('safety training categories', () => {
   it('defines group training content for general and fire sessions', () => {
     expect(trainingCategoryLabel('general')).toBe('הדרכת בטיחות כללית');
     expect(TRAINING_CATEGORY_DETAILS.general.content.length).toBeGreaterThan(0);
+    expect(GENERAL_TRAINING_TOPICS).toHaveLength(12);
     expect(TRAINING_CATEGORY_DETAILS.fire.content.length).toBeGreaterThan(0);
   });
 
