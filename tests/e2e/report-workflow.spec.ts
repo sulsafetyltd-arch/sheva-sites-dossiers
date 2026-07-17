@@ -6,11 +6,11 @@ const REPORT_ID = '11111111-1111-4111-8111-111111111111';
 const CLIENT_ID = '22222222-2222-4222-8222-222222222222';
 const USER_ID = '33333333-3333-4333-8333-333333333333';
 const KEY_ID = 'test-key';
-const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const publicJwk = {
   ...publicKey.export({ format: 'jwk' }),
   kid: KEY_ID,
-  alg: 'ES256',
+  alg: 'RS256',
   use: 'sig',
 };
 
@@ -20,13 +20,10 @@ function encode(value: object): string {
 
 function createAccessToken(expiresAt: number): string {
   const unsigned = [
-    encode({ alg: 'ES256', typ: 'JWT', kid: KEY_ID }),
+    encode({ alg: 'RS256', typ: 'JWT', kid: KEY_ID }),
     encode({ sub: USER_ID, role: 'authenticated', aud: 'authenticated', exp: expiresAt }),
   ].join('.');
-  const signature = sign('sha256', Buffer.from(unsigned), {
-    key: privateKey,
-    dsaEncoding: 'ieee-p1363',
-  }).toString('base64url');
+  const signature = sign('RSA-SHA256', Buffer.from(unsigned), privateKey).toString('base64url');
   return `${unsigned}.${signature}`;
 }
 
