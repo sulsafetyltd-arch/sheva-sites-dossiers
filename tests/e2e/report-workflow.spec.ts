@@ -44,7 +44,19 @@ const initialReport = {
 
 async function seedAuthenticatedSession(page: Page) {
   await page.addInitScript(({ key, session }) => {
-    localStorage.setItem(key, JSON.stringify(session));
+    const encode = (value: object) =>
+      btoa(JSON.stringify(value)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+    const accessToken = [
+      encode({ alg: 'HS256', typ: 'JWT' }),
+      encode({
+        sub: session.user.id,
+        role: 'authenticated',
+        aud: 'authenticated',
+        exp: session.expires_at,
+      }),
+      'test-signature',
+    ].join('.');
+    localStorage.setItem(key, JSON.stringify({ ...session, access_token: accessToken }));
   }, {
     key: 'sb-vwgkwhycbnyasolmbmqd-auth-token',
     session: {
@@ -121,7 +133,7 @@ test('authorized auditor completes checklist and creates one defect', async ({ p
   await page.getByRole('button', { name: /הבא/ }).click();
 
   await expect(page.getByText('ליקוי #1')).toBeVisible();
-  await expect(page.getByDisplayValue(/הסדרי תנועה ושילוט/)).toBeVisible();
+  await expect(page.locator('textarea').first()).toHaveValue(/הסדרי תנועה ושילוט/);
   expect(defects).toHaveLength(1);
   expect((report.checklist as Record<string, { status: string }>).traffic_and_signage.status).toBe('not_ok');
 });
