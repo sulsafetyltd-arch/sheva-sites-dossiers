@@ -152,8 +152,9 @@ const SafetyAuditEditor = () => {
       });
       setDefects((prev) => [...prev, d]);
       setPhotosByDefect((prev) => ({ ...prev, [d.id]: [] }));
+      setError(null);
     } catch (e: any) {
-      setError(e?.message ?? 'שגיאה בהוספת ליקוי');
+      setError(`הוספת הליקוי נכשלה: ${e?.message ?? 'שגיאה לא ידועה'}`);
     }
   };
 
@@ -188,8 +189,9 @@ const SafetyAuditEditor = () => {
         ...prev,
         [defectId]: [...(prev[defectId] ?? []), photo],
       }));
+      setError(null);
     } catch (e: any) {
-      setError(e?.message ?? 'שגיאה בהעלאת תמונה');
+      setError(`העלאת התמונה נכשלה: ${e?.message ?? 'שגיאה לא ידועה'}`);
     }
   };
 

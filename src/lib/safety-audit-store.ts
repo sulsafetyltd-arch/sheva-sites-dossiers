@@ -382,20 +382,16 @@ export async function createDefect(
   reportId: string,
   payload: Omit<SafetyAuditDefect, 'id' | 'reportId' | 'createdAt'>,
 ): Promise<SafetyAuditDefect> {
-  const { data, error } = await supabase
-    .from('safety_audit_defects')
-    .insert({
-      report_id: reportId,
-      checklist_topic_key: payload.checklistTopicKey ?? null,
-      description: payload.description,
-      severity: payload.severity,
-      corrective_action: payload.correctiveAction ?? null,
-      responsible: payload.responsible ?? null,
-      due_date: payload.dueDate ?? null,
-      sort_order: payload.sortOrder ?? 0,
-    })
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('create_safety_defect', {
+    p_report_id: reportId,
+    p_checklist_topic_key: payload.checklistTopicKey ?? null,
+    p_description: payload.description,
+    p_severity: payload.severity,
+    p_corrective_action: payload.correctiveAction ?? null,
+    p_responsible: payload.responsible ?? null,
+    p_due_date: payload.dueDate ?? null,
+    p_sort_order: payload.sortOrder ?? 0,
+  });
   throwIfError(error);
   return mapDefect(data);
 }
