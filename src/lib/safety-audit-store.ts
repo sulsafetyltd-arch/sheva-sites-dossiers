@@ -62,10 +62,14 @@ function mapClient(row: DatabaseRow): SafetyAuditClient {
 }
 
 export function mapSafetyReportRow(row: DatabaseRow): SafetyAuditReport {
+  const reportType: ReportType =
+    row.report_type === 'construction' || row.report_type === 'infrastructure'
+      ? row.report_type
+      : 'workplace';
   return {
     id: String(row.id),
     clientId: String(row.client_id),
-    reportType: row.report_type === 'construction' ? 'construction' : 'workplace',
+    reportType,
     reportNumber: optionalString(row.report_number),
     date: String(row.date),
     recipient: optionalString(row.recipient),
@@ -315,8 +319,8 @@ export async function createReport(
       parcel: partial.parcel ?? null,
       contractor: partial.contractor ?? null,
       audit_date: partial.auditDate ?? today(),
-      auditor: partial.auditor ?? issuerProfile?.full_name ?? (reportType === 'construction' ? 'שלומי סולטן' : null),
-      auditor_role: partial.auditorRole ?? issuerProfile?.job_title ?? (reportType === 'construction' ? 'ממונה בטיחות' : null),
+      auditor: partial.auditor ?? issuerProfile?.full_name ?? null,
+      auditor_role: partial.auditorRole ?? issuerProfile?.job_title ?? null,
       auditor_phone: partial.auditorPhone ?? issuerProfile?.phone ?? null,
       attendees: partial.attendees ?? null,
       site_manager: partial.siteManager ?? null,

@@ -56,8 +56,8 @@ export default function SafetyClientReports() {
         reportType,
         recipient: client.name,
         siteName: siteName.trim() || client.address || 'אתר ללא שם',
-        projectName: reportType === 'construction' ? siteName.trim() || undefined : undefined,
-        contractor: reportType === 'workplace' ? client.name : undefined,
+        projectName: reportType === 'workplace' ? undefined : siteName.trim() || undefined,
+        contractor: reportType === 'construction' ? undefined : client.name,
         status: 'draft',
       });
       navigate(`/safety/editor/${report.id}`);
@@ -156,8 +156,8 @@ export default function SafetyClientReports() {
         {showNewReport && (
           <section className="rounded-xl border-2 border-slate-900 bg-white p-4 space-y-4">
             <h3 className="font-semibold">יצירת דוח עבור {client.name}</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {(['workplace', 'construction'] as ReportType[]).map((type) => (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {(['workplace', 'construction', 'infrastructure'] as ReportType[]).map((type) => (
                 <button
                   key={type}
                   type="button"
@@ -168,13 +168,23 @@ export default function SafetyClientReports() {
                 >
                   <div className="font-semibold">{reportTypeLabel(type)}</div>
                   <div className={`text-xs mt-1 ${reportType === type ? 'text-slate-300' : 'text-slate-500'}`}>
-                    {type === 'construction' ? '26 בדיקות בנייה' : '10 בדיקות עבודה'}
+                    {type === 'construction'
+                      ? '26 בדיקות בנייה'
+                      : type === 'infrastructure'
+                        ? '48 בדיקות תשתיות'
+                        : '10 בדיקות עבודה'}
                   </div>
                 </button>
               ))}
             </div>
             <Input
-              placeholder={reportType === 'construction' ? 'שם הפרויקט / אתר הבנייה' : 'שם האתר / כתובת'}
+              placeholder={
+                reportType === 'construction'
+                  ? 'שם הפרויקט / אתר הבנייה'
+                  : reportType === 'infrastructure'
+                    ? 'שם הפרויקט / אתר התשתיות'
+                    : 'שם האתר / כתובת'
+              }
               value={siteName}
               onChange={(e) => setSiteName(e.target.value)}
             />
@@ -199,7 +209,13 @@ export default function SafetyClientReports() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`text-xs rounded-full px-2 py-0.5 ${report.reportType === 'construction' ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-900'}`}>
+                      <span className={`text-xs rounded-full px-2 py-0.5 ${
+                        report.reportType === 'construction'
+                          ? 'bg-amber-100 text-amber-900'
+                          : report.reportType === 'infrastructure'
+                            ? 'bg-emerald-100 text-emerald-900'
+                            : 'bg-sky-100 text-sky-900'
+                      }`}>
                         {reportTypeLabel(report.reportType)}
                       </span>
                       <span className="font-medium">{report.siteName || report.projectName}</span>

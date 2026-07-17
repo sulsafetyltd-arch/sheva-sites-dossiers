@@ -174,6 +174,8 @@ const SafetyAuditPreview = () => {
   }
 
   const isConstruction = report.reportType === 'construction';
+  const isInfrastructure = report.reportType === 'infrastructure';
+  const isProjectReport = isConstruction || isInfrastructure;
   const topics = getChecklistTopics(report.reportType);
   const siteTitle = report.projectName || report.siteName || '—';
 
@@ -248,9 +250,7 @@ const SafetyAuditPreview = () => {
               <div>
                 <div className="text-xs tracking-[0.2em] text-slate-300 mb-1">סול בטיחות בע״מ</div>
                 <h2 className="text-xl sm:text-2xl font-bold leading-snug">
-                  {isConstruction
-                    ? 'דו״ח ביקורת בטיחות — אתר בנייה'
-                    : 'דו״ח ביקורת בטיחות — אתר עבודה'}
+                  דו״ח ביקורת בטיחות — {reportTypeLabel(report.reportType)}
                 </h2>
                 <div className="mt-2 text-sm text-slate-200">{siteTitle}</div>
               </div>
@@ -277,7 +277,7 @@ const SafetyAuditPreview = () => {
               <div className="text-slate-500">ממונה בטיחות: {report.auditor || 'שלומי סולטן'} · מ.ר 26352</div>
             </div>
 
-            {!isConstruction && (
+            {!isProjectReport && (
               <section>
                 <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
                   1. סיכום מנהלים
@@ -304,7 +304,7 @@ const SafetyAuditPreview = () => {
 
             <section>
               <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
-                {isConstruction ? 'פרטי הביקורת' : '2. פרטי הביקורת'}
+                {isProjectReport ? 'פרטי הביקורת' : '2. פרטי הביקורת'}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 {isConstruction ? (
@@ -315,6 +315,16 @@ const SafetyAuditPreview = () => {
                     <MetaRow label="מנהל עבודה" value={report.siteManager || '—'} />
                     <MetaRow label="תאריך ביקורת" value={report.auditDate || '—'} />
                     <MetaRow label="מספר פועלים" value={String(report.workersCount ?? '—')} />
+                  </>
+                ) : isInfrastructure ? (
+                  <>
+                    <MetaRow label="שם הפרויקט / אתר התשתיות" value={siteTitle} />
+                    <MetaRow label="מבצע הבנייה (קבלן)" value={report.contractor || '—'} />
+                    <MetaRow label="ממונה הבטיחות" value={`${report.auditor || '—'} (${report.auditorRole || 'ממונה בטיחות'})`} />
+                    <MetaRow label="מנהל עבודה" value={report.siteManager || '—'} />
+                    <MetaRow label="תאריך הביקורת" value={report.auditDate || '—'} />
+                    <MetaRow label="מלווה הביקורת" value={report.attendees || '—'} />
+                    <MetaRow label="מספר עובדים" value={String(report.workersCount ?? '—')} />
                   </>
                 ) : (
                   <>
@@ -330,9 +340,11 @@ const SafetyAuditPreview = () => {
                   </>
                 )}
               </div>
-              {isConstruction && report.workStagesDetail && (
+              {isProjectReport && report.workStagesDetail && (
                 <div className="mt-3 rounded-lg border border-slate-200 p-3 bg-slate-50">
-                  <div className="text-xs text-slate-500 mb-1">שלבי עבודה</div>
+                  <div className="text-xs text-slate-500 mb-1">
+                    {isInfrastructure ? 'תיאור העבודות המתבצעות בעת הביקורת' : 'שלבי עבודה'}
+                  </div>
                   <div className="whitespace-pre-wrap">{report.workStagesDetail}</div>
                 </div>
               )}
@@ -340,7 +352,7 @@ const SafetyAuditPreview = () => {
 
             <section>
               <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
-                {isConstruction ? 'ממצאי הביקורת' : '3. רשימת בדיקה'}
+                {isConstruction ? 'ממצאי הביקורת' : isInfrastructure ? 'רשימת בדיקה' : '3. רשימת בדיקה'}
               </h3>
 
               {isConstruction ? (
@@ -426,7 +438,10 @@ const SafetyAuditPreview = () => {
                     <tbody>
                       {topics.map((t, idx) => (
                         <tr key={t.key} className={idx % 2 ? 'bg-slate-50' : 'bg-white'}>
-                          <td className="border border-slate-200 p-2">{t.title}</td>
+                          <td className="border border-slate-200 p-2">
+                            {t.chapter && <div className="text-[9px] text-slate-500 mb-0.5">{t.chapter}</div>}
+                            {t.title}
+                          </td>
                           <td className="border border-slate-200 p-2 text-center">{statusMark(t.key, 'ok')}</td>
                           <td className="border border-slate-200 p-2 text-center">{statusMark(t.key, 'not_ok')}</td>
                           <td className="border border-slate-200 p-2 text-center">{statusMark(t.key, 'na')}</td>

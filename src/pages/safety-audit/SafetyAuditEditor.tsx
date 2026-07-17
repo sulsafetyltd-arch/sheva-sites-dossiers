@@ -53,12 +53,15 @@ const SafetyAuditEditor = () => {
     [report?.reportType]
   );
   const isConstruction = report?.reportType === 'construction';
+  const isInfrastructure = report?.reportType === 'infrastructure';
+  const isProjectReport = isConstruction || isInfrastructure;
+  const hasChapteredChecklist = isProjectReport;
   const chapters = useMemo(
     () => Array.from(new Set(topics.map((topic) => topic.chapter || 'כל הבדיקות'))),
     [topics]
   );
   const currentChapter = activeChapter && chapters.includes(activeChapter) ? activeChapter : chapters[0];
-  const visibleTopics = isConstruction
+  const visibleTopics = hasChapteredChecklist
     ? topics.filter((topic) => (topic.chapter || 'כל הבדיקות') === currentChapter)
     : topics;
   const completedChecks = topics.filter((topic) => {
@@ -328,7 +331,11 @@ const SafetyAuditEditor = () => {
             <div className="flex items-center gap-2 mt-1 min-w-0">
               <span
                 className={`text-xs rounded-full px-2 py-0.5 ${
-                  isConstruction ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-900'
+                  isConstruction
+                    ? 'bg-amber-100 text-amber-900'
+                    : isInfrastructure
+                      ? 'bg-emerald-100 text-emerald-900'
+                      : 'bg-sky-100 text-sky-900'
                 }`}
               >
                 {reportTypeLabel(report.reportType)}
@@ -385,7 +392,7 @@ const SafetyAuditEditor = () => {
 
         {step === 0 && (
         <>
-        {!isConstruction && (
+        {!isProjectReport && (
           <section className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
             <h2 className="text-lg font-semibold">1. סיכום מנהלים</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -428,27 +435,35 @@ const SafetyAuditEditor = () => {
 
         <section className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
           <h2 className="text-lg font-semibold">
-            {isConstruction ? 'פרטי הביקורת באתר הבנייה' : '2. פרטי הביקורת'}
+            {isConstruction
+              ? 'פרטי הביקורת באתר הבנייה'
+              : isInfrastructure
+                ? 'פרטי הביקורת באתר התשתיות'
+                : '2. פרטי הביקורת'}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Input dir="rtl" placeholder="לכבוד" value={report.recipient || ''} onChange={(e) => setReport({ ...report, recipient: e.target.value })} />
-            {isConstruction ? (
+            {isProjectReport ? (
               <>
                 <Input
                   dir="rtl"
-                  placeholder="פרויקט / אתר"
+                  placeholder={isInfrastructure ? 'פרויקט / אתר תשתיות' : 'פרויקט / אתר'}
                   value={report.projectName || report.siteName || ''}
                   onChange={(e) => setReport({ ...report, projectName: e.target.value, siteName: e.target.value })}
                 />
-                <Input dir="rtl" placeholder="גוש" value={report.block || ''} onChange={(e) => setReport({ ...report, block: e.target.value })} />
-                <Input dir="rtl" placeholder="מגרש" value={report.parcel || ''} onChange={(e) => setReport({ ...report, parcel: e.target.value })} />
+                {isConstruction && (
+                  <>
+                    <Input dir="rtl" placeholder="גוש" value={report.block || ''} onChange={(e) => setReport({ ...report, block: e.target.value })} />
+                    <Input dir="rtl" placeholder="מגרש" value={report.parcel || ''} onChange={(e) => setReport({ ...report, parcel: e.target.value })} />
+                  </>
+                )}
               </>
             ) : (
               <Input dir="rtl" placeholder="שם האתר / כתובת" value={report.siteName || ''} onChange={(e) => setReport({ ...report, siteName: e.target.value })} />
             )}
             <Input
               dir="rtl"
-              placeholder={isConstruction ? 'שם המבצע (ממונה בטיחות)' : 'שם המבצע (הקבלן)'}
+              placeholder={isConstruction ? 'שם המבצע (ממונה בטיחות)' : 'שם מבצע הבנייה (הקבלן)'}
               value={isConstruction ? report.auditor || '' : report.contractor || ''}
               onChange={(e) =>
                 isConstruction
@@ -467,7 +482,7 @@ const SafetyAuditEditor = () => {
             <Input
               dir="rtl"
               type="number"
-              placeholder={isConstruction ? 'מספר פועלים (כולל קבלני משנה)' : 'מספר עובדים בשטח'}
+              placeholder={isProjectReport ? 'מספר פועלים (כולל קבלני משנה)' : 'מספר עובדים בשטח'}
               value={report.workersCount ?? ''}
               onChange={(e) => setReport({ ...report, workersCount: e.target.value === '' ? undefined : Number(e.target.value) })}
             />
@@ -479,8 +494,13 @@ const SafetyAuditEditor = () => {
               </>
             )}
           </div>
-          {isConstruction && (
-            <Textarea dir="rtl" placeholder="שלבי עבודה" value={report.workStagesDetail || ''} onChange={(e) => setReport({ ...report, workStagesDetail: e.target.value })} />
+          {isProjectReport && (
+            <Textarea
+              dir="rtl"
+              placeholder={isInfrastructure ? 'תיאור העבודות המתבצעות בעת הביקורת' : 'שלבי עבודה'}
+              value={report.workStagesDetail || ''}
+              onChange={(e) => setReport({ ...report, workStagesDetail: e.target.value })}
+            />
           )}
         </section>
         </>
@@ -495,7 +515,7 @@ const SafetyAuditEditor = () => {
             </div>
             <div className="text-sm font-medium text-emerald-700">{Math.round((completedChecks / topics.length) * 100)}%</div>
           </div>
-          {isConstruction && (
+          {hasChapteredChecklist && (
             <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
               {chapters.map((chapter) => (
                 <Button
