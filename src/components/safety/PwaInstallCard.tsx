@@ -72,7 +72,7 @@ export default function PwaInstallCard() {
       {!online && (
         <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900 flex items-center gap-2">
           <WifiOff className="w-4 h-4 shrink-0" />
-          מצב אופליין — ניתן להמשיך לעבוד; הנתונים נשמרים במכשיר.
+          מצב אופליין — ניתן לפתוח את האפליקציה, אך צפייה ושמירת דוחות דורשות חיבור לרשת.
         </div>
       )}
 
@@ -96,7 +96,7 @@ export default function PwaInstallCard() {
             <div>
               <div className="font-semibold">התקן את סול בטיחות</div>
               <div className="text-sm text-slate-300 mt-1">
-                גישה מהירה ממסך הבית ועבודה גם ללא קליטה.
+                גישה מהירה ממסך הבית ועדכונים אוטומטיים.
               </div>
             </div>
             <img src="/pwa-192.png" alt="" className="w-12 h-12 rounded-xl" />

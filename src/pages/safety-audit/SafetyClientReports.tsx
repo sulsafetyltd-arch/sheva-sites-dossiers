@@ -11,9 +11,11 @@ import type { ReportType, SafetyAuditClient, SafetyAuditReport } from '@/types/s
 import { reportTypeLabel } from '@/types/safety-audit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
 import { ArrowRight, Building2, Mail, MapPin, Pencil, Phone, Plus, Trash2 } from 'lucide-react';
 
 export default function SafetyClientReports() {
+  const { isAdmin } = useSafetyAuth();
   const { clientId } = useParams();
   const navigate = useNavigate();
   const [client, setClient] = useState<SafetyAuditClient | null>(null);
@@ -109,9 +111,11 @@ export default function SafetyClientReports() {
                 <div className="text-sm text-slate-300 mt-1">{reports.length} דוחות משויכים</div>
               </div>
             </div>
-            <Button size="icon" variant="ghost" className="text-white hover:bg-white/10" onClick={() => setShowEdit((value) => !value)}>
-              <Pencil className="w-4 h-4" />
-            </Button>
+            {isAdmin && (
+              <Button size="icon" variant="ghost" className="text-white hover:bg-white/10" onClick={() => setShowEdit((value) => !value)}>
+                <Pencil className="w-4 h-4" />
+              </Button>
+            )}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-300 mt-4">
             {client.contactName && <span>{client.contactName}</span>}

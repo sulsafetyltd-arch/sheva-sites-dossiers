@@ -5,10 +5,11 @@ import type { SafetyAuditClient, SafetyAuditReport } from '@/types/safety-audit'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PwaInstallCard from '@/components/safety/PwaInstallCard';
-import DataBackupCard from '@/components/safety/DataBackupCard';
-import { Building2, Mail, MapPin, Phone, Plus, Search, Trash2 } from 'lucide-react';
+import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
+import { Building2, LogOut, Mail, MapPin, Phone, Plus, Search, Trash2, UsersRound } from 'lucide-react';
 
 const SafetyAuditIndex = () => {
+  const { profile, isAdmin, signOut } = useSafetyAuth();
   const [clients, setClients] = useState<SafetyAuditClient[]>([]);
   const [reports, setReports] = useState<SafetyAuditReport[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,10 +87,29 @@ const SafetyAuditIndex = () => {
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
       <div className="container mx-auto max-w-3xl p-4 space-y-6">
-        <header className="space-y-1 pt-2">
-          <p className="text-sm text-slate-500">סול בטיחות בע״מ</p>
-          <h1 className="text-2xl font-bold text-slate-900">דוחות ביקורת בטיחות</h1>
-          <p className="text-sm text-slate-600">בחר לקוח כדי לצפות וליצור את הדוחות שלו</p>
+        <header className="flex items-start justify-between gap-3 pt-2">
+          <div className="space-y-1">
+            <p className="text-sm text-slate-500">סול בטיחות בע״מ</p>
+            <h1 className="text-2xl font-bold text-slate-900">דוחות ביקורת בטיחות</h1>
+            <p className="text-sm text-slate-600">
+              {isAdmin ? 'ניהול כל הלקוחות והדוחות' : 'הלקוחות והדוחות שהוקצו לך'}
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <Button asChild variant="outline" size="sm" className="gap-1">
+                <Link to="/safety/users"><UsersRound className="w-4 h-4" /> משתמשים</Link>
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              title={`התנתק${profile?.fullName ? ` — ${profile.fullName}` : ''}`}
+              onClick={() => void signOut()}
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
         </header>
 
         <PwaInstallCard />
@@ -105,9 +125,11 @@ const SafetyAuditIndex = () => {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <Button onClick={() => setShowForm((value) => !value)} className="gap-1 shrink-0">
-            <Plus className="w-4 h-4" /> לקוח חדש
-          </Button>
+          {isAdmin && (
+            <Button onClick={() => setShowForm((value) => !value)} className="gap-1 shrink-0">
+              <Plus className="w-4 h-4" /> לקוח חדש
+            </Button>
+          )}
         </div>
 
         {showForm && (
@@ -167,16 +189,16 @@ const SafetyAuditIndex = () => {
                   <Button asChild size="sm">
                     <Link to={`/safety/client/${client.id}`}>פתח לקוח</Link>
                   </Button>
-                  <Button size="icon" variant="ghost" className="text-slate-400 hover:text-red-600" onClick={() => void onDeleteClient(client)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  {isAdmin && (
+                    <Button size="icon" variant="ghost" className="text-slate-400 hover:text-red-600" onClick={() => void onDeleteClient(client)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         </section>
-
-        <DataBackupCard onImported={() => void refresh()} />
       </div>
     </div>
   );
