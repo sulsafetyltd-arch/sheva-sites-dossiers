@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { createClient, deleteClient, listClients, listReports } from '@/lib/safety-audit-store';
+import {
+  createClient,
+  deleteClient,
+  hasLegacySafetyData,
+  listClients,
+  listReports,
+  migrateLegacySafetyData,
+} from '@/lib/safety-audit-store';
 import type { SafetyAuditClient, SafetyAuditReport } from '@/types/safety-audit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PwaInstallCard from '@/components/safety/PwaInstallCard';
 import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
-import { Building2, LogOut, Mail, MapPin, Phone, Plus, Search, Trash2, UsersRound } from 'lucide-react';
+import { Building2, CloudUpload, LogOut, Mail, MapPin, Phone, Plus, Search, Trash2, UsersRound } from 'lucide-react';
 
 const SafetyAuditIndex = () => {
   const { profile, isAdmin, signOut } = useSafetyAuth();
@@ -22,6 +29,9 @@ const SafetyAuditIndex = () => {
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [creating, setCreating] = useState(false);
+  const [legacyData, setLegacyData] = useState(() => hasLegacySafetyData());
+  const [migrating, setMigrating] = useState(false);
+  const [migrationMessage, setMigrationMessage] = useState<string | null>(null);
 
   const refresh = async () => {
     try {
@@ -74,6 +84,23 @@ const SafetyAuditIndex = () => {
   const reportCount = (clientId: string) =>
     reports.filter((report) => report.clientId === clientId).length;
 
+  const migrateToCloud = async () => {
+    setMigrating(true);
+    setError(null);
+    try {
+      const result = await migrateLegacySafetyData();
+      setLegacyData(false);
+      setMigrationMessage(
+        `הועברו לענן ${result.clients} לקוחות, ${result.reports} דוחות ו־${result.photos} תמונות.`,
+      );
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'העברת הנתונים לענן נכשלה');
+    } finally {
+      setMigrating(false);
+    }
+  };
+
   const visibleClients = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('he');
     if (!query) return clients;
@@ -113,6 +140,27 @@ const SafetyAuditIndex = () => {
         </header>
 
         <PwaInstallCard />
+
+        {isAdmin && legacyData && (
+          <section className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 space-y-3">
+            <div className="flex gap-3">
+              <CloudUpload className="w-6 h-6 text-amber-700 shrink-0" />
+              <div>
+                <h2 className="font-semibold text-amber-950">נמצאו דוחות קודמים במכשיר</h2>
+                <p className="text-sm text-amber-800 mt-1">
+                  העבר אותם פעם אחת לענן כדי שיהיו זמינים למשתמשים המורשים ולכל המכשירים.
+                </p>
+              </div>
+            </div>
+            <Button onClick={() => void migrateToCloud()} disabled={migrating} className="gap-1">
+              <CloudUpload className="w-4 h-4" />
+              {migrating ? 'מעביר נתונים…' : 'העבר נתונים קיימים לענן'}
+            </Button>
+          </section>
+        )}
+        {migrationMessage && (
+          <div className="rounded-lg bg-emerald-50 text-emerald-700 p-3 text-sm">{migrationMessage}</div>
+        )}
 
         <div className="flex gap-2">
           <div className="relative flex-1">

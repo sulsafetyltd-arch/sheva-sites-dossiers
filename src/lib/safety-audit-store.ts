@@ -529,6 +529,162 @@ function readLocal<T>(key: string): T[] {
   }
 }
 
+const LEGACY_MIGRATION_KEY = 'safety_audit_cloud_migration_v1';
+
+function cloudId(id: string, replacements: Map<string, string>): string {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    return id;
+  }
+  const existing = replacements.get(id);
+  if (existing) return existing;
+  const replacement = crypto.randomUUID();
+  replacements.set(id, replacement);
+  return replacement;
+}
+
+export function hasLegacySafetyData(): boolean {
+  if (localStorage.getItem(LEGACY_MIGRATION_KEY)) return false;
+  return Object.values(LOCAL_KEYS).some((key) => readLocal<unknown>(key).length > 0);
+}
+
+export async function migrateLegacySafetyData(): Promise<{
+  clients: number;
+  reports: number;
+  defects: number;
+  photos: number;
+}> {
+  const backup = exportSafetyAuditBackup();
+  const replacements = new Map<string, string>();
+  const clientIds = new Map(backup.clients.map((client) => [client.id, cloudId(client.id, replacements)]));
+  const reportIds = new Map(backup.reports.map((report) => [report.id, cloudId(report.id, replacements)]));
+  const defectIds = new Map(backup.defects.map((defect) => [defect.id, cloudId(defect.id, replacements)]));
+  const photoIds = new Map(backup.photos.map((photo) => [photo.id, cloudId(photo.id, replacements)]));
+  const { data: authData } = await supabase.auth.getUser();
+
+  if (backup.clients.length) {
+    const { error } = await supabase.from('safety_audit_clients').upsert(
+      backup.clients.map((client) => ({
+        id: clientIds.get(client.id),
+        name: client.name,
+        contact_name: client.contactName ?? null,
+        phone: client.phone ?? null,
+        email: client.email ?? null,
+        address: client.address ?? null,
+        notes: client.notes ?? null,
+        created_by: authData.user?.id ?? null,
+        created_at: client.createdAt,
+        updated_at: client.updatedAt,
+      })),
+      { onConflict: 'id' },
+    );
+    throwIfError(error);
+  }
+
+  if (backup.reports.length) {
+    const { error } = await supabase.from('safety_audit_reports').upsert(
+      backup.reports.map((report) => ({
+        id: reportIds.get(report.id),
+        client_id: clientIds.get(report.clientId) ?? cloudId(report.clientId, replacements),
+        report_type: report.reportType ?? 'workplace',
+        report_number: report.reportNumber ?? null,
+        date: report.date,
+        recipient: report.recipient ?? null,
+        risk_level: report.riskLevel ?? null,
+        immediate_action: report.immediateAction ?? false,
+        executive_summary: report.executiveSummary ?? null,
+        site_name: report.siteName ?? null,
+        project_name: report.projectName ?? null,
+        block: report.block ?? null,
+        parcel: report.parcel ?? null,
+        contractor: report.contractor ?? null,
+        audit_date: report.auditDate ?? null,
+        auditor: report.auditor ?? null,
+        auditor_role: report.auditorRole ?? null,
+        attendees: report.attendees ?? null,
+        site_manager: report.siteManager ?? null,
+        work_hours: report.workHours ?? null,
+        workers_count: report.workersCount ?? null,
+        work_stage: report.workStage ?? null,
+        work_stages_detail: report.workStagesDetail ?? null,
+        status: report.status,
+        site_manager_signature_url: report.siteManagerSignatureUrl ?? null,
+        auditor_signature_url: report.auditorSignatureUrl ?? null,
+        site_manager_signed_at: report.siteManagerSignedAt ?? null,
+        auditor_signed_at: report.auditorSignedAt ?? null,
+        checklist: report.checklist ?? {},
+        created_by: authData.user?.id ?? null,
+        created_at: report.createdAt,
+        updated_at: report.updatedAt,
+      })),
+      { onConflict: 'id' },
+    );
+    throwIfError(error);
+  }
+
+  if (backup.defects.length) {
+    const { error } = await supabase.from('safety_audit_defects').upsert(
+      backup.defects.map((defect) => ({
+        id: defectIds.get(defect.id),
+        report_id: reportIds.get(defect.reportId),
+        checklist_topic_key: defect.checklistTopicKey ?? null,
+        description: defect.description,
+        severity: defect.severity,
+        corrective_action: defect.correctiveAction ?? null,
+        responsible: defect.responsible ?? null,
+        due_date: defect.dueDate ?? null,
+        sort_order: defect.sortOrder ?? 0,
+        created_at: defect.createdAt,
+      })),
+      { onConflict: 'id' },
+    );
+    throwIfError(error);
+  }
+
+  const reportsById = new Map(backup.reports.map((report) => [report.id, report]));
+  const defectsById = new Map(backup.defects.map((defect) => [defect.id, defect]));
+  let migratedPhotos = 0;
+  for (const photo of backup.photos) {
+    const defect = defectsById.get(photo.defectId);
+    const report = defect ? reportsById.get(defect.reportId) : undefined;
+    if (!defect || !report) continue;
+    const clientId = clientIds.get(report.clientId) ?? cloudId(report.clientId, replacements);
+    const reportId = reportIds.get(report.id)!;
+    const defectId = defectIds.get(defect.id)!;
+    const photoId = photoIds.get(photo.id)!;
+    const path = `${clientId}/${reportId}/${defectId}/${photoId}.jpg`;
+    try {
+      const source = await fetch(photo.storagePath);
+      if (!source.ok) continue;
+      const blob = await source.blob();
+      const { error: uploadError } = await supabase.storage
+        .from(AUDIT_BUCKET)
+        .upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: true });
+      throwIfError(uploadError);
+      const { error: rowError } = await supabase.from('safety_audit_defect_photos').upsert({
+        id: photoId,
+        defect_id: defectId,
+        storage_path: path,
+        caption: photo.caption ?? null,
+        taken_at: photo.takenAt ?? null,
+        created_at: photo.createdAt,
+      }, { onConflict: 'id' });
+      throwIfError(rowError);
+      migratedPhotos += 1;
+    } catch {
+      // Keep migrating the remaining data; the local backup is retained so a
+      // failed legacy photo can be recovered manually.
+    }
+  }
+
+  localStorage.setItem(LEGACY_MIGRATION_KEY, nowIso());
+  return {
+    clients: backup.clients.length,
+    reports: backup.reports.length,
+    defects: backup.defects.length,
+    photos: migratedPhotos,
+  };
+}
+
 export function exportSafetyAuditBackup(): SafetyAuditBackup {
   return {
     version: 2,
