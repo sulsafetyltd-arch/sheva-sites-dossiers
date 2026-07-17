@@ -44,6 +44,7 @@ export interface SafetyAuditReport {
   auditDate?: string; // ISO date
   auditor?: string;
   auditorRole?: string;
+  auditorPhone?: string;
   attendees?: string;
   siteManager?: string;
   workHours?: string;
@@ -54,6 +55,7 @@ export interface SafetyAuditReport {
   status: ReportStatus;
   siteManagerSignatureUrl?: string;
   auditorSignatureUrl?: string;
+  auditorStampUrl?: string;
   siteManagerSignedAt?: string;
   auditorSignedAt?: string;
   checklist?: Record<string, ChecklistItemState>;

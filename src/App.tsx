@@ -14,6 +14,7 @@ import SafetyAuditPreview from "./pages/safety-audit/SafetyAuditPreview.tsx";
 import SafetyClientReports from "./pages/safety-audit/SafetyClientReports.tsx";
 import SafetyLogin from "./pages/safety-audit/SafetyLogin.tsx";
 import SafetyUserManagement from "./pages/safety-audit/SafetyUserManagement.tsx";
+import SafetyUserProfile from "./pages/safety-audit/SafetyUserProfile.tsx";
 import RequireSafetyAuth from "./components/safety/RequireSafetyAuth.tsx";
 import { SafetyAuthProvider } from "./contexts/SafetyAuthContext.tsx";
 
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/safety/login" element={<SafetyLogin />} />
             <Route path="/safety" element={<RequireSafetyAuth><SafetyAuditIndex /></RequireSafetyAuth>} />
             <Route path="/safety/users" element={<RequireSafetyAuth><SafetyUserManagement /></RequireSafetyAuth>} />
+            <Route path="/safety/profile" element={<RequireSafetyAuth><SafetyUserProfile /></RequireSafetyAuth>} />
             <Route path="/safety/client/:clientId" element={<RequireSafetyAuth><SafetyClientReports /></RequireSafetyAuth>} />
             <Route path="/safety/editor/:id" element={<RequireSafetyAuth><SafetyAuditEditor /></RequireSafetyAuth>} />
             <Route path="/safety/preview/:id" element={<RequireSafetyAuth><SafetyAuditPreview /></RequireSafetyAuth>} />

@@ -69,6 +69,7 @@ function mapReport(row: Record<string, any>): SafetyAuditReport {
     auditDate: row.audit_date ?? undefined,
     auditor: row.auditor ?? undefined,
     auditorRole: row.auditor_role ?? undefined,
+    auditorPhone: row.auditor_phone ?? undefined,
     attendees: row.attendees ?? undefined,
     siteManager: row.site_manager ?? undefined,
     workHours: row.work_hours ?? undefined,
@@ -256,6 +257,13 @@ export async function createReport(
   const reportType = partial.reportType ?? 'workplace';
   const reports = await listReports();
   const { data: authData } = await supabase.auth.getUser();
+  const { data: issuerProfile } = authData.user
+    ? await supabase
+        .from('profiles')
+        .select('full_name,job_title,phone,signature_data_url,stamp_data_url')
+        .eq('id', authData.user.id)
+        .single()
+    : { data: null };
   const { data, error } = await supabase
     .from('safety_audit_reports')
     .insert({
@@ -273,8 +281,9 @@ export async function createReport(
       parcel: partial.parcel ?? null,
       contractor: partial.contractor ?? null,
       audit_date: partial.auditDate ?? today(),
-      auditor: partial.auditor ?? (reportType === 'construction' ? 'שלומי סולטן' : null),
-      auditor_role: partial.auditorRole ?? (reportType === 'construction' ? 'ממונה בטיחות' : null),
+      auditor: partial.auditor ?? issuerProfile?.full_name ?? (reportType === 'construction' ? 'שלומי סולטן' : null),
+      auditor_role: partial.auditorRole ?? issuerProfile?.job_title ?? (reportType === 'construction' ? 'ממונה בטיחות' : null),
+      auditor_phone: partial.auditorPhone ?? issuerProfile?.phone ?? null,
       attendees: partial.attendees ?? null,
       site_manager: partial.siteManager ?? null,
       work_hours: partial.workHours ?? null,
@@ -282,6 +291,10 @@ export async function createReport(
       work_stage: partial.workStage ?? null,
       work_stages_detail: partial.workStagesDetail ?? null,
       status: partial.status ?? 'draft',
+      auditor_signature_url: partial.auditorSignatureUrl ?? issuerProfile?.signature_data_url ?? null,
+      auditor_stamp_url: partial.auditorStampUrl ?? issuerProfile?.stamp_data_url ?? null,
+      auditor_signed_at:
+        partial.auditorSignedAt ?? (issuerProfile?.signature_data_url ? nowIso() : null),
       checklist: partial.checklist ?? {},
       created_by: authData.user?.id ?? null,
     })
@@ -309,6 +322,7 @@ const reportColumnMap: Record<keyof SafetyAuditReport, string> = {
   auditDate: 'audit_date',
   auditor: 'auditor',
   auditorRole: 'auditor_role',
+  auditorPhone: 'auditor_phone',
   attendees: 'attendees',
   siteManager: 'site_manager',
   workHours: 'work_hours',
@@ -318,6 +332,7 @@ const reportColumnMap: Record<keyof SafetyAuditReport, string> = {
   status: 'status',
   siteManagerSignatureUrl: 'site_manager_signature_url',
   auditorSignatureUrl: 'auditor_signature_url',
+  auditorStampUrl: 'auditor_stamp_url',
   siteManagerSignedAt: 'site_manager_signed_at',
   auditorSignedAt: 'auditor_signed_at',
   checklist: 'checklist',
@@ -600,6 +615,7 @@ export async function migrateLegacySafetyData(): Promise<{
         audit_date: report.auditDate ?? null,
         auditor: report.auditor ?? null,
         auditor_role: report.auditorRole ?? null,
+        auditor_phone: report.auditorPhone ?? null,
         attendees: report.attendees ?? null,
         site_manager: report.siteManager ?? null,
         work_hours: report.workHours ?? null,
@@ -609,6 +625,7 @@ export async function migrateLegacySafetyData(): Promise<{
         status: report.status,
         site_manager_signature_url: report.siteManagerSignatureUrl ?? null,
         auditor_signature_url: report.auditorSignatureUrl ?? null,
+        auditor_stamp_url: report.auditorStampUrl ?? null,
         site_manager_signed_at: report.siteManagerSignedAt ?? null,
         auditor_signed_at: report.auditorSignedAt ?? null,
         checklist: report.checklist ?? {},

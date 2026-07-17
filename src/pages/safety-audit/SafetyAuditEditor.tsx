@@ -111,6 +111,7 @@ const SafetyAuditEditor = () => {
         contractor: report.contractor,
         auditor: report.auditor,
         auditorRole: report.auditorRole,
+        auditorPhone: report.auditorPhone,
         attendees: report.attendees,
         siteManager: report.siteManager,
         workHours: report.workHours,
@@ -507,7 +508,17 @@ const SafetyAuditEditor = () => {
             <div className="space-y-2">
               <div className="font-medium">חתימת ממונה בטיחות</div>
               <Input dir="rtl" placeholder="שם ממונה הבטיחות" value={report.auditor || ''} onChange={(e) => setReport({ ...report, auditor: e.target.value })} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Input dir="rtl" placeholder="תפקיד" value={report.auditorRole || ''} onChange={(e) => setReport({ ...report, auditorRole: e.target.value })} />
+                <Input dir="ltr" className="text-right" placeholder="טלפון" value={report.auditorPhone || ''} onChange={(e) => setReport({ ...report, auditorPhone: e.target.value })} />
+              </div>
               <SignaturePad value={report.auditorSignatureUrl} onChange={(url) => void onAuditorSign(url)} width={340} height={140} />
+              {report.auditorStampUrl && (
+                <div className="rounded-lg border bg-white p-2">
+                  <div className="text-xs text-slate-500 mb-1">חותמת מהפרופיל</div>
+                  <img src={report.auditorStampUrl} alt="חותמת ממונה הבטיחות" className="h-20 max-w-[180px] object-contain mix-blend-multiply" />
+                </div>
+              )}
               {report.auditorSignedAt && (
                 <div className="text-xs text-slate-500">נחתם: {new Date(report.auditorSignedAt).toLocaleString('he-IL')}</div>
               )}

@@ -561,11 +561,12 @@ const SafetyAuditPreview = () => {
                   signedAt={formatSignDate(report.siteManagerSignedAt)}
                 />
                 <SignatureBox
-                  title="ממונה בטיחות"
+                  title={report.auditorRole || 'ממונה בטיחות'}
                   name={report.auditor || 'שלומי סולטן'}
                   signatureUrl={report.auditorSignatureUrl}
+                  stampUrl={report.auditorStampUrl}
                   signedAt={formatSignDate(report.auditorSignedAt)}
-                  subtitle="סול בטיחות בע״מ · מ.ר 26352"
+                  subtitle={['סול בטיחות בע״מ', report.auditorPhone].filter(Boolean).join(' · ')}
                 />
               </div>
             </section>
@@ -597,12 +598,14 @@ function SignatureBox({
   title,
   name,
   signatureUrl,
+  stampUrl,
   signedAt,
   subtitle,
 }: {
   title: string;
   name?: string;
   signatureUrl?: string;
+  stampUrl?: string;
   signedAt: string;
   subtitle?: string;
 }) {
@@ -610,10 +613,14 @@ function SignatureBox({
     <div className="rounded-xl border border-slate-300 bg-slate-50/80 p-4 min-h-[170px] flex flex-col">
       <div className="text-xs text-slate-500 mb-1">{title}</div>
       <div className="font-semibold text-sm mb-2">{name || '____________________'}</div>
-      <div className="flex-1 flex items-center justify-center border border-dashed border-slate-300 rounded-lg bg-white min-h-[88px] mb-2">
-        {signatureUrl ? (
-          <img src={signatureUrl} alt={`חתימת ${title}`} className="max-h-20 max-w-full object-contain" />
-        ) : (
+      <div className="flex-1 flex items-center justify-center gap-3 border border-dashed border-slate-300 rounded-lg bg-white min-h-[88px] mb-2 px-2">
+        {signatureUrl && (
+          <img src={signatureUrl} alt={`חתימת ${title}`} className="max-h-20 max-w-[55%] object-contain" />
+        )}
+        {stampUrl && (
+          <img src={stampUrl} alt={`חותמת ${title}`} className="max-h-20 max-w-[40%] object-contain mix-blend-multiply" />
+        )}
+        {!signatureUrl && !stampUrl && (
           <span className="text-slate-400 text-xs">ממתין לחתימה דיגיטלית</span>
         )}
       </div>

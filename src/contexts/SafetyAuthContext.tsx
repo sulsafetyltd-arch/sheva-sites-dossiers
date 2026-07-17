@@ -8,6 +8,10 @@ export interface SafetyProfile {
   id: string;
   email: string;
   fullName?: string;
+  jobTitle?: string;
+  phone?: string;
+  signatureDataUrl?: string;
+  stampDataUrl?: string;
   role: SafetyRole;
   isActive: boolean;
   createdAt: string;
@@ -31,6 +35,10 @@ function mapProfile(row: Record<string, unknown>): SafetyProfile {
     id: String(row.id),
     email: String(row.email ?? ''),
     fullName: row.full_name ? String(row.full_name) : undefined,
+    jobTitle: row.job_title ? String(row.job_title) : undefined,
+    phone: row.phone ? String(row.phone) : undefined,
+    signatureDataUrl: row.signature_data_url ? String(row.signature_data_url) : undefined,
+    stampDataUrl: row.stamp_data_url ? String(row.stamp_data_url) : undefined,
     role: row.role === 'admin' ? 'admin' : 'member',
     isActive: Boolean(row.is_active),
     createdAt: String(row.created_at),

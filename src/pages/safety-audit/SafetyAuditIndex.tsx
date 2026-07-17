@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PwaInstallCard from '@/components/safety/PwaInstallCard';
 import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
-import { Building2, CloudUpload, LogOut, Mail, MapPin, Phone, Plus, Search, Trash2, UsersRound } from 'lucide-react';
+import { Building2, CloudUpload, LogOut, Mail, MapPin, Phone, Plus, Search, Trash2, UserCircle, UsersRound } from 'lucide-react';
 
 const SafetyAuditIndex = () => {
   const { profile, isAdmin, signOut } = useSafetyAuth();
@@ -122,7 +122,10 @@ const SafetyAuditIndex = () => {
               {isAdmin ? 'ניהול כל הלקוחות והדוחות' : 'הלקוחות והדוחות שהוקצו לך'}
             </p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center justify-end gap-1">
+            <Button asChild variant="outline" size="sm" className="gap-1">
+              <Link to="/safety/profile"><UserCircle className="w-4 h-4" /> הפרופיל שלי</Link>
+            </Button>
             {isAdmin && (
               <Button asChild variant="outline" size="sm" className="gap-1">
                 <Link to="/safety/users"><UsersRound className="w-4 h-4" /> משתמשים</Link>
