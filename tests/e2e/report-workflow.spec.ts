@@ -1,9 +1,34 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { generateKeyPairSync, sign } from 'node:crypto';
 
 const SUPABASE_ORIGIN = 'https://vwgkwhycbnyasolmbmqd.supabase.co';
 const REPORT_ID = '11111111-1111-4111-8111-111111111111';
 const CLIENT_ID = '22222222-2222-4222-8222-222222222222';
 const USER_ID = '33333333-3333-4333-8333-333333333333';
+const KEY_ID = 'test-key';
+const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+const publicJwk = {
+  ...publicKey.export({ format: 'jwk' }),
+  kid: KEY_ID,
+  alg: 'ES256',
+  use: 'sig',
+};
+
+function encode(value: object): string {
+  return Buffer.from(JSON.stringify(value)).toString('base64url');
+}
+
+function createAccessToken(expiresAt: number): string {
+  const unsigned = [
+    encode({ alg: 'ES256', typ: 'JWT', kid: KEY_ID }),
+    encode({ sub: USER_ID, role: 'authenticated', aud: 'authenticated', exp: expiresAt }),
+  ].join('.');
+  const signature = sign('sha256', Buffer.from(unsigned), {
+    key: privateKey,
+    dsaEncoding: 'ieee-p1363',
+  }).toString('base64url');
+  return `${unsigned}.${signature}`;
+}
 
 const user = {
   id: USER_ID,
@@ -44,23 +69,11 @@ const initialReport = {
 
 async function seedAuthenticatedSession(page: Page) {
   await page.addInitScript(({ key, session }) => {
-    const encode = (value: object) =>
-      btoa(JSON.stringify(value)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
-    const accessToken = [
-      encode({ alg: 'none', typ: 'JWT' }),
-      encode({
-        sub: session.user.id,
-        role: 'authenticated',
-        aud: 'authenticated',
-        exp: session.expires_at,
-      }),
-      '',
-    ].join('.');
-    localStorage.setItem(key, JSON.stringify({ ...session, access_token: accessToken }));
+    localStorage.setItem(key, JSON.stringify(session));
   }, {
     key: 'sb-vwgkwhycbnyasolmbmqd-auth-token',
     session: {
-      access_token: 'test-access-token',
+      access_token: createAccessToken(Math.floor(Date.now() / 1000) + 3600),
       refresh_token: 'test-refresh-token',
       expires_in: 3600,
       expires_at: Math.floor(Date.now() / 1000) + 3600,
@@ -90,6 +103,7 @@ test('authorized auditor completes checklist and creates one defect', async ({ p
     const path = url.pathname;
 
     if (path === '/auth/v1/user') return json(route, user);
+    if (path === '/auth/v1/.well-known/jwks.json') return json(route, { keys: [publicJwk] });
     if (path === '/rest/v1/profiles') return json(route, profile);
     if (path === '/rest/v1/safety_audit_reports' && request.method() === 'GET') {
       return json(route, report);
