@@ -109,6 +109,19 @@ create policy training_participants_access_delete on public.safety_training_part
 grant select, insert, update, delete on public.safety_training_sessions to authenticated;
 grant select, insert, update, delete on public.safety_training_participants to authenticated;
 
+-- Keep this migration self-contained for projects where the original audit
+-- schema was installed manually without its shared timestamp trigger function.
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
 drop trigger if exists trg_safety_training_sessions_updated_at on public.safety_training_sessions;
 create trigger trg_safety_training_sessions_updated_at
 before update on public.safety_training_sessions
