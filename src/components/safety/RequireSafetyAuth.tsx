@@ -32,7 +32,7 @@ export default function RequireSafetyAuth({ children }: { children: ReactNode })
       <StatusCard
         icon={<UserRoundCheck className="w-9 h-9 text-amber-600" />}
         title="החשבון ממתין לאישור"
-        message="מנהל המערכת צריך להפעיל את החשבון ולהקצות לך לקוחות. לאחר האישור יש להיכנס מחדש."
+        message="מנהל המערכת צריך להפעיל את החשבון ולהקצות לך לקוחות. לאחר האישור חזור לאפליקציה או רענן את המסך."
         onSignOut={() => void signOut()}
       />
     );

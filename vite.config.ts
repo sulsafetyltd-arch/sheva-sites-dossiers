@@ -5,8 +5,10 @@ import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  base: process.env.GITHUB_PAGES ? "/sheva-sites-dossiers/" : "/",
+export default defineConfig(({ mode }) => {
+  const base = process.env.GITHUB_PAGES ? "/sheva-sites-dossiers/" : "/";
+  return {
+  base,
   server: {
     host: "::",
     port: 8080,
@@ -25,14 +27,14 @@ export default defineConfig(({ mode }) => ({
         "apple-touch-icon.png",
       ],
       manifest: {
-        id: "/safety",
+        id: `${base}safety`,
         name: "סול בטיחות — דוחות ביקורת",
         short_name: "סול בטיחות",
         description: "הכנת דוחות ביקורת בטיחות באתרי עבודה ובנייה",
         lang: "he",
         dir: "rtl",
-        start_url: "/safety",
-        scope: "/",
+        start_url: `${base}safety`,
+        scope: base,
         display: "standalone",
         orientation: "portrait-primary",
         background_color: "#f8fafc",
@@ -40,18 +42,18 @@ export default defineConfig(({ mode }) => ({
         categories: ["business", "productivity", "utilities"],
         icons: [
           {
-            src: "/pwa-192.png",
+            src: `${base}pwa-192.png`,
             sizes: "192x192",
             type: "image/png",
           },
           {
-            src: "/pwa-512.png",
+            src: `${base}pwa-512.png`,
             sizes: "512x512",
             type: "image/png",
             purpose: "any",
           },
           {
-            src: "/pwa-512.png",
+            src: `${base}pwa-512.png`,
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
@@ -59,7 +61,7 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        navigateFallback: "/index.html",
+        navigateFallback: `${base}index.html`,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
@@ -94,4 +96,5 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-}));
+  };
+});

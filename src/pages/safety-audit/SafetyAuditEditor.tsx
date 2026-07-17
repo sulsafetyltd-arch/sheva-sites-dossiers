@@ -377,7 +377,12 @@ const SafetyAuditEditor = () => {
           <section className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
             <h2 className="text-lg font-semibold">1. סיכום מנהלים</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Select value={report.riskLevel || ''} onValueChange={(v) => setReport({ ...report, riskLevel: v as any })}>
+              <Select
+                value={report.riskLevel || ''}
+                onValueChange={(value) =>
+                  setReport({ ...report, riskLevel: value as SafetyAuditReport['riskLevel'] })
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="דירוג סיכון כולל" />
                 </SelectTrigger>

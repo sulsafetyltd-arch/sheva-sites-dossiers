@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { resizeImageToBlob } from '@/lib/storage-utils';
 import type {
   ReportType,
+  ChecklistItemState,
   SafetyAuditClient,
   SafetyAuditDefect,
   SafetyAuditDefectPhoto,
@@ -40,81 +41,89 @@ function throwIfError(error: { message: string; code?: string } | null): void {
   throw new Error(error.message);
 }
 
-function mapClient(row: Record<string, any>): SafetyAuditClient {
+type DatabaseRow = Record<string, unknown>;
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value ? value : undefined;
+}
+
+function mapClient(row: DatabaseRow): SafetyAuditClient {
   return {
-    id: row.id,
-    name: row.name,
-    contactName: row.contact_name ?? undefined,
-    phone: row.phone ?? undefined,
-    email: row.email ?? undefined,
-    address: row.address ?? undefined,
-    notes: row.notes ?? undefined,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    id: String(row.id),
+    name: String(row.name),
+    contactName: optionalString(row.contact_name),
+    phone: optionalString(row.phone),
+    email: optionalString(row.email),
+    address: optionalString(row.address),
+    notes: optionalString(row.notes),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
   };
 }
 
-function mapReport(row: Record<string, any>): SafetyAuditReport {
+export function mapSafetyReportRow(row: DatabaseRow): SafetyAuditReport {
   return {
-    id: row.id,
-    clientId: row.client_id,
-    reportType: row.report_type ?? 'workplace',
-    reportNumber: row.report_number ?? undefined,
-    date: row.date,
-    recipient: row.recipient ?? undefined,
-    riskLevel: row.risk_level ?? undefined,
-    immediateAction: row.immediate_action ?? false,
-    executiveSummary: row.executive_summary ?? undefined,
-    siteName: row.site_name ?? undefined,
-    projectName: row.project_name ?? undefined,
-    block: row.block ?? undefined,
-    parcel: row.parcel ?? undefined,
-    contractor: row.contractor ?? undefined,
-    auditDate: row.audit_date ?? undefined,
-    auditor: row.auditor ?? undefined,
-    auditorRole: row.auditor_role ?? undefined,
-    auditorPhone: row.auditor_phone ?? undefined,
-    attendees: row.attendees ?? undefined,
-    siteManager: row.site_manager ?? undefined,
-    workHours: row.work_hours ?? undefined,
-    workersCount: row.workers_count ?? undefined,
-    workStage: row.work_stage ?? undefined,
-    workStagesDetail: row.work_stages_detail ?? undefined,
-    status: row.status,
-    siteManagerSignatureUrl: row.site_manager_signature_url ?? undefined,
-    auditorSignatureUrl: row.auditor_signature_url ?? undefined,
-    auditorStampUrl: row.auditor_stamp_url ?? undefined,
-    siteManagerSignedAt: row.site_manager_signed_at ?? undefined,
-    auditorSignedAt: row.auditor_signed_at ?? undefined,
-    checklist: row.checklist ?? {},
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    id: String(row.id),
+    clientId: String(row.client_id),
+    reportType: row.report_type === 'construction' ? 'construction' : 'workplace',
+    reportNumber: optionalString(row.report_number),
+    date: String(row.date),
+    recipient: optionalString(row.recipient),
+    riskLevel: row.risk_level === 'low' || row.risk_level === 'medium' || row.risk_level === 'high'
+      ? row.risk_level
+      : undefined,
+    immediateAction: Boolean(row.immediate_action),
+    executiveSummary: optionalString(row.executive_summary),
+    siteName: optionalString(row.site_name),
+    projectName: optionalString(row.project_name),
+    block: optionalString(row.block),
+    parcel: optionalString(row.parcel),
+    contractor: optionalString(row.contractor),
+    auditDate: optionalString(row.audit_date),
+    auditor: optionalString(row.auditor),
+    auditorRole: optionalString(row.auditor_role),
+    auditorPhone: optionalString(row.auditor_phone),
+    attendees: optionalString(row.attendees),
+    siteManager: optionalString(row.site_manager),
+    workHours: optionalString(row.work_hours),
+    workersCount: typeof row.workers_count === 'number' ? row.workers_count : undefined,
+    workStage: optionalString(row.work_stage),
+    workStagesDetail: optionalString(row.work_stages_detail),
+    status: row.status === 'final' ? 'final' : 'draft',
+    siteManagerSignatureUrl: optionalString(row.site_manager_signature_url),
+    auditorSignatureUrl: optionalString(row.auditor_signature_url),
+    auditorStampUrl: optionalString(row.auditor_stamp_url),
+    siteManagerSignedAt: optionalString(row.site_manager_signed_at),
+    auditorSignedAt: optionalString(row.auditor_signed_at),
+    checklist: (row.checklist as Record<string, ChecklistItemState> | null) ?? {},
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
   };
 }
 
-function mapDefect(row: Record<string, any>): SafetyAuditDefect {
+function mapDefect(row: DatabaseRow): SafetyAuditDefect {
   return {
-    id: row.id,
-    reportId: row.report_id,
-    checklistTopicKey: row.checklist_topic_key ?? undefined,
-    description: row.description,
-    severity: row.severity,
-    correctiveAction: row.corrective_action ?? undefined,
-    responsible: row.responsible ?? undefined,
-    dueDate: row.due_date ?? undefined,
-    sortOrder: row.sort_order ?? 0,
-    createdAt: row.created_at,
+    id: String(row.id),
+    reportId: String(row.report_id),
+    checklistTopicKey: optionalString(row.checklist_topic_key),
+    description: String(row.description),
+    severity: row.severity === 'high' || row.severity === 'low' ? row.severity : 'medium',
+    correctiveAction: optionalString(row.corrective_action),
+    responsible: optionalString(row.responsible),
+    dueDate: optionalString(row.due_date),
+    sortOrder: typeof row.sort_order === 'number' ? row.sort_order : 0,
+    createdAt: String(row.created_at),
   };
 }
 
-function mapPhoto(row: Record<string, any>): SafetyAuditDefectPhoto {
+function mapPhoto(row: DatabaseRow): SafetyAuditDefectPhoto {
   return {
-    id: row.id,
-    defectId: row.defect_id,
-    storagePath: row.storage_path,
-    caption: row.caption ?? undefined,
-    takenAt: row.taken_at ?? undefined,
-    createdAt: row.created_at,
+    id: String(row.id),
+    defectId: String(row.defect_id),
+    storagePath: String(row.storage_path),
+    caption: optionalString(row.caption),
+    takenAt: optionalString(row.taken_at),
+    createdAt: String(row.created_at),
   };
 }
 
@@ -245,7 +254,7 @@ export async function listReports(): Promise<SafetyAuditReport[]> {
     .select('*')
     .order('created_at', { ascending: false });
   throwIfError(error);
-  return (data ?? []).map(mapReport);
+  return (data ?? []).map(mapSafetyReportRow);
 }
 
 export async function listReportsByClient(clientId: string): Promise<SafetyAuditReport[]> {
@@ -255,7 +264,7 @@ export async function listReportsByClient(clientId: string): Promise<SafetyAudit
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
   throwIfError(error);
-  return (data ?? []).map(mapReport);
+  return (data ?? []).map(mapSafetyReportRow);
 }
 
 export async function getReport(id: string): Promise<SafetyAuditReport | null> {
@@ -265,7 +274,7 @@ export async function getReport(id: string): Promise<SafetyAuditReport | null> {
     .eq('id', id)
     .maybeSingle();
   throwIfError(error);
-  return data ? mapReport(data) : null;
+  return data ? mapSafetyReportRow(data) : null;
 }
 
 export async function createReport(
@@ -325,7 +334,7 @@ export async function createReport(
     .select()
     .single();
   throwIfError(error);
-  return mapReport(data);
+  return mapSafetyReportRow(data);
 }
 
 const reportColumnMap: Record<keyof SafetyAuditReport, string> = {
@@ -387,7 +396,7 @@ export async function updateReport(
     .select()
     .single();
   throwIfError(error);
-  return mapReport(data);
+  return mapSafetyReportRow(data);
 }
 
 export async function deleteReport(id: string): Promise<void> {

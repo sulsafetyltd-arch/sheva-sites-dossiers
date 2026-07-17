@@ -79,7 +79,11 @@ export default function SafetyUserManagement() {
   };
 
   const copyRegistrationLink = async () => {
-    await navigator.clipboard.writeText(`${window.location.origin}/safety/login`);
+    const registrationUrl = new URL(
+      `${import.meta.env.BASE_URL}safety/login`,
+      window.location.origin,
+    ).toString();
+    await navigator.clipboard.writeText(registrationUrl);
     setMessage('קישור ההרשמה הועתק');
   };
 

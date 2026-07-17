@@ -20,6 +20,7 @@ export default function SafetyLogin() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const destination = (location.state as { from?: string } | null)?.from || '/safety';
+  const safetyUrl = new URL(`${import.meta.env.BASE_URL}safety`, window.location.origin).toString();
 
   useEffect(() => {
     if (!loading && session) navigate(destination, { replace: true });
@@ -39,7 +40,7 @@ export default function SafetyLogin() {
           password,
           options: {
             data: { full_name: fullName.trim() },
-            emailRedirectTo: `${window.location.origin}/safety`,
+            emailRedirectTo: safetyUrl,
           },
         });
         if (signUpError) throw signUpError;
@@ -80,7 +81,7 @@ export default function SafetyLogin() {
       const { error: resendError } = await supabase.auth.resend({
         type: 'signup',
         email: email.trim(),
-        options: { emailRedirectTo: `${window.location.origin}/safety` },
+        options: { emailRedirectTo: safetyUrl },
       });
       if (resendError) throw resendError;
       setMessage('מייל אימות חדש נשלח. יש לבדוק גם בתיקיית הספאם.');

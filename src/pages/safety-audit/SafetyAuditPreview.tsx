@@ -183,7 +183,7 @@ const SafetyAuditPreview = () => {
   };
 
   const formatSignDate = (iso?: string) =>
-    iso ? new Date(iso).toLocaleDateString('he-IL') : report.auditDate || report.date || '—';
+    iso ? new Date(iso).toLocaleDateString('he-IL') : 'טרם נחתם';
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#e8edf2]">

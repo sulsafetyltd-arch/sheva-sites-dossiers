@@ -99,7 +99,7 @@ export default function PwaInstallCard() {
                 גישה מהירה ממסך הבית ועדכונים אוטומטיים.
               </div>
             </div>
-            <img src="/pwa-192.png" alt="" className="w-12 h-12 rounded-xl" />
+            <img src={`${import.meta.env.BASE_URL}pwa-192.png`} alt="" className="w-12 h-12 rounded-xl" />
           </div>
           <Button
             type="button"

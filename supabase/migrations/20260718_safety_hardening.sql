@@ -101,6 +101,41 @@ revoke all on function public.create_safety_defect(uuid, text, text, text, text,
 grant execute on function public.create_safety_defect(uuid, text, text, text, text, text, date, integer)
   to authenticated;
 
+create or replace function public.can_access_safety_storage_object(object_name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, storage
+as $$
+  select exists (
+    select 1
+    from public.safety_audit_clients c
+    where c.id::text = (storage.foldername(object_name))[1]
+      and public.can_access_safety_client(c.id)
+  );
+$$;
+revoke all on function public.can_access_safety_storage_object(text) from public, anon;
+grant execute on function public.can_access_safety_storage_object(text) to authenticated;
+
+drop policy if exists audit_files_read on storage.objects;
+drop policy if exists audit_files_insert on storage.objects;
+drop policy if exists audit_files_update on storage.objects;
+drop policy if exists audit_files_delete on storage.objects;
+create policy audit_files_read on storage.objects
+  for select to authenticated
+  using (bucket_id = 'audit-files' and public.can_access_safety_storage_object(name));
+create policy audit_files_insert on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'audit-files' and public.can_access_safety_storage_object(name));
+create policy audit_files_update on storage.objects
+  for update to authenticated
+  using (bucket_id = 'audit-files' and public.can_access_safety_storage_object(name))
+  with check (bucket_id = 'audit-files' and public.can_access_safety_storage_object(name));
+create policy audit_files_delete on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'audit-files' and public.can_access_safety_storage_object(name));
+
 -- The first-account check is based on Auth users, not a possibly truncated
 -- profiles table.
 create or replace function public.handle_new_user()
@@ -209,6 +244,8 @@ create policy reports_access_delete on public.safety_audit_reports
 -- for table and storage mutations.
 drop policy if exists "Allow all access to dossiers" on public.dossiers;
 drop policy if exists "Allow all access to dossier_tasks" on public.dossier_tasks;
+drop policy if exists dossiers_active_users on public.dossiers;
+drop policy if exists dossier_tasks_active_users on public.dossier_tasks;
 create policy dossiers_active_users on public.dossiers
   for all to authenticated
   using (exists (select 1 from public.profiles where id = auth.uid() and is_active))
@@ -220,6 +257,8 @@ create policy dossier_tasks_active_users on public.dossier_tasks
 
 drop policy if exists "Anyone can upload dossier files" on storage.objects;
 drop policy if exists "Anyone can delete dossier files" on storage.objects;
+drop policy if exists dossier_files_authenticated_insert on storage.objects;
+drop policy if exists dossier_files_authenticated_delete on storage.objects;
 create policy dossier_files_authenticated_insert on storage.objects
   for insert to authenticated
   with check (
