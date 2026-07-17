@@ -90,6 +90,7 @@ function json(route: Route, body: unknown, status = 200) {
 }
 
 test('authorized auditor completes checklist and creates one defect', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });
   await seedAuthenticatedSession(page);
   let report = { ...initialReport };
   const defects: Record<string, unknown>[] = [];
@@ -136,6 +137,19 @@ test('authorized auditor completes checklist and creates one defect', async ({ p
 
   await page.goto(`/safety/editor/${REPORT_ID}`);
   await expect(page.getByRole('heading', { name: 'אתר בדיקה' })).toBeVisible();
+  const saveButton = page.getByRole('button', { name: 'שמירה', exact: true });
+  const previewButton = page.getByRole('link', { name: 'תצוגה / PDF' });
+  await expect(saveButton).toBeVisible();
+  await expect(previewButton).toBeVisible();
+  const [saveBox, previewBox] = await Promise.all([
+    saveButton.boundingBox(),
+    previewButton.boundingBox(),
+  ]);
+  expect(saveBox?.y).toBeGreaterThanOrEqual(0);
+  expect(previewBox?.y).toBeGreaterThanOrEqual(0);
+  expect((previewBox?.x ?? 0) + (previewBox?.width ?? 0)).toBeLessThanOrEqual(844);
+  await saveButton.click();
+  await expect(page.getByText('נשמר')).toBeVisible();
 
   await page.getByRole('button', { name: /הבא/ }).click();
   await expect(page.getByText('הסדרי תנועה ושילוט הכוונה')).toBeVisible();

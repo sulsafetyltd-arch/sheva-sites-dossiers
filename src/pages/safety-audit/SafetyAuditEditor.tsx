@@ -316,13 +316,16 @@ const SafetyAuditEditor = () => {
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
-      <div className="container mx-auto max-w-3xl p-4 space-y-6 pb-24">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
+      <div
+        className="container mx-auto max-w-3xl px-4 pb-24 space-y-6"
+        style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
             <Link to={`/safety/client/${report.clientId}`} className="text-sm text-slate-500 underline">
               ← דוחות הלקוח
             </Link>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 min-w-0">
               <span
                 className={`text-xs rounded-full px-2 py-0.5 ${
                   isConstruction ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-900'
@@ -330,15 +333,21 @@ const SafetyAuditEditor = () => {
               >
                 {reportTypeLabel(report.reportType)}
               </span>
-              <h1 className="text-2xl font-bold">{report.siteName || report.projectName || 'ללא שם'}</h1>
+              <h1 className="text-2xl font-bold truncate">{report.siteName || report.projectName || 'ללא שם'}</h1>
             </div>
             <div className="text-sm text-slate-500">{report.reportNumber}</div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={saveBasics} disabled={saving}>
+          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-12 w-full touch-manipulation"
+              onClick={() => void saveBasics()}
+              disabled={saving}
+            >
               {saving ? 'שומר…' : 'שמירה'}
             </Button>
-            <Button asChild>
+            <Button asChild className="min-h-12 w-full touch-manipulation">
               <Link to={`/safety/preview/${report.id}`}>תצוגה / PDF</Link>
             </Button>
           </div>
@@ -347,7 +356,10 @@ const SafetyAuditEditor = () => {
         {message && <div className="rounded-lg bg-emerald-50 text-emerald-800 p-3 text-sm">{message}</div>}
         {error && <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</div>}
 
-        <nav className="sticky top-0 z-20 -mx-4 px-4 py-3 bg-slate-50/95 backdrop-blur border-y">
+        <nav
+          className="sticky z-20 -mx-4 px-4 py-3 bg-slate-50/95 backdrop-blur border-y"
+          style={{ top: 'env(safe-area-inset-top)' }}
+        >
           <div className="grid grid-cols-4 gap-1">
             {STEPS.map((item, index) => {
               const Icon = item.icon;
@@ -356,7 +368,7 @@ const SafetyAuditEditor = () => {
                   key={item.label}
                   type="button"
                   onClick={() => setStep(index)}
-                  className={`rounded-lg px-1 py-2 text-xs flex flex-col sm:flex-row items-center justify-center gap-1.5 transition ${
+                  className={`rounded-lg px-1 py-2 min-h-16 text-xs flex flex-col sm:flex-row items-center justify-center gap-1.5 transition touch-manipulation ${
                     step === index ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border'
                   }`}
                 >
@@ -669,7 +681,10 @@ const SafetyAuditEditor = () => {
         </section>
         )}
 
-        <div className="fixed bottom-0 inset-x-0 border-t bg-white/95 backdrop-blur p-3 flex gap-2 justify-center sm:static sm:border-0 sm:bg-transparent sm:p-0">
+        <div
+          className="fixed bottom-0 inset-x-0 z-30 border-t bg-white/95 backdrop-blur p-3 flex gap-2 justify-center sm:static sm:border-0 sm:bg-transparent sm:p-0"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+        >
           {step > 0 && (
             <Button className="flex-1 sm:flex-none gap-1" variant="outline" onClick={() => setStep((value) => value - 1)}>
               <ChevronRight className="w-4 h-4" /> הקודם
