@@ -1,6 +1,48 @@
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
+const PDF_USABLE_WIDTH_MM = 190;
+const PDF_USABLE_HEIGHT_MM = 277;
+
+export function calculateKeepTogetherPadding(
+  sectionTop: number,
+  sectionHeight: number,
+  pageHeight: number,
+): number {
+  if (pageHeight <= 0 || sectionHeight <= 0 || sectionHeight >= pageHeight) return 0;
+  const positionOnPage = ((sectionTop % pageHeight) + pageHeight) % pageHeight;
+  return positionOnPage + sectionHeight > pageHeight
+    ? pageHeight - positionOnPage + 1
+    : 0;
+}
+
+function alignKeepTogetherSections(container: HTMLElement): () => void {
+  const pageHeight =
+    container.scrollWidth * (PDF_USABLE_HEIGHT_MM / PDF_USABLE_WIDTH_MM);
+  const containerTop = container.getBoundingClientRect().top;
+  const originals: Array<{ element: HTMLElement; marginTop: string }> = [];
+
+  for (const element of Array.from(
+    container.querySelectorAll<HTMLElement>('.pdf-keep-together'),
+  )) {
+    const marginTop = element.style.marginTop;
+    const sectionTop = element.getBoundingClientRect().top - containerTop;
+    const padding = calculateKeepTogetherPadding(
+      sectionTop,
+      element.getBoundingClientRect().height,
+      pageHeight,
+    );
+    if (padding <= 0) continue;
+    originals.push({ element, marginTop });
+    const currentMargin = Number.parseFloat(getComputedStyle(element).marginTop) || 0;
+    element.style.marginTop = `${currentMargin + padding}px`;
+  }
+
+  return () => originals.forEach(({ element, marginTop }) => {
+    element.style.marginTop = marginTop;
+  });
+}
+
 /**
  * Capture the printable content area and export it as a multi-page PDF.
  * Uses html2canvas to rasterise the DOM and jsPDF to paginate.
@@ -39,9 +81,12 @@ export async function createPdfBlob(contentElement: HTMLElement): Promise<Blob> 
   const body = document.body;
   body.classList.add('pdf-capturing');
   const restoreImages = await inlineImages(contentElement);
+  let restorePagination = () => {};
   let canvas: HTMLCanvasElement;
   try {
     await new Promise(r => setTimeout(r, 300));
+    restorePagination = alignKeepTogetherSections(contentElement);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     // The report is rendered at a fixed A4-friendly width. Capturing that exact
     // width prevents responsive/mobile styles from distorting table columns.
     canvas = await html2canvas(contentElement, {
@@ -59,6 +104,7 @@ export async function createPdfBlob(contentElement: HTMLElement): Promise<Blob> 
     });
   } finally {
     body.classList.remove('pdf-capturing');
+    restorePagination();
     restoreImages();
   }
 
@@ -70,8 +116,8 @@ export async function createPdfBlob(contentElement: HTMLElement): Promise<Blob> 
   const pdfWidth = 210;
   const pdfHeight = 297;
   const margin = 10;
-  const usableWidth = pdfWidth - margin * 2;
-  const usableHeight = pdfHeight - margin * 2;
+  const usableWidth = PDF_USABLE_WIDTH_MM;
+  const usableHeight = PDF_USABLE_HEIGHT_MM;
 
   // Scale image to fit page width
   const ratio = usableWidth / imgWidth;

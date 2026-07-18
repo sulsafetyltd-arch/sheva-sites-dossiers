@@ -334,7 +334,7 @@ export default function SafetyTrainingPreview() {
                     ))}</tbody>
                   </table>
                 </section>
-                <section className="pt-6 space-y-4">
+                <section className={`pt-6 space-y-4 ${session.category === 'general' ? 'pdf-keep-together' : ''}`}>
                   {session.category === 'general' && (
                     <div className="text-[11px]">
                       <h3 className="font-bold text-[#0f2744] mb-1">6. אישור ממונה הבטיחות</h3>
