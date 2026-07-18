@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, Eye, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowRight, Camera, CreditCard, Eye, FolderOpen, Plus, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import SignaturePad from '@/components/dossier/SignaturePad';
 import {
   createTrainingParticipant,
+  deleteParticipantIdDocument,
   deleteTrainingParticipant,
   getTrainingSession,
   getTrainingSignatureUrls,
   listTrainingParticipants,
   saveParticipantSignature,
+  saveParticipantIdDocument,
   updateTrainingParticipant,
   updateTrainingSession,
 } from '@/lib/safety-training-store';
@@ -31,6 +33,7 @@ export default function SafetyTrainingEditor() {
   const [signatureUrls, setSignatureUrls] = useState<Record<string, string>>({});
   const [newName, setNewName] = useState('');
   const [signingId, setSigningId] = useState<string | null>(null);
+  const [uploadingDocuments, setUploadingDocuments] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -46,9 +49,10 @@ export default function SafetyTrainingEditor() {
         ]);
         if (!nextSession) throw new Error('ההדרכה לא נמצאה');
         const urls = await getTrainingSignatureUrls(
-          nextParticipants.flatMap((participant) =>
-            participant.signatureStoragePath ? [participant.signatureStoragePath] : [],
-          ),
+          nextParticipants.flatMap((participant) => [
+            ...(participant.signatureStoragePath ? [participant.signatureStoragePath] : []),
+            ...(participant.idDocumentStoragePath ? [participant.idDocumentStoragePath] : []),
+          ]),
         );
         if (!cancelled) {
           setSession(nextSession);
@@ -91,6 +95,10 @@ export default function SafetyTrainingEditor() {
           !participant.firstName || !participant.lastName || !participant.employeeIdNumber
         )) {
           setError('באישור עבודה בגובה חובה להשלים שם פרטי, שם משפחה ותעודת זהות לכל עובד');
+          return false;
+        }
+        if (participants.some((participant) => !participant.idDocumentStoragePath)) {
+          setError('יש לצרף צילום תעודת זהות או רישיון נהיגה לכל עובד לפני סיום ההדרכה');
           return false;
         }
       }
@@ -149,6 +157,39 @@ export default function SafetyTrainingEditor() {
       setMessage(dataUrl ? `החתימה של ${participant.employeeName} נשמרה` : 'החתימה נמחקה');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'שמירת החתימה נכשלה');
+    }
+  };
+
+  const uploadIdDocument = async (participant: SafetyTrainingParticipant, file?: File) => {
+    if (!session || !file || uploadingDocuments.has(participant.id)) return;
+    setUploadingDocuments((current) => new Set(current).add(participant.id));
+    try {
+      const saved = await saveParticipantIdDocument(session, participant, file);
+      changeParticipant(participant.id, saved);
+      if (saved.idDocumentStoragePath) {
+        const urls = await getTrainingSignatureUrls([saved.idDocumentStoragePath]);
+        setSignatureUrls((current) => ({ ...current, ...urls }));
+      }
+      setError(null);
+      setMessage(`צילום ${saved.idDocumentType === 'drivers_license' ? 'רישיון הנהיגה' : 'תעודת הזהות'} של ${participant.employeeName} נשמר`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'שמירת צילום המסמך נכשלה');
+    } finally {
+      setUploadingDocuments((current) => {
+        const next = new Set(current);
+        next.delete(participant.id);
+        return next;
+      });
+    }
+  };
+
+  const removeIdDocument = async (participant: SafetyTrainingParticipant) => {
+    try {
+      const saved = await deleteParticipantIdDocument(participant);
+      changeParticipant(participant.id, saved);
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'מחיקת צילום המסמך נכשלה');
     }
   };
 
@@ -355,6 +396,75 @@ export default function SafetyTrainingEditor() {
                   </>
                 )}
               </div>
+              {session.category === 'work_at_height' && (
+                <div className="rounded-lg border bg-slate-50 p-3 space-y-3">
+                  <div className="flex items-center gap-2 font-medium text-sm">
+                    <CreditCard className="w-4 h-4" />
+                    צילום מסמך מזהה — נשמר באחסון פרטי
+                  </div>
+                  <select
+                    value={participant.idDocumentType ?? 'id_card'}
+                    onChange={(event) => {
+                      const updated = {
+                        ...participant,
+                        idDocumentType: event.target.value as SafetyTrainingParticipant['idDocumentType'],
+                      };
+                      changeParticipant(participant.id, updated);
+                      void persistParticipant(updated);
+                    }}
+                    className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+                    aria-label={`סוג מסמך של ${participant.employeeName}`}
+                  >
+                    <option value="id_card">תעודת זהות</option>
+                    <option value="drivers_license">רישיון נהיגה</option>
+                  </select>
+                  {participant.idDocumentStoragePath && (
+                    <div className="flex items-center justify-between gap-3 rounded-lg border bg-white p-2">
+                      <img
+                        src={signatureUrls[participant.idDocumentStoragePath]}
+                        alt={`צילום מסמך של ${participant.employeeName}`}
+                        className="h-24 max-w-[220px] rounded object-contain"
+                      />
+                      <Button type="button" size="icon" variant="ghost" onClick={() => void removeIdDocument(participant)} aria-label="מחיקת צילום המסמך">
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label className={`rounded-lg border-2 border-dashed p-3 flex items-center justify-center gap-2 ${uploadingDocuments.has(participant.id) ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+                      <FolderOpen className="w-4 h-4" />
+                      {participant.idDocumentStoragePath ? 'החלף מהגלריה' : 'בחר מהגלריה'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingDocuments.has(participant.id)}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = '';
+                          void uploadIdDocument(participant, file);
+                        }}
+                      />
+                    </label>
+                    <label className={`rounded-lg border-2 border-dashed p-3 flex items-center justify-center gap-2 ${uploadingDocuments.has(participant.id) ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+                      <Camera className="w-4 h-4" />
+                      צלם במצלמה
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        disabled={uploadingDocuments.has(participant.id)}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = '';
+                          void uploadIdDocument(participant, file);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
               {participant.signatureStoragePath && signingId !== participant.id ? (
                 <div className="flex items-center justify-between rounded-lg bg-emerald-50 p-3">
                   <img src={signatureUrls[participant.signatureStoragePath]} alt={`חתימת ${participant.employeeName}`} className="h-12 max-w-40 object-contain bg-white border rounded" />

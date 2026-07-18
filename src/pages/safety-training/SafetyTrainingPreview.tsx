@@ -325,7 +325,14 @@ export default function SafetyTrainingPreview() {
                         {session.category === 'work_at_height'
                           ? <><td className="border p-2">{participant.firstName}</td><td className="border p-2">{participant.lastName}</td></>
                           : <td className="border p-2">{participant.employeeName}</td>}
-                        <td className="border p-2">{participant.employeeIdNumber || ''}</td>
+                        <td className="border p-2">
+                          {participant.employeeIdNumber || ''}
+                          {session.category === 'work_at_height' && participant.idDocumentStoragePath && (
+                            <div className="text-[9px] text-emerald-700 mt-1">
+                              ✓ צילום {participant.idDocumentType === 'drivers_license' ? 'רישיון נהיגה' : 'ת.ז.'} צורף
+                            </div>
+                          )}
+                        </td>
                         <td className="border p-2">{session.category === 'general' ? participant.jobTitle || '' : participant.employer || ''}</td>
                         <td className="border p-1 text-center">
                           {participant.signatureStoragePath && <img src={signatureUrls[participant.signatureStoragePath]} alt="חתימה" className="h-10 max-w-28 mx-auto object-contain" />}

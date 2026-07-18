@@ -6,6 +6,7 @@ import type {
 } from '@/types/safety-training';
 import { TRAINING_CATEGORY_DETAILS } from '@/types/safety-training';
 import { GENERAL_TRAINING_TOPICS, HEIGHT_TRAINING_TOPICS } from '@/types/safety-training';
+import { resizeImageToBlob } from '@/lib/storage-utils';
 
 type Row = Record<string, unknown>;
 
@@ -62,6 +63,11 @@ function mapParticipant(row: Row): SafetyTrainingParticipant {
     fatherName: text(personalDetails.fatherName),
     birthYear: typeof personalDetails.birthYear === 'number' ? personalDetails.birthYear : undefined,
     address: text(personalDetails.address),
+    idDocumentType:
+      row.id_document_type === 'drivers_license' ? 'drivers_license'
+        : row.id_document_type === 'id_card' ? 'id_card'
+          : undefined,
+    idDocumentStoragePath: text(row.id_document_storage_path),
     signatureStoragePath: text(row.signature_storage_path),
     signedAt: text(row.signed_at),
     remarks: text(row.remarks),
@@ -188,6 +194,19 @@ export async function updateTrainingSession(
 }
 
 export async function deleteTrainingSession(id: string): Promise<void> {
+  const { data: participantFiles, error: filesError } = await supabase
+    .from('safety_training_participants')
+    .select('signature_storage_path,id_document_storage_path')
+    .eq('session_id', id);
+  fail(filesError);
+  const paths = (participantFiles ?? []).flatMap((row) => [
+    ...(row.signature_storage_path ? [String(row.signature_storage_path)] : []),
+    ...(row.id_document_storage_path ? [String(row.id_document_storage_path)] : []),
+  ]);
+  if (paths.length > 0) {
+    const { error: storageError } = await supabase.storage.from('audit-files').remove(paths);
+    fail(storageError);
+  }
   const { error } = await supabase.from('safety_training_sessions').delete().eq('id', id);
   fail(error);
 }
@@ -228,6 +247,7 @@ export async function updateTrainingParticipant(
     jobTitle: 'job_title',
     remarks: 'remarks',
     sortOrder: 'sort_order',
+    idDocumentType: 'id_document_type',
   };
   for (const [key, column] of Object.entries(names)) {
     if (key in patch) fields[column] = patch[key as keyof SafetyTrainingParticipant] ?? null;
@@ -282,11 +302,63 @@ export async function saveParticipantSignature(
   return mapParticipant(data as Row);
 }
 
-export async function deleteTrainingParticipant(participant: SafetyTrainingParticipant): Promise<void> {
-  if (participant.signatureStoragePath) {
+export async function saveParticipantIdDocument(
+  session: SafetyTrainingSession,
+  participant: SafetyTrainingParticipant,
+  file: File,
+): Promise<SafetyTrainingParticipant> {
+  if (!file.type.startsWith('image/')) throw new Error('יש לבחור קובץ תמונה');
+  const type = participant.idDocumentType ?? 'id_card';
+  const path = `${session.clientId}/training/${session.id}/${participant.id}/identity-document.jpg`;
+  const blob = await resizeImageToBlob(file, 1600, 0.86);
+  const { error: uploadError } = await supabase.storage
+    .from('audit-files')
+    .upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+  fail(uploadError);
+  const { data, error } = await supabase
+    .from('safety_training_participants')
+    .update({
+      id_document_type: type,
+      id_document_storage_path: path,
+    })
+    .eq('id', participant.id)
+    .select('*')
+    .single();
+  if (error) {
+    await supabase.storage.from('audit-files').remove([path]);
+    fail(error);
+  }
+  return mapParticipant(data as Row);
+}
+
+export async function deleteParticipantIdDocument(
+  participant: SafetyTrainingParticipant,
+): Promise<SafetyTrainingParticipant> {
+  if (participant.idDocumentStoragePath) {
     const { error: storageError } = await supabase.storage
       .from('audit-files')
-      .remove([participant.signatureStoragePath]);
+      .remove([participant.idDocumentStoragePath]);
+    fail(storageError);
+  }
+  const { data, error } = await supabase
+    .from('safety_training_participants')
+    .update({ id_document_storage_path: null })
+    .eq('id', participant.id)
+    .select('*')
+    .single();
+  fail(error);
+  return mapParticipant(data as Row);
+}
+
+export async function deleteTrainingParticipant(participant: SafetyTrainingParticipant): Promise<void> {
+  const paths = [
+    participant.signatureStoragePath,
+    participant.idDocumentStoragePath,
+  ].filter((path): path is string => Boolean(path));
+  if (paths.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from('audit-files')
+      .remove(paths);
     fail(storageError);
   }
   const { error } = await supabase

@@ -1,5 +1,6 @@
 export type TrainingCategory = 'general' | 'fire' | 'work_at_height';
 export type TrainingStatus = 'draft' | 'final';
+export type ParticipantIdDocumentType = 'id_card' | 'drivers_license';
 
 export const HEIGHT_TRAINING_TOPICS = [
   'מבוא כללי',
@@ -101,6 +102,8 @@ export interface SafetyTrainingParticipant {
   fatherName?: string;
   birthYear?: number;
   address?: string;
+  idDocumentType?: ParticipantIdDocumentType;
+  idDocumentStoragePath?: string;
   signatureStoragePath?: string;
   signedAt?: string;
   remarks?: string;
