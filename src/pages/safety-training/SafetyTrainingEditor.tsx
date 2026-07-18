@@ -318,6 +318,20 @@ export default function SafetyTrainingEditor() {
               <label className="text-sm">בתוקף עד יום<Input type="date" value={heightDetails.validUntil || ''} onChange={(event) => setHeightDetails({ validUntil: event.target.value })} /></label>
               <Input className="sm:col-span-2" value={heightDetails.certificateScope || ''} onChange={(event) => setHeightDetails({ certificateScope: event.target.value })} placeholder="האישור תקף לעבודה במסגרת..." />
             </div>
+            <label className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={heightDetails.includeIdDocumentsInGroupPdf ?? false}
+                onChange={(event) => setHeightDetails({ includeIdDocumentsInGroupPdf: event.target.checked })}
+              />
+              <span>
+                <strong>כלול צילומי תעודות זהות / רישיונות נהיגה ב־PDF המרוכז</strong>
+                <span className="block text-xs text-amber-900 mt-1">
+                  המסמכים מכילים מידע אישי רגיש. אם האפשרות אינה מסומנת, ה־PDF יציין רק שהצילום צורף.
+                </span>
+              </span>
+            </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {HEIGHT_TRAINING_TOPICS.map((topic) => {
                 const selected = (heightDetails.selectedTopics ?? HEIGHT_TRAINING_TOPICS).includes(topic);

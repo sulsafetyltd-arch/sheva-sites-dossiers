@@ -41,9 +41,10 @@ export default function SafetyTrainingPreview() {
           listTrainingParticipants(id),
         ]);
         const urls = await getTrainingSignatureUrls(
-          nextParticipants.flatMap((participant) =>
-            participant.signatureStoragePath ? [participant.signatureStoragePath] : [],
-          ),
+          nextParticipants.flatMap((participant) => [
+            ...(participant.signatureStoragePath ? [participant.signatureStoragePath] : []),
+            ...(participant.idDocumentStoragePath ? [participant.idDocumentStoragePath] : []),
+          ]),
         );
         if (!cancelled) {
           setSession(nextSession);
@@ -341,6 +342,35 @@ export default function SafetyTrainingPreview() {
                     ))}</tbody>
                   </table>
                 </section>
+                {session.category === 'work_at_height'
+                  && heightDetails.includeIdDocumentsInGroupPdf
+                  && participants.some((participant) => participant.idDocumentStoragePath) && (
+                  <section>
+                    <h3 className="font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
+                      נספח — צילומי מסמכים מזהים
+                    </h3>
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-[10px] text-red-900 mb-3">
+                      מידע אישי רגיש — המסמכים נכללו ב־PDF לפי בחירה מפורשת של עורך ההדרכה.
+                    </div>
+                    <div className="space-y-3">
+                      {participants
+                        .filter((participant) => participant.idDocumentStoragePath)
+                        .map((participant, index) => (
+                          <div key={participant.id} className="pdf-keep-together rounded-lg border p-3">
+                            <div className="font-medium text-sm mb-2">
+                              {index + 1}. {participant.employeeName} · {participant.employeeIdNumber || 'ללא מספר'}
+                              {' '}· {participant.idDocumentType === 'drivers_license' ? 'רישיון נהיגה' : 'תעודת זהות'}
+                            </div>
+                            <img
+                              src={signatureUrls[participant.idDocumentStoragePath!]}
+                              alt={`מסמך מזהה של ${participant.employeeName}`}
+                              className="max-h-56 max-w-full mx-auto rounded border object-contain"
+                            />
+                          </div>
+                        ))}
+                    </div>
+                  </section>
+                )}
                 <section className={`pt-6 space-y-4 ${session.category === 'general' ? 'pdf-keep-together' : ''}`}>
                   {session.category === 'general' && (
                     <div className="text-[11px]">
