@@ -50,3 +50,26 @@ export function defaultTrainingExpiry(
   date.setMonth(date.getMonth() + months);
   return date.toISOString().slice(0, 10);
 }
+
+export type TrainingComplianceState =
+  | 'missing'
+  | 'missing_expiry'
+  | 'expired'
+  | 'soon'
+  | 'valid';
+
+export function trainingComplianceState(
+  type: EmployeeTrainingType,
+  hasRecord: boolean,
+  expiresAt?: string,
+  now = new Date(),
+): TrainingComplianceState {
+  if (!hasRecord) return 'missing';
+  const requiresExpiry = Boolean(EMPLOYEE_TRAINING_DETAILS[type].validityMonths);
+  if (!expiresAt) return requiresExpiry ? 'missing_expiry' : 'valid';
+  const expiry = new Date(`${expiresAt}T23:59:59`).getTime();
+  const days = Math.ceil((expiry - now.getTime()) / 86_400_000);
+  if (days < 0) return 'expired';
+  if (days <= 30) return 'soon';
+  return 'valid';
+}

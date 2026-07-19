@@ -36,21 +36,12 @@ import {
   defaultTrainingExpiry,
   EMPLOYEE_TRAINING_DETAILS,
   employeeTrainingLabel,
+  trainingComplianceState,
 } from '@/types/safety-employee';
 import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
 
 const trainingTypes = Object.keys(EMPLOYEE_TRAINING_DETAILS) as EmployeeTrainingType[];
 const today = () => new Date().toISOString().slice(0, 10);
-
-function expiryState(expiresAt?: string): 'expired' | 'soon' | 'valid' | 'none' {
-  if (!expiresAt) return 'none';
-  const days = Math.ceil(
-    (new Date(`${expiresAt}T23:59:59`).getTime() - Date.now()) / 86_400_000,
-  );
-  if (days < 0) return 'expired';
-  if (days <= 30) return 'soon';
-  return 'valid';
-}
 
 export default function SafetyEmployeeRegistry() {
   const { clientId } = useParams();
@@ -106,8 +97,8 @@ export default function SafetyEmployeeRegistry() {
       const latest = (recordsByEmployee[employee.id] ?? [])
         .filter((record) => record.trainingType === type)
         .sort((a, b) => b.completedAt.localeCompare(a.completedAt))[0];
-      const state = expiryState(latest?.expiresAt);
-      return state === 'expired' || state === 'soon'
+      const state = trainingComplianceState(type, Boolean(latest), latest?.expiresAt);
+      return state !== 'valid'
         ? [{ employee, type, record: latest, state }]
         : [];
     }),
@@ -174,9 +165,14 @@ export default function SafetyEmployeeRegistry() {
       setMessage('אין הדרכות שפגו או עומדות לפוג ב־30 הימים הקרובים');
       return;
     }
-    const lines = reminders.map(({ employee, type, record, state }) =>
-      `• ${employee.fullName} — ${employeeTrainingLabel(type)} — ${state === 'expired' ? 'פג תוקף' : 'עומד לפוג'} בתאריך ${record.expiresAt}`,
-    );
+    const lines = reminders.map(({ employee, type, record, state }) => {
+      const status =
+        state === 'expired' ? `פג תוקף בתאריך ${record?.expiresAt}`
+          : state === 'soon' ? `עומד לפוג בתאריך ${record?.expiresAt}`
+            : state === 'missing_expiry' ? 'חסר תאריך תוקף'
+              : 'אין תיעוד הדרכה';
+      return `• ${employee.fullName} — ${employeeTrainingLabel(type)} — ${status}`;
+    });
     const subject = `תזכורת תוקף הדרכות עובדים — ${client.name}`;
     const body = `שלום,\n\nלהלן הדרכות עובדים שפגו או עומדות לפוג:\n\n${lines.join('\n')}\n\nנבקש לתאם חידוש הדרכות בהקדם.\n\nבברכה,\nסול בטיחות בע״מ`;
     window.location.href = `mailto:${encodeURIComponent(client.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -201,7 +197,7 @@ export default function SafetyEmployeeRegistry() {
         {reminders.length > 0 && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 flex gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0" />
-            <div><div className="font-semibold">{reminders.length} הדרכות דורשות טיפול</div><div className="text-sm text-amber-900">פג תוקפן או שהן יפוגו בתוך 30 יום.</div></div>
+              <div><div className="font-semibold">{reminders.length} הדרכות דורשות טיפול</div><div className="text-sm text-amber-900">תוקף שפג או עומד לפוג, תוקף חסר או הדרכה ללא תיעוד.</div></div>
           </div>
         )}
         {error && <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</div>}
@@ -239,14 +235,20 @@ export default function SafetyEmployeeRegistry() {
                     <div className="flex flex-wrap gap-1 mt-2">
                       {trainingTypes.map((type) => {
                         const latest = latestRecord(employee.id, type);
-                        const state = expiryState(latest?.expiresAt);
+                        const state = trainingComplianceState(type, Boolean(latest), latest?.expiresAt);
                         return (
                           <span key={type} className={`text-[10px] rounded-full px-2 py-0.5 ${
                             state === 'expired' ? 'bg-red-100 text-red-800'
                               : state === 'soon' ? 'bg-amber-100 text-amber-900'
-                                : latest ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
+                                : state === 'missing' || state === 'missing_expiry' ? 'bg-rose-100 text-rose-800'
+                                  : 'bg-emerald-100 text-emerald-800'
                           }`}>
-                            {EMPLOYEE_TRAINING_DETAILS[type].label}: {latest ? latest.expiresAt || latest.completedAt : 'אין תיעוד'}
+                            {EMPLOYEE_TRAINING_DETAILS[type].label}:{' '}
+                            {state === 'missing' ? 'אין תיעוד'
+                              : state === 'missing_expiry' ? 'חסר תאריך תוקף'
+                                : state === 'expired' ? `פג תוקף ${latest?.expiresAt}`
+                                  : state === 'soon' ? `עומד לפוג ${latest?.expiresAt}`
+                                    : latest?.expiresAt ? `בתוקף עד ${latest.expiresAt}` : `בוצע ${latest?.completedAt}`}
                           </span>
                         );
                       })}
