@@ -2,7 +2,7 @@ export type RiskLevel = 'low' | 'medium' | 'high';
 export type ReportStatus = 'draft' | 'final';
 export type ChecklistStatus = 'ok' | 'not_ok' | 'na';
 export type DefectSeverity = 'high' | 'medium' | 'low';
-export type ReportType = 'workplace' | 'construction' | 'infrastructure';
+export type ReportType = 'workplace' | 'construction' | 'infrastructure' | 'railway';
 
 export interface SafetyAuditClient {
   id: string;
@@ -59,8 +59,33 @@ export interface SafetyAuditReport {
   siteManagerSignedAt?: string;
   auditorSignedAt?: string;
   checklist?: Record<string, ChecklistItemState>;
+  domainDetails?: RailwayReportDetails;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RailwayTourParticipant {
+  name: string;
+  role?: string;
+  notes?: string;
+}
+
+export interface RailwayPreviousFinding {
+  description: string;
+  instructions?: string;
+  status?: string;
+  responsible?: string;
+  dueDate?: string;
+}
+
+export interface RailwayReportDetails {
+  attention?: string;
+  copyTo?: string;
+  railwayKmFrom?: string;
+  railwayKmTo?: string;
+  previousVisitDate?: string;
+  participants?: RailwayTourParticipant[];
+  previousFindings?: RailwayPreviousFinding[];
 }
 
 export interface SafetyAuditDefect {
@@ -348,18 +373,54 @@ export const INFRASTRUCTURE_CHECKLIST_TOPICS: ChecklistTopic[] = [
   { key: 'i_10_4', chapter: 'הדרכות, כשירויות ומודעות עובדים', title: 'כשירות בעלי תפקידים ייעודיים (אתתים, מגישי עזרה ראשונה, חשמלאים)' },
 ];
 
+/** Israel Railways sites — 30-item checklist from the supplied audit form */
+export const RAILWAY_CHECKLIST_TOPICS: ChecklistTopic[] = [
+  { key: 'r_01', chapter: 'ניהול ותיעוד', title: 'קיום תוכנית לניהול הבטיחות וסקרי סיכונים עדכניים בהתאם לתקנות תוכנית לניהול הבטיחות, תשע״ג–2013' },
+  { key: 'r_02', chapter: 'ניהול ותיעוד', title: 'מינוי מנהל עבודה והודעה על פעולת בנייה בהתאם לתקנות הבטיחות בעבודה (עבודות בנייה), 1988' },
+  { key: 'r_03', chapter: 'ניהול ותיעוד', title: 'נוכחות מנהל העבודה באתר בעת ביצוע עבודות' },
+  { key: 'r_04', chapter: 'ניהול ותיעוד', title: 'שילוט תקין באתר: מבצע הבנייה, מנהל העבודה, מהות העבודה וטלפוני חירום' },
+  { key: 'r_05', chapter: 'ניהול ותיעוד', title: 'הדרכת כלל המועסקים והנמצאים באתר, בדגש על קרבת מסילה וסביבה מסילתית חשמלית, וניהול פנקס הדרכות' },
+  { key: 'r_06', chapter: 'ניהול ותיעוד', title: 'ניהול פנקס כללי, רישומי מינויים, תאונות, תסקירים, חפירות, פיגומים וכלים הנדסיים' },
+  { key: 'r_07', chapter: 'מסילה והפרדה', title: 'שלמות ותקינות גידור האתר וגדר ההפרדה ממסילה פעילה, כולל שילוט מתאים' },
+  { key: 'r_08', chapter: 'מסילה והפרדה', title: 'עבודה בקרבת מסילה בהתאם לצו הבטיחות 56415, נספח הבטיחות והוראות רכבת ישראל, ובנוכחות בעלי תפקידים מוסמכים' },
+  { key: 'r_09', chapter: 'חירום ומיגון', title: 'אמצעי כיבוי אש מתאימים לסוג וכמות מטען האש באתר ובסביבתו' },
+  { key: 'r_10', chapter: 'חירום ומיגון', title: 'ציוד מגן אישי, בגדי עבודה, מכנסיים ארוכים ונעלי בטיחות תקניות' },
+  { key: 'r_11', chapter: 'מסילה והפרדה', title: 'הגנות מפגיעה במשתמשי רציפים, לרבות נפילה או התעופפות חפצים, ציוד וגצי ריתוך' },
+  { key: 'r_12', chapter: 'חשמל ומכונות', title: 'סיכונים בסביבה מסילתית חשמלית ועבודה לפי נוהל רכבת 73-01-01 „עבודה בסביבה חשמלית”' },
+  { key: 'r_13', chapter: 'חשמל ומכונות', title: 'בטיחות בחשמל: כבלים, הארקות, תסקירי גנרטורים, לוחות וכלים חשמליים ושקעים תעשייתיים' },
+  { key: 'r_14', chapter: 'חשמל ומכונות', title: 'מיגון וגידור חלקים מסתובבים או נעים בציוד ובמכונות' },
+  { key: 'r_15', chapter: 'חפירות וגובה', title: 'הגנה וכיסוי בורות פתוחים וגידור הפרשי גובה, בדגש על קרבת מסילות פעילות' },
+  { key: 'r_16', chapter: 'חפירות וגובה', title: 'אישור בכתב לחפירות בקרבת מסילה וביצוע חפירות ועבודות עפר בהתאם לתקנות' },
+  { key: 'r_17', chapter: 'חפירות וגובה', title: 'עבודות קידוח: גידור, כיסוי פתחים, ארגון סביבת עבודה ושימוש ברתמות לפי הצורך' },
+  { key: 'r_18', chapter: 'חפירות וגובה', title: 'פיגומים בהתאם לתקנות, בדגש על פיגומים בקרבת מסילה, סימון, בדיקה והגנה מנפילה' },
+  { key: 'r_19', chapter: 'חפירות וגובה', title: 'עבודה בגובה: אישורים והדרכות בתוקף, ציוד מגן ואמצעי הגנה מנפילת אדם או חפצים' },
+  { key: 'r_20', chapter: 'הרמה וצמ״ה', title: 'עגורנים ומכונות הרמה בקרבת מסילה: תוכנית הנפה, תסקירים, אתת מוסמך, אביזרי הרמה והפעלה מורשית' },
+  { key: 'r_21', chapter: 'הרמה וצמ״ה', title: 'הפעלת צמ״ה וכלים באתר בקרבת מסילה: רישיונות, ביטוח, תסקירים, פנסים מהבהבים וזמזם נסיעה לאחור' },
+  { key: 'r_22', chapter: 'הרמה וצמ״ה', title: 'הפעלת משאבת בטון בקרבת מסילה וקווי מתח גבוה ומקום מוסדר לניקוי הצינור' },
+  { key: 'r_23', chapter: 'אש וסיכונים', title: 'עבודות באש גלויה: ציוד מגן, סביבת עבודה, מניעת התפשטות, צופה אש, כיבוי והדרכת עובדים' },
+  { key: 'r_24', chapter: 'אש וסיכונים', title: 'סקר סיכונים לפני פעילות בעלת השלכה על בטיחות עובדים, מסילות או משתמשי רציפים' },
+  { key: 'r_25', chapter: 'תנאי אתר וחירום', title: 'תאורה מתאימה לעבודה בחשכה, בלילה או בתנאי ראות מוגבלת' },
+  { key: 'r_26', chapter: 'תנאי אתר וחירום', title: 'טיפול במפגעים כלליים, דרכי גישה, פסולת, גופים חודרים ותנאי החלקה' },
+  { key: 'r_27', chapter: 'תנאי אתר וחירום', title: 'בטיחות בעת מנוחה, תפילות והפסקות והרחקה מפעילות צמ״ה, הרמה ושינוע' },
+  { key: 'r_28', chapter: 'תנאי אתר וחירום', title: 'דרכי התקשרות למצבי חירום ושילוט מספרי החירום הרכבתיים במקומות בולטים' },
+  { key: 'r_29', chapter: 'תנאי אתר וחירום', title: 'התאמת הפעילות למזג אוויר קיצוני: חום, רוח, אובך, גשם, ערפל, קור, בוץ ושיטפון' },
+  { key: 'r_30', chapter: 'תנאי אתר וחירום', title: 'היערכות לטיפול רפואי: ערכות עזרה ראשונה, מגיש עזרה ראשונה, נגישות, שילוט והזעקת כוחות' },
+];
+
 /** @deprecated use WORKPLACE_CHECKLIST_TOPICS or getChecklistTopics(type) */
 export const CHECKLIST_TOPICS = WORKPLACE_CHECKLIST_TOPICS;
 
 export function getChecklistTopics(type: ReportType = 'workplace'): ChecklistTopic[] {
   if (type === 'construction') return CONSTRUCTION_CHECKLIST_TOPICS;
   if (type === 'infrastructure') return INFRASTRUCTURE_CHECKLIST_TOPICS;
+  if (type === 'railway') return RAILWAY_CHECKLIST_TOPICS;
   return WORKPLACE_CHECKLIST_TOPICS;
 }
 
 export function reportTypeLabel(type: ReportType): string {
   if (type === 'construction') return 'אתר בנייה';
   if (type === 'infrastructure') return 'אתר תשתיות';
+  if (type === 'railway') return 'אתרי רכבת ישראל';
   return 'אתר עבודה';
 }
 

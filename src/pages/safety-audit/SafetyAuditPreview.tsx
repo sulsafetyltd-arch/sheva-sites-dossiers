@@ -175,7 +175,9 @@ const SafetyAuditPreview = () => {
 
   const isConstruction = report.reportType === 'construction';
   const isInfrastructure = report.reportType === 'infrastructure';
-  const isProjectReport = isConstruction || isInfrastructure;
+  const isRailway = report.reportType === 'railway';
+  const isProjectReport = isConstruction || isInfrastructure || isRailway;
+  const railwayDetails = report.domainDetails ?? {};
   const topics = getChecklistTopics(report.reportType);
   const siteTitle = report.projectName || report.siteName || '—';
 
@@ -316,6 +318,17 @@ const SafetyAuditPreview = () => {
                     <MetaRow label="תאריך ביקורת" value={report.auditDate || '—'} />
                     <MetaRow label="מספר פועלים" value={String(report.workersCount ?? '—')} />
                   </>
+                ) : isRailway ? (
+                  <>
+                    <MetaRow label="אתר רכבת ישראל" value={siteTitle} />
+                    <MetaRow label="ק״מ רכבתי" value={`מ־${railwayDetails.railwayKmFrom || '—'} ועד ${railwayDetails.railwayKmTo || '—'}`} />
+                    <MetaRow label="שם הקבלן המבצע" value={report.contractor || '—'} />
+                    <MetaRow label="מנהל עבודה" value={report.siteManager || '—'} />
+                    <MetaRow label="ממונה בטיחות מטעם המבצע" value={report.auditor || '—'} />
+                    <MetaRow label="תאריך הביקורת" value={report.auditDate || '—'} />
+                    <MetaRow label="לידי" value={railwayDetails.attention || '—'} />
+                    <MetaRow label="לידיעה" value={railwayDetails.copyTo || '—'} />
+                  </>
                 ) : isInfrastructure ? (
                   <>
                     <MetaRow label="שם הפרויקט / אתר התשתיות" value={siteTitle} />
@@ -350,9 +363,56 @@ const SafetyAuditPreview = () => {
               )}
             </section>
 
+            {isRailway && (railwayDetails.participants?.length ?? 0) > 0 && (
+              <section className="pdf-keep-together">
+                <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
+                  משתתפים בסיור
+                </h3>
+                <table className="w-full table-fixed border-collapse text-[11px]">
+                  <thead><tr className="bg-[#0f2744] text-white">
+                    <th className="border p-2 w-10">#</th><th className="border p-2">שם</th>
+                    <th className="border p-2">תפקיד</th><th className="border p-2">הערות / הסמכה</th>
+                  </tr></thead>
+                  <tbody>{railwayDetails.participants?.map((participant, index) => (
+                    <tr key={`${participant.name}-${index}`}>
+                      <td className="border p-2 text-center">{index + 1}</td>
+                      <td className="border p-2">{participant.name}</td>
+                      <td className="border p-2">{participant.role || ''}</td>
+                      <td className="border p-2">{participant.notes || ''}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </section>
+            )}
+
+            {isRailway && (railwayDetails.previousFindings?.length ?? 0) > 0 && (
+              <section>
+                <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
+                  ליקויים מביקור קודם מתאריך {railwayDetails.previousVisitDate || '—'}
+                </h3>
+                <div className="text-[10px] mb-2">רמת סיכון 3 — אדום, אסור לעבוד · רמה 2 — צהוב, נדרש תיקון · רמה 1 — ירוק, סיכון קביל</div>
+                <table className="w-full table-fixed border-collapse text-[10px]">
+                  <thead><tr className="bg-[#0f2744] text-white">
+                    <th className="border p-2 w-8">#</th><th className="border p-2">מהות הליקוי ומיקומו</th>
+                    <th className="border p-2">הנחיות</th><th className="border p-2">סטטוס</th>
+                    <th className="border p-2">אחראי ומועד</th>
+                  </tr></thead>
+                  <tbody>{railwayDetails.previousFindings?.map((finding, index) => (
+                    <tr key={index} className="avoid-break">
+                      <td className="border p-2 text-center">{index + 1}</td>
+                      <td className="border p-2">{finding.description}</td>
+                      <td className="border p-2">{finding.instructions || ''}</td>
+                      <td className="border p-2">{finding.status || ''}</td>
+                      <td className="border p-2">{finding.responsible || ''}{finding.dueDate ? ` · ${finding.dueDate}` : ''}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </section>
+            )}
+
             <section>
               <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
-                {isConstruction ? 'ממצאי הביקורת' : isInfrastructure ? 'רשימת בדיקה' : '3. רשימת בדיקה'}
+                {isConstruction ? 'ממצאי הביקורת' : isInfrastructure ? 'רשימת בדיקה' : isRailway ? 'טבלת בדיקה — אתרי רכבת ישראל' : '3. רשימת בדיקה'}
               </h3>
 
               {isConstruction ? (
@@ -416,6 +476,42 @@ const SafetyAuditPreview = () => {
                     </tbody>
                   </table>
                 </div>
+              ) : isRailway ? (
+                <div className="rounded-lg border border-slate-300 overflow-hidden">
+                  <table className="w-full table-fixed border-collapse text-[9px] leading-[1.3]">
+                    <colgroup>
+                      <col style={{ width: '4%' }} /><col style={{ width: '35%' }} />
+                      <col style={{ width: '6%' }} /><col style={{ width: '6%' }} /><col style={{ width: '6%' }} />
+                      <col style={{ width: '20%' }} /><col style={{ width: '11%' }} /><col style={{ width: '12%' }} />
+                    </colgroup>
+                    <thead><tr className="bg-[#0f2744] text-white">
+                      <th className="border p-1">#</th><th className="border p-1">הנושא הנבדק</th>
+                      <th className="border p-1">כן</th><th className="border p-1">לא</th><th className="border p-1">ל״ר</th>
+                      <th className="border p-1">הערות / תמונות</th><th className="border p-1">תאריך גמר</th>
+                      <th className="border p-1">אחראי ביצוע</th>
+                    </tr></thead>
+                    <tbody>{topics.map((topic, index) => {
+                      const item = report.checklist?.[topic.key];
+                      const defect = defects.find((entry) => entry.checklistTopicKey === topic.key);
+                      const rowPhotos = photosByTopic[topic.key] ?? [];
+                      return (
+                        <tr key={topic.key} className={`avoid-break ${item?.status === 'not_ok' ? 'bg-red-50' : index % 2 ? 'bg-slate-50' : ''}`}>
+                          <td className="border p-1 text-center">{index + 1}</td>
+                          <td className="border p-1"><div className="text-[8px] text-slate-500">{topic.chapter}</div>{topic.title}</td>
+                          <td className="border p-1 text-center">{statusMark(topic.key, 'ok')}</td>
+                          <td className="border p-1 text-center">{statusMark(topic.key, 'not_ok')}</td>
+                          <td className="border p-1 text-center">{statusMark(topic.key, 'na')}</td>
+                          <td className="border p-1">
+                            {item?.notes || defect?.description || ''}
+                            {rowPhotos.slice(0, 1).map((photo) => <PhotoThumb key={photo.id} src={getPublicUrl(photo.storagePath)} alt={topic.title} />)}
+                          </td>
+                          <td className="border p-1">{defect?.dueDate || ''}</td>
+                          <td className="border p-1">{defect?.responsible || item?.responsible || ''}</td>
+                        </tr>
+                      );
+                    })}</tbody>
+                  </table>
+                </div>
               ) : (
                 <div className="rounded-lg border border-slate-300 overflow-hidden">
                   <table className="w-full table-fixed border-collapse text-[11px]">
@@ -457,7 +553,9 @@ const SafetyAuditPreview = () => {
             {!isConstruction && (
               <section>
                 <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
-                  4. ליקויים, מפגעים ופעולות מתקנות
+                  {isRailway
+                    ? `ריכוז ליקויים מביקור נוכחי מתאריך ${report.auditDate || report.date}`
+                    : '4. ליקויים, מפגעים ופעולות מתקנות'}
                 </h3>
                 <div className="rounded-lg border border-slate-300 overflow-hidden">
                   <table className="w-full table-fixed border-collapse text-[10px] leading-[1.35]">
@@ -582,8 +680,9 @@ const SafetyAuditPreview = () => {
                   אסמכתאות והצהרה
                 </h3>
                 <p>
-                  הדו״ח משקף את מצב האתר במועד הביקורת בלבד, על סמך הנראה לעין ולפי המידע שנמסר לעורך.
-                  ליקויים בדרגת חומרה ״גבוהה״ מחייבים טיפול מיידי.
+                  {isRailway
+                    ? 'המבדק מדגמי ואין לראות ברשימת ההערות מיפוי מלא של כל הפרות הבטיחות באתר. על הקבלן לבצע פעולה מתקנת ולדווח על הביצוע.'
+                    : 'הדו״ח משקף את מצב האתר במועד הביקורת בלבד, על סמך הנראה לעין ולפי המידע שנמסר לעורך. ליקויים בדרגת חומרה ״גבוהה״ מחייבים טיפול מיידי.'}
                 </p>
               </section>
             )}

@@ -58,7 +58,8 @@ const SafetyAuditEditor = () => {
   );
   const isConstruction = report?.reportType === 'construction';
   const isInfrastructure = report?.reportType === 'infrastructure';
-  const isProjectReport = isConstruction || isInfrastructure;
+  const isRailway = report?.reportType === 'railway';
+  const isProjectReport = isConstruction || isInfrastructure || isRailway;
   const hasChapteredChecklist = isProjectReport;
   const chapters = useMemo(
     () => Array.from(new Set(topics.map((topic) => topic.chapter || 'כל הבדיקות'))),
@@ -333,6 +334,9 @@ const SafetyAuditEditor = () => {
   if (loading) return <div className="p-4" dir="rtl">טוען…</div>;
   if (error && !report) return <div className="p-4 text-red-600" dir="rtl">{error}</div>;
   if (!report) return <div className="p-4" dir="rtl">לא נמצא דוח</div>;
+  const railwayDetails = report.domainDetails ?? {};
+  const setRailwayDetails = (patch: Partial<NonNullable<SafetyAuditReport['domainDetails']>>) =>
+    setReport({ ...report, domainDetails: { ...railwayDetails, ...patch } });
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
@@ -352,6 +356,8 @@ const SafetyAuditEditor = () => {
                     ? 'bg-amber-100 text-amber-900'
                     : isInfrastructure
                       ? 'bg-emerald-100 text-emerald-900'
+                      : isRailway
+                        ? 'bg-violet-100 text-violet-900'
                       : 'bg-sky-100 text-sky-900'
                 }`}
               >
@@ -456,6 +462,8 @@ const SafetyAuditEditor = () => {
               ? 'פרטי הביקורת באתר הבנייה'
               : isInfrastructure
                 ? 'פרטי הביקורת באתר התשתיות'
+                : isRailway
+                  ? 'פרטי ביקורת באתר רכבת ישראל'
                 : '2. פרטי הביקורת'}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -464,7 +472,7 @@ const SafetyAuditEditor = () => {
               <>
                 <Input
                   dir="rtl"
-                  placeholder={isInfrastructure ? 'פרויקט / אתר תשתיות' : 'פרויקט / אתר'}
+                  placeholder={isInfrastructure ? 'פרויקט / אתר תשתיות' : isRailway ? 'שם אתר רכבת ישראל' : 'פרויקט / אתר'}
                   value={report.projectName || report.siteName || ''}
                   onChange={(e) => setReport({ ...report, projectName: e.target.value, siteName: e.target.value })}
                 />
@@ -514,12 +522,97 @@ const SafetyAuditEditor = () => {
           {isProjectReport && (
             <Textarea
               dir="rtl"
-              placeholder={isInfrastructure ? 'תיאור העבודות המתבצעות בעת הביקורת' : 'שלבי עבודה'}
+              placeholder={isInfrastructure ? 'תיאור העבודות המתבצעות בעת הביקורת' : isRailway ? 'תיאור העבודות המתבצעות באתר' : 'שלבי עבודה'}
               value={report.workStagesDetail || ''}
               onChange={(e) => setReport({ ...report, workStagesDetail: e.target.value })}
             />
           )}
         </section>
+        {isRailway && (
+          <section className="rounded-xl border bg-white p-4 space-y-4 shadow-sm">
+            <h2 className="text-lg font-semibold">פרטי טופס רכבת ישראל</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input value={railwayDetails.attention || ''} onChange={(event) => setRailwayDetails({ attention: event.target.value })} placeholder="לידי" />
+              <Input value={railwayDetails.copyTo || ''} onChange={(event) => setRailwayDetails({ copyTo: event.target.value })} placeholder="לידיעה — פיקוח ומזמין" />
+              <Input value={railwayDetails.railwayKmFrom || ''} onChange={(event) => setRailwayDetails({ railwayKmFrom: event.target.value })} placeholder="ק״מ רכבתי — מ־ק״מ" />
+              <Input value={railwayDetails.railwayKmTo || ''} onChange={(event) => setRailwayDetails({ railwayKmTo: event.target.value })} placeholder="ועד ק״מ" />
+              <label className="text-sm sm:col-span-2">
+                תאריך ביקור קודם
+                <Input type="date" value={railwayDetails.previousVisitDate || ''} onChange={(event) => setRailwayDetails({ previousVisitDate: event.target.value })} />
+              </label>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-medium">משתתפים בסיור</h3>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setRailwayDetails({ participants: [...(railwayDetails.participants ?? []), { name: '' }] })}
+                >
+                  הוסף משתתף
+                </Button>
+              </div>
+              {(railwayDetails.participants ?? []).map((participant, index) => (
+                <div key={index} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                  <Input value={participant.name} onChange={(event) => {
+                    const items = [...(railwayDetails.participants ?? [])];
+                    items[index] = { ...participant, name: event.target.value };
+                    setRailwayDetails({ participants: items });
+                  }} placeholder="שם מלא" />
+                  <Input value={participant.role || ''} onChange={(event) => {
+                    const items = [...(railwayDetails.participants ?? [])];
+                    items[index] = { ...participant, role: event.target.value };
+                    setRailwayDetails({ participants: items });
+                  }} placeholder="תפקיד" />
+                  <Input value={participant.notes || ''} onChange={(event) => {
+                    const items = [...(railwayDetails.participants ?? [])];
+                    items[index] = { ...participant, notes: event.target.value };
+                    setRailwayDetails({ participants: items });
+                  }} placeholder="הערות / הסמכה" />
+                  <Button type="button" size="icon" variant="ghost" onClick={() => setRailwayDetails({ participants: (railwayDetails.participants ?? []).filter((_, itemIndex) => itemIndex !== index) })}>
+                    <Trash2 className="w-4 h-4 text-red-600" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-medium">ליקויים מביקור קודם</h3>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setRailwayDetails({ previousFindings: [...(railwayDetails.previousFindings ?? []), { description: '' }] })}
+                >
+                  הוסף ליקוי קודם
+                </Button>
+              </div>
+              {(railwayDetails.previousFindings ?? []).map((finding, index) => (
+                <div key={index} className="rounded-lg border bg-slate-50 p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Textarea className="sm:col-span-2" value={finding.description} onChange={(event) => {
+                    const items = [...(railwayDetails.previousFindings ?? [])];
+                    items[index] = { ...finding, description: event.target.value };
+                    setRailwayDetails({ previousFindings: items });
+                  }} placeholder="מהות הליקוי ומיקומו" />
+                  {(['instructions', 'status', 'responsible'] as const).map((field) => (
+                    <Input key={field} value={finding[field] || ''} onChange={(event) => {
+                      const items = [...(railwayDetails.previousFindings ?? [])];
+                      items[index] = { ...finding, [field]: event.target.value };
+                      setRailwayDetails({ previousFindings: items });
+                    }} placeholder={field === 'instructions' ? 'הנחיות לביצוע' : field === 'status' ? 'סטטוס' : 'אחראי לביצוע'} />
+                  ))}
+                  <Input type="date" value={finding.dueDate || ''} onChange={(event) => {
+                    const items = [...(railwayDetails.previousFindings ?? [])];
+                    items[index] = { ...finding, dueDate: event.target.value };
+                    setRailwayDetails({ previousFindings: items });
+                  }} />
+                  <Button type="button" size="sm" variant="ghost" className="text-red-600" onClick={() => setRailwayDetails({ previousFindings: (railwayDetails.previousFindings ?? []).filter((_, itemIndex) => itemIndex !== index) })}>הסר ליקוי קודם</Button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         </>
         )}
 
@@ -527,7 +620,7 @@ const SafetyAuditEditor = () => {
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : '3. רשימת בדיקה'}</h2>
+              <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : isRailway ? 'טבלת בדיקה — רכבת ישראל' : '3. רשימת בדיקה'}</h2>
               <div className="text-xs text-slate-500">{completedChecks} מתוך {topics.length} בדיקות הושלמו</div>
             </div>
             <div className="text-sm font-medium text-emerald-700">{Math.round((completedChecks / topics.length) * 100)}%</div>
@@ -589,7 +682,7 @@ const SafetyAuditEditor = () => {
         {step === 2 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">{isConstruction ? 'ליקויים ותיעוד צילומי' : '4. ליקויים ופעולות מתקנות'}</h2>
+            <h2 className="text-lg font-semibold">{isConstruction ? 'ליקויים ותיעוד צילומי' : isRailway ? 'ריכוז ליקויים מביקור נוכחי' : '4. ליקויים ופעולות מתקנות'}</h2>
             <Button size="sm" onClick={() => void addDefect()}>
               הוסף ליקוי
             </Button>

@@ -69,4 +69,26 @@ describe('safety report database mapping', () => {
     expect(CORRECTIVE_ACTION_SUGGESTIONS.some((action) => action.includes('בודק מוסמך'))).toBe(true);
     expect(CORRECTIVE_ACTION_SUGGESTIONS.some((action) => action.includes('ציוד מגן אישי'))).toBe(true);
   });
+
+  it('supports the dedicated Israel Railways report format', () => {
+    const report = mapSafetyReportRow({
+      id: 'report-rail',
+      client_id: 'client-1',
+      report_type: 'railway',
+      date: '2026-07-19',
+      status: 'draft',
+      domain_details: {
+        railwayKmFrom: '12+500',
+        railwayKmTo: '13+200',
+        participants: [{ name: 'ישראל ישראלי', role: 'מנהל עבודה' }],
+      },
+      created_at: '2026-07-19T00:00:00Z',
+      updated_at: '2026-07-19T00:00:00Z',
+    });
+
+    expect(report.reportType).toBe('railway');
+    expect(reportTypeLabel(report.reportType)).toBe('אתרי רכבת ישראל');
+    expect(getChecklistTopics(report.reportType)).toHaveLength(30);
+    expect(report.domainDetails?.railwayKmFrom).toBe('12+500');
+  });
 });

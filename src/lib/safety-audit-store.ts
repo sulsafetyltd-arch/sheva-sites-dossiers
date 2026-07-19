@@ -63,7 +63,9 @@ function mapClient(row: DatabaseRow): SafetyAuditClient {
 
 export function mapSafetyReportRow(row: DatabaseRow): SafetyAuditReport {
   const reportType: ReportType =
-    row.report_type === 'construction' || row.report_type === 'infrastructure'
+    row.report_type === 'construction'
+      || row.report_type === 'infrastructure'
+      || row.report_type === 'railway'
       ? row.report_type
       : 'workplace';
   return {
@@ -100,6 +102,9 @@ export function mapSafetyReportRow(row: DatabaseRow): SafetyAuditReport {
     siteManagerSignedAt: optionalString(row.site_manager_signed_at),
     auditorSignedAt: optionalString(row.auditor_signed_at),
     checklist: (row.checklist as Record<string, ChecklistItemState> | null) ?? {},
+    domainDetails: row.domain_details && typeof row.domain_details === 'object'
+      ? row.domain_details as SafetyAuditReport['domainDetails']
+      : undefined,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
@@ -333,6 +338,7 @@ export async function createReport(
       auditor_stamp_url: partial.auditorStampUrl ?? issuerProfile?.stamp_data_url ?? null,
       auditor_signed_at: partial.auditorSignedAt ?? null,
       checklist: partial.checklist ?? {},
+      domain_details: partial.domainDetails ?? {},
       created_by: authData.user?.id ?? null,
     })
     .select()
@@ -373,6 +379,7 @@ const reportColumnMap: Record<keyof SafetyAuditReport, string> = {
   siteManagerSignedAt: 'site_manager_signed_at',
   auditorSignedAt: 'auditor_signed_at',
   checklist: 'checklist',
+  domainDetails: 'domain_details',
   createdAt: 'created_at',
   updatedAt: 'updated_at',
 };
@@ -688,6 +695,7 @@ export async function migrateLegacySafetyData(): Promise<{
         site_manager_signed_at: report.siteManagerSignedAt ?? null,
         auditor_signed_at: report.auditorSignedAt ?? null,
         checklist: report.checklist ?? {},
+        domain_details: report.domainDetails ?? {},
         created_by: authData.user?.id ?? null,
         created_at: report.createdAt,
         updated_at: report.updatedAt,

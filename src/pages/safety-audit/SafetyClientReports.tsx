@@ -168,8 +168,8 @@ export default function SafetyClientReports() {
         {showNewReport && (
           <section className="rounded-xl border-2 border-slate-900 bg-white p-4 space-y-4">
             <h3 className="font-semibold">יצירת דוח עבור {client.name}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {(['workplace', 'construction', 'infrastructure'] as ReportType[]).map((type) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              {(['workplace', 'construction', 'infrastructure', 'railway'] as ReportType[]).map((type) => (
                 <button
                   key={type}
                   type="button"
@@ -184,6 +184,8 @@ export default function SafetyClientReports() {
                       ? '26 בדיקות בנייה'
                       : type === 'infrastructure'
                         ? '48 בדיקות תשתיות'
+                        : type === 'railway'
+                          ? '30 בדיקות רכבת'
                         : '10 בדיקות עבודה'}
                   </div>
                 </button>
@@ -195,6 +197,8 @@ export default function SafetyClientReports() {
                   ? 'שם הפרויקט / אתר הבנייה'
                   : reportType === 'infrastructure'
                     ? 'שם הפרויקט / אתר התשתיות'
+                    : reportType === 'railway'
+                      ? 'שם אתר רכבת ישראל'
                     : 'שם האתר / כתובת'
               }
               value={siteName}
@@ -226,6 +230,8 @@ export default function SafetyClientReports() {
                           ? 'bg-amber-100 text-amber-900'
                           : report.reportType === 'infrastructure'
                             ? 'bg-emerald-100 text-emerald-900'
+                            : report.reportType === 'railway'
+                              ? 'bg-violet-100 text-violet-900'
                             : 'bg-sky-100 text-sky-900'
                       }`}>
                         {reportTypeLabel(report.reportType)}
