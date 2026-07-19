@@ -28,6 +28,6 @@ describe('safety training categories', () => {
     expect(CONSTRUCTION_INDUCTION_DOCUMENTS.map((document) => document.code))
       .toEqual(['he', 'ar', 'en', 'ru', 'zh', 'tr', 'ti', 'ro', 'hi']);
     expect(new Set(CONSTRUCTION_INDUCTION_DOCUMENTS.map((document) => document.file)).size).toBe(9);
-    expect(CONSTRUCTION_INDUCTION_DOCUMENTS.every((document) => document.url.endsWith('.pdf'))).toBe(true);
+    expect(CONSTRUCTION_INDUCTION_DOCUMENTS.every((document) => document.url.includes('.pdf'))).toBe(true);
   });
 });

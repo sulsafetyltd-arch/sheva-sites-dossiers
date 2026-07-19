@@ -49,7 +49,12 @@ import type { SafetyElearningAssignment } from '@/types/safety-elearning';
 import {
   type ConstructionInductionLanguage,
 } from '@/types/safety-training';
-import { CONSTRUCTION_INDUCTION_DOCUMENTS } from '@/lib/construction-induction-documents';
+import {
+  CONSTRUCTION_INDUCTION_DOCUMENTS,
+  downloadConstructionInductionPdf,
+  loadConstructionInductionPdf,
+  openConstructionInductionPdf,
+} from '@/lib/construction-induction-documents';
 
 const trainingTypes = Object.keys(EMPLOYEE_TRAINING_DETAILS) as EmployeeTrainingType[];
 const today = () => new Date().toISOString().slice(0, 10);
@@ -222,30 +227,24 @@ export default function SafetyEmployeeRegistry() {
     }
   };
 
-  const inductionDocumentUrl = (language: ConstructionInductionLanguage) => {
-    const document = CONSTRUCTION_INDUCTION_DOCUMENTS.find((item) => item.code === language)
-      ?? CONSTRUCTION_INDUCTION_DOCUMENTS[0];
-    return new URL(document.url, window.location.origin).toString();
-  };
-
   const shareInductionDocument = async (
     employee: SafetyClientEmployee,
     language: ConstructionInductionLanguage,
   ) => {
     const document = CONSTRUCTION_INDUCTION_DOCUMENTS.find((item) => item.code === language)
       ?? CONSTRUCTION_INDUCTION_DOCUMENTS[0];
-    const url = inductionDocumentUrl(language);
-    const data: ShareData = {
-      title: `הדרכת עובד חדש באתר בנייה — ${document.label}`,
-      text: `שלום ${employee.fullName}, מצורף מסמך הוראות הבטיחות לעובד חדש באתר בנייה בשפה ${document.label}. יש לקרוא את המסמך במלואו לפני תחילת העבודה.`,
-      url,
-    };
     try {
+      const file = await loadConstructionInductionPdf(document);
+      const data: ShareData = {
+        title: `הדרכת עובד חדש באתר בנייה — ${document.label}`,
+        text: `שלום ${employee.fullName}, מצורף מסמך הוראות הבטיחות לעובד חדש באתר בנייה בשפה ${document.label}. יש לקרוא את המסמך במלואו לפני תחילת העבודה.`,
+        files: [file],
+      };
       if (navigator.share && (!navigator.canShare || navigator.canShare(data))) {
         await navigator.share(data);
       } else {
-        await navigator.clipboard.writeText(`${data.text}\n${url}`);
-        setMessage('הקישור למסמך ההדרכה הועתק');
+        downloadConstructionInductionPdf(file);
+        setMessage('קובץ ה־PDF הורד וניתן לצרף אותו למייל או לוואטסאפ');
       }
     } catch (cause) {
       if (!(cause instanceof DOMException && cause.name === 'AbortError')) {
@@ -362,10 +361,19 @@ export default function SafetyEmployeeRegistry() {
                             </option>
                           ))}
                         </select>
-                        <Button asChild size="sm" variant="outline">
-                          <a href={inductionDocumentUrl(inductionLanguages[employee.id] ?? 'he')} target="_blank" rel="noreferrer">
-                            פתח PDF
-                          </a>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const document = CONSTRUCTION_INDUCTION_DOCUMENTS.find(
+                              (item) => item.code === (inductionLanguages[employee.id] ?? 'he'),
+                            ) ?? CONSTRUCTION_INDUCTION_DOCUMENTS[0];
+                            void openConstructionInductionPdf(document).catch((cause) => {
+                              setError(cause instanceof Error ? cause.message : 'פתיחת מסמך ההדרכה נכשלה');
+                            });
+                          }}
+                        >
+                          פתח PDF
                         </Button>
                         <Button size="sm" onClick={() => void shareInductionDocument(employee, inductionLanguages[employee.id] ?? 'he')}>
                           <Share2 className="w-4 h-4 ml-1" /> שתף לעובד

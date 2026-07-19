@@ -25,7 +25,10 @@ import {
   TRAINING_CATEGORY_DETAILS,
   trainingCategoryLabel,
 } from '@/types/safety-training';
-import { CONSTRUCTION_INDUCTION_DOCUMENTS } from '@/lib/construction-induction-documents';
+import {
+  CONSTRUCTION_INDUCTION_DOCUMENTS,
+  openConstructionInductionPdf,
+} from '@/lib/construction-induction-documents';
 
 export default function SafetyTrainingEditor() {
   const { id } = useParams();
@@ -216,7 +219,6 @@ export default function SafetyTrainingEditor() {
   const inductionDocument = CONSTRUCTION_INDUCTION_DOCUMENTS.find(
     (item) => item.code === (heightDetails.constructionInductionLanguage ?? 'he'),
   ) ?? CONSTRUCTION_INDUCTION_DOCUMENTS[0];
-  const inductionDocumentHref = inductionDocument.url;
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
@@ -295,8 +297,15 @@ export default function SafetyTrainingEditor() {
                       ))}
                     </select>
                   </label>
-                  <Button asChild type="button" size="sm" variant="outline">
-                    <a href={inductionDocumentHref} target="_blank" rel="noreferrer">פתח את מסמך ההדרכה בשפה שנבחרה</a>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void openConstructionInductionPdf(inductionDocument).catch((cause) => {
+                      setError(cause instanceof Error ? cause.message : 'פתיחת מסמך ההדרכה נכשלה');
+                    })}
+                  >
+                    פתח את מסמך ההדרכה בשפה שנבחרה
                   </Button>
                 </div>
               )}
