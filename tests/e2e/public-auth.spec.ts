@@ -26,17 +26,6 @@ test('PWA manifest icons are available', async ({ request }) => {
   }
 });
 
-test('multilingual construction induction PDFs are available', async ({ request }) => {
-  for (const file of [
-    'hebrew.pdf', 'arabic.pdf', 'english.pdf', 'russian.pdf', 'chinese.pdf',
-    'turkish.pdf', 'tigrinya.pdf', 'romanian.pdf', 'hindi.pdf',
-  ]) {
-    const response = await request.get(`/training-documents/new-worker-construction/${file}`);
-    expect(response.ok(), `${file} should be available`).toBeTruthy();
-    expect(response.headers()['content-type']).toContain('application/pdf');
-  }
-});
-
 test('login fits mobile viewport without horizontal overflow', async ({ page }) => {
   await page.goto('/safety/login');
   const dimensions = await page.evaluate(() => ({

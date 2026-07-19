@@ -47,9 +47,9 @@ import {
 } from '@/lib/safety-elearning-store';
 import type { SafetyElearningAssignment } from '@/types/safety-elearning';
 import {
-  CONSTRUCTION_INDUCTION_DOCUMENTS,
   type ConstructionInductionLanguage,
 } from '@/types/safety-training';
+import { CONSTRUCTION_INDUCTION_DOCUMENTS } from '@/lib/construction-induction-documents';
 
 const trainingTypes = Object.keys(EMPLOYEE_TRAINING_DETAILS) as EmployeeTrainingType[];
 const today = () => new Date().toISOString().slice(0, 10);
@@ -225,11 +225,7 @@ export default function SafetyEmployeeRegistry() {
   const inductionDocumentUrl = (language: ConstructionInductionLanguage) => {
     const document = CONSTRUCTION_INDUCTION_DOCUMENTS.find((item) => item.code === language)
       ?? CONSTRUCTION_INDUCTION_DOCUMENTS[0];
-    const basePath = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
-    return new URL(
-      `${basePath}training-documents/new-worker-construction/${document.file}`,
-      window.location.origin,
-    ).toString();
+    return new URL(document.url, window.location.origin).toString();
   };
 
   const shareInductionDocument = async (

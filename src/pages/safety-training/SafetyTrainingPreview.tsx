@@ -12,13 +12,13 @@ import { createPdfBlob, downloadPdfBlob, exportToPdf } from '@/lib/pdf-export';
 import type { SafetyAuditClient } from '@/types/safety-audit';
 import type { SafetyTrainingParticipant, SafetyTrainingSession } from '@/types/safety-training';
 import {
-  CONSTRUCTION_INDUCTION_DOCUMENTS,
   GENERAL_TRAINING_TOPICS,
   HEIGHT_TRAINING_PROGRAM,
   HEIGHT_TRAINING_TOPICS,
   TRAINING_CATEGORY_DETAILS,
   trainingCategoryLabel,
 } from '@/types/safety-training';
+import { CONSTRUCTION_INDUCTION_DOCUMENTS } from '@/lib/construction-induction-documents';
 
 export default function SafetyTrainingPreview() {
   const { id } = useParams();

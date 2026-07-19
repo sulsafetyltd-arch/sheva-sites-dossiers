@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CONSTRUCTION_INDUCTION_DOCUMENTS,
   GENERAL_TRAINING_TOPICS,
   HEIGHT_TRAINING_PROGRAM,
   HEIGHT_TRAINING_TOPICS,
   TRAINING_CATEGORY_DETAILS,
   trainingCategoryLabel,
 } from '@/types/safety-training';
+import { CONSTRUCTION_INDUCTION_DOCUMENTS } from '@/lib/construction-induction-documents';
 
 describe('safety training categories', () => {
   it('defines group training content for general and fire sessions', () => {
@@ -28,5 +28,6 @@ describe('safety training categories', () => {
     expect(CONSTRUCTION_INDUCTION_DOCUMENTS.map((document) => document.code))
       .toEqual(['he', 'ar', 'en', 'ru', 'zh', 'tr', 'ti', 'ro', 'hi']);
     expect(new Set(CONSTRUCTION_INDUCTION_DOCUMENTS.map((document) => document.file)).size).toBe(9);
+    expect(CONSTRUCTION_INDUCTION_DOCUMENTS.every((document) => document.url.endsWith('.pdf'))).toBe(true);
   });
 });

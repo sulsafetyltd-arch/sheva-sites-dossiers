@@ -20,12 +20,12 @@ import {
 import { syncTrainingSessionToEmployeeRegistry } from '@/lib/safety-employee-store';
 import type { SafetyTrainingParticipant, SafetyTrainingSession } from '@/types/safety-training';
 import {
-  CONSTRUCTION_INDUCTION_DOCUMENTS,
   GENERAL_TRAINING_TOPICS,
   HEIGHT_TRAINING_TOPICS,
   TRAINING_CATEGORY_DETAILS,
   trainingCategoryLabel,
 } from '@/types/safety-training';
+import { CONSTRUCTION_INDUCTION_DOCUMENTS } from '@/lib/construction-induction-documents';
 
 export default function SafetyTrainingEditor() {
   const { id } = useParams();
@@ -216,8 +216,7 @@ export default function SafetyTrainingEditor() {
   const inductionDocument = CONSTRUCTION_INDUCTION_DOCUMENTS.find(
     (item) => item.code === (heightDetails.constructionInductionLanguage ?? 'he'),
   ) ?? CONSTRUCTION_INDUCTION_DOCUMENTS[0];
-  const basePath = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
-  const inductionDocumentHref = `${basePath}training-documents/new-worker-construction/${inductionDocument.file}`;
+  const inductionDocumentHref = inductionDocument.url;
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
