@@ -18,6 +18,7 @@ import SafetyUserProfile from "./pages/safety-audit/SafetyUserProfile.tsx";
 import SafetyTrainingClient from "./pages/safety-training/SafetyTrainingClient.tsx";
 import SafetyTrainingEditor from "./pages/safety-training/SafetyTrainingEditor.tsx";
 import SafetyTrainingPreview from "./pages/safety-training/SafetyTrainingPreview.tsx";
+import SafetyEmployeeRegistry from "./pages/safety-employees/SafetyEmployeeRegistry.tsx";
 import RequireSafetyAuth from "./components/safety/RequireSafetyAuth.tsx";
 import RequireSafetyAdmin from "./components/safety/RequireSafetyAdmin.tsx";
 import { SafetyAuthProvider } from "./contexts/SafetyAuthContext.tsx";
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/safety/training/client/:clientId" element={<RequireSafetyAuth><SafetyTrainingClient /></RequireSafetyAuth>} />
             <Route path="/safety/training/editor/:id" element={<RequireSafetyAuth><SafetyTrainingEditor /></RequireSafetyAuth>} />
             <Route path="/safety/training/preview/:id" element={<RequireSafetyAuth><SafetyTrainingPreview /></RequireSafetyAuth>} />
+            <Route path="/safety/employees/client/:clientId" element={<RequireSafetyAuth><SafetyEmployeeRegistry /></RequireSafetyAuth>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </SafetyAuthProvider>

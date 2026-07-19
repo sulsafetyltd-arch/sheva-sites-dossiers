@@ -64,6 +64,7 @@ export interface HeightTrainingFormDetails {
   generalSelectedTopics?: string[];
   generalOtherTopic1?: string;
   generalOtherTopic2?: string;
+  generalTrainingRecordType?: 'annual_safety' | 'new_employee';
   includeIdDocumentsInGroupPdf?: boolean;
 }
 

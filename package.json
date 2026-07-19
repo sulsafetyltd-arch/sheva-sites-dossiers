@@ -8,7 +8,7 @@
     "build": "vite build && cp dist/index.html dist/200.html && cp dist/index.html dist/404.html",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "lint:safety": "eslint src/pages/safety-audit src/pages/safety-training src/lib/safety-audit-store.ts src/lib/safety-training-store.ts src/types/safety-training.ts src/contexts/SafetyAuthContext.tsx src/components/safety",
+    "lint:safety": "eslint src/pages/safety-audit src/pages/safety-training src/pages/safety-employees src/lib/safety-audit-store.ts src/lib/safety-training-store.ts src/lib/safety-employee-store.ts src/lib/safety-employee-csv.ts src/types/safety-training.ts src/types/safety-employee.ts src/contexts/SafetyAuthContext.tsx src/components/safety",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test": "vitest run",

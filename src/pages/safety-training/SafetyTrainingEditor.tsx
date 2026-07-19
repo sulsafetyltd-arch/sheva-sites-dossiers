@@ -17,6 +17,7 @@ import {
   updateTrainingParticipant,
   updateTrainingSession,
 } from '@/lib/safety-training-store';
+import { syncTrainingSessionToEmployeeRegistry } from '@/lib/safety-employee-store';
 import type { SafetyTrainingParticipant, SafetyTrainingSession } from '@/types/safety-training';
 import {
   GENERAL_TRAINING_TOPICS,
@@ -106,6 +107,9 @@ export default function SafetyTrainingEditor() {
     setSaving(true);
     try {
       const saved = await updateTrainingSession(session.id, { ...session, status: status ?? session.status });
+      if (status === 'final') {
+        await syncTrainingSessionToEmployeeRegistry(saved, participants);
+      }
       setSession(saved);
       setError(null);
       setMessage(status === 'final' ? 'ההדרכה הושלמה' : 'פרטי ההדרכה נשמרו');
@@ -261,6 +265,17 @@ export default function SafetyTrainingEditor() {
               <Input value={heightDetails.instructorOrganization || ''} onChange={(event) => setHeightDetails({ instructorOrganization: event.target.value })} placeholder="המדריך מטעם" />
               <label className="text-sm">שעת התחלה<Input type="time" value={heightDetails.startTime || ''} onChange={(event) => setHeightDetails({ startTime: event.target.value })} /></label>
               <label className="text-sm">שעת סיום<Input type="time" value={heightDetails.endTime || ''} onChange={(event) => setHeightDetails({ endTime: event.target.value })} /></label>
+              <label className="text-sm sm:col-span-2">
+                סוג התיעוד במאגר העובדים
+                <select
+                  value={heightDetails.generalTrainingRecordType ?? 'annual_safety'}
+                  onChange={(event) => setHeightDetails({ generalTrainingRecordType: event.target.value as 'annual_safety' | 'new_employee' })}
+                  className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+                >
+                  <option value="annual_safety">הדרכת בטיחות שנתית</option>
+                  <option value="new_employee">הדרכת עובד חדש / לפני תחילת עבודה</option>
+                </select>
+              </label>
             </div>
             <div>
               <h3 className="font-medium mb-2">נושאי ההדרכה שהועברו</h3>
