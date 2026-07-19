@@ -120,3 +120,6 @@ drop trigger if exists trg_safety_client_employees_updated_at on public.safety_c
 create trigger trg_safety_client_employees_updated_at
 before update on public.safety_client_employees
 for each row execute function public.set_updated_at();
+
+-- Ensure PostgREST immediately exposes the newly created tables.
+notify pgrst, 'reload schema';
