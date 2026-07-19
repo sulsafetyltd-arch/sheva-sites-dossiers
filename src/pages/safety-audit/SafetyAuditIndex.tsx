@@ -117,31 +117,36 @@ const SafetyAuditIndex = () => {
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
-      <div className="container mx-auto max-w-3xl p-4 space-y-6">
-        <header className="flex items-start justify-between gap-3 pt-2">
-          <div className="space-y-1">
+      <div
+        className="container mx-auto max-w-3xl px-4 pb-6 space-y-6"
+        style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
+      >
+        <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="space-y-1 min-w-0">
             <p className="text-sm text-slate-500">סול בטיחות בע״מ</p>
             <h1 className="text-2xl font-bold text-slate-900">דוחות ביקורת בטיחות</h1>
             <p className="text-sm text-slate-600">
               {isAdmin ? 'ניהול כל הלקוחות והדוחות' : 'הלקוחות והדוחות שהוקצו לך'}
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-1">
-            <Button asChild variant="outline" size="sm" className="gap-1">
+          <div className="grid grid-cols-3 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
+            <Button asChild variant="outline" size="sm" className="gap-1 min-h-11 w-full touch-manipulation">
               <Link to="/safety/profile"><UserCircle className="w-4 h-4" /> הפרופיל שלי</Link>
             </Button>
             {isAdmin && (
-              <Button asChild variant="outline" size="sm" className="gap-1">
+              <Button asChild variant="outline" size="sm" className="gap-1 min-h-11 w-full touch-manipulation">
                 <Link to="/safety/users"><UsersRound className="w-4 h-4" /> משתמשים</Link>
               </Button>
             )}
             <Button
-              variant="ghost"
-              size="icon"
+              variant="outline"
+              size="sm"
+              className={`gap-1 min-h-11 w-full touch-manipulation ${isAdmin ? '' : 'col-start-3'}`}
               title={`התנתק${profile?.fullName ? ` — ${profile.fullName}` : ''}`}
               onClick={() => void signOut()}
             >
               <LogOut className="w-4 h-4" />
+              יציאה
             </Button>
           </div>
         </header>
