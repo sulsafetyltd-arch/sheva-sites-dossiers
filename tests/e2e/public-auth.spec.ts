@@ -34,3 +34,28 @@ test('login fits mobile viewport without horizontal overflow', async ({ page }) 
   }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
 });
+
+test('employee can open a personal safety e-learning link without login', async ({ page }) => {
+  await page.route('**/rest/v1/rpc/get_safety_elearning_assignment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+        status: 'in_progress',
+        score: null,
+        employee_name: 'עובד לומדה',
+        employee_id_number: '123456789',
+        client_name: 'לקוח בדיקה',
+        course_version: 'general-safety-v1',
+      }),
+    });
+  });
+
+  await page.goto('/safety/learn/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+  await expect(page.getByRole('heading', { name: 'לומדת בטיחות כללית' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'אחריות העובד והמעסיק' })).toBeVisible();
+  await expect(page).not.toHaveURL(/\/safety\/login/);
+  await page.getByRole('button', { name: /סיימתי את הפרק/ }).click();
+  await expect(page.getByRole('heading', { name: 'זיהוי סיכונים וסביבת עבודה בטוחה' })).toBeVisible();
+});
