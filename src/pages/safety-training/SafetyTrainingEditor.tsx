@@ -20,6 +20,7 @@ import {
 import { syncTrainingSessionToEmployeeRegistry } from '@/lib/safety-employee-store';
 import type { SafetyTrainingParticipant, SafetyTrainingSession } from '@/types/safety-training';
 import {
+  CONSTRUCTION_INDUCTION_DOCUMENTS,
   GENERAL_TRAINING_TOPICS,
   HEIGHT_TRAINING_TOPICS,
   TRAINING_CATEGORY_DETAILS,
@@ -212,6 +213,11 @@ export default function SafetyTrainingEditor() {
   const heightDetails = session.formDetails ?? {};
   const setHeightDetails = (patch: Partial<NonNullable<SafetyTrainingSession['formDetails']>>) =>
     setSession({ ...session, formDetails: { ...heightDetails, ...patch } });
+  const inductionDocument = CONSTRUCTION_INDUCTION_DOCUMENTS.find(
+    (item) => item.code === (heightDetails.constructionInductionLanguage ?? 'he'),
+  ) ?? CONSTRUCTION_INDUCTION_DOCUMENTS[0];
+  const basePath = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+  const inductionDocumentHref = `${basePath}training-documents/new-worker-construction/${inductionDocument.file}`;
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
@@ -276,6 +282,25 @@ export default function SafetyTrainingEditor() {
                   <option value="new_employee">הדרכת עובד חדש / לפני תחילת עבודה</option>
                 </select>
               </label>
+              {(heightDetails.generalTrainingRecordType ?? 'annual_safety') === 'new_employee' && (
+                <div className="sm:col-span-2 rounded-lg border border-indigo-200 bg-indigo-50 p-3 space-y-2">
+                  <label className="text-sm font-medium">
+                    שפת מסמך הוראות הבטיחות לעובד חדש
+                    <select
+                      value={heightDetails.constructionInductionLanguage ?? 'he'}
+                      onChange={(event) => setHeightDetails({ constructionInductionLanguage: event.target.value as NonNullable<SafetyTrainingSession['formDetails']>['constructionInductionLanguage'] })}
+                      className="flex h-10 w-full rounded-md border bg-white px-3 text-sm mt-1"
+                    >
+                      {CONSTRUCTION_INDUCTION_DOCUMENTS.map((document) => (
+                        <option key={document.code} value={document.code}>{document.label} — {document.nativeLabel}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <Button asChild type="button" size="sm" variant="outline">
+                    <a href={inductionDocumentHref} target="_blank" rel="noreferrer">פתח את מסמך ההדרכה בשפה שנבחרה</a>
+                  </Button>
+                </div>
+              )}
             </div>
             <div>
               <h3 className="font-medium mb-2">נושאי ההדרכה שהועברו</h3>

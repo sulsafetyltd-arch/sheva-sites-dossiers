@@ -12,6 +12,7 @@ import { createPdfBlob, downloadPdfBlob, exportToPdf } from '@/lib/pdf-export';
 import type { SafetyAuditClient } from '@/types/safety-audit';
 import type { SafetyTrainingParticipant, SafetyTrainingSession } from '@/types/safety-training';
 import {
+  CONSTRUCTION_INDUCTION_DOCUMENTS,
   GENERAL_TRAINING_TOPICS,
   HEIGHT_TRAINING_PROGRAM,
   HEIGHT_TRAINING_TOPICS,
@@ -111,6 +112,9 @@ export default function SafetyTrainingPreview() {
   const heightDetails = session.formDetails ?? {};
   const selectedHeightTopics = heightDetails.selectedTopics ?? [...HEIGHT_TRAINING_TOPICS];
   const selectedGeneralTopics = heightDetails.generalSelectedTopics ?? [...GENERAL_TRAINING_TOPICS];
+  const inductionDocument = CONSTRUCTION_INDUCTION_DOCUMENTS.find(
+    (item) => item.code === (heightDetails.constructionInductionLanguage ?? 'he'),
+  ) ?? CONSTRUCTION_INDUCTION_DOCUMENTS[0];
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#e8edf2]">
@@ -265,6 +269,9 @@ export default function SafetyTrainingPreview() {
                       <div><span className="text-slate-500">כתובת האתר:</span> {heightDetails.siteAddress || '—'}</div>
                       <div><span className="text-slate-500">תאריך:</span> {session.trainingDate}</div>
                       <div><span className="text-slate-500">שעות:</span> {heightDetails.startTime || '—'}–{heightDetails.endTime || '—'}</div>
+                      {(heightDetails.generalTrainingRecordType ?? 'annual_safety') === 'new_employee' && (
+                        <div className="col-span-2"><span className="text-slate-500">מסמך הוראות לעובד חדש:</span> {inductionDocument.label} — {inductionDocument.nativeLabel}</div>
+                      )}
                     </>}
                     <div><span className="text-slate-500">נושא:</span> {session.topic}</div>
                     <div><span className="text-slate-500">מדריך:</span> {session.instructorName || '—'}</div>

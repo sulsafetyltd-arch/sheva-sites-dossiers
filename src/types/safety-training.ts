@@ -2,6 +2,21 @@ export type TrainingCategory = 'general' | 'fire' | 'work_at_height';
 export type TrainingStatus = 'draft' | 'final';
 export type ParticipantIdDocumentType = 'id_card' | 'drivers_license';
 
+export const CONSTRUCTION_INDUCTION_DOCUMENTS = [
+  { code: 'he', label: 'עברית', nativeLabel: 'עברית', file: 'hebrew.pdf', direction: 'rtl' },
+  { code: 'ar', label: 'ערבית', nativeLabel: 'العربية', file: 'arabic.pdf', direction: 'rtl' },
+  { code: 'en', label: 'אנגלית', nativeLabel: 'English', file: 'english.pdf', direction: 'ltr' },
+  { code: 'ru', label: 'רוסית', nativeLabel: 'Русский', file: 'russian.pdf', direction: 'ltr' },
+  { code: 'zh', label: 'סינית', nativeLabel: '中文', file: 'chinese.pdf', direction: 'ltr' },
+  { code: 'tr', label: 'טורקית', nativeLabel: 'Türkçe', file: 'turkish.pdf', direction: 'ltr' },
+  { code: 'ti', label: 'טיגרינית', nativeLabel: 'ትግርኛ', file: 'tigrinya.pdf', direction: 'ltr' },
+  { code: 'ro', label: 'רומנית', nativeLabel: 'Română', file: 'romanian.pdf', direction: 'ltr' },
+  { code: 'hi', label: 'הינדי', nativeLabel: 'हिन्दी', file: 'hindi.pdf', direction: 'ltr' },
+] as const;
+
+export type ConstructionInductionLanguage =
+  typeof CONSTRUCTION_INDUCTION_DOCUMENTS[number]['code'];
+
 export const HEIGHT_TRAINING_TOPICS = [
   'מבוא כללי',
   'מעל לפיגומים נייחים',
@@ -65,6 +80,7 @@ export interface HeightTrainingFormDetails {
   generalOtherTopic1?: string;
   generalOtherTopic2?: string;
   generalTrainingRecordType?: 'annual_safety' | 'new_employee';
+  constructionInductionLanguage?: ConstructionInductionLanguage;
   includeIdDocumentsInGroupPdf?: boolean;
 }
 
