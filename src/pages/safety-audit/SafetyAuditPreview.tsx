@@ -603,7 +603,9 @@ const SafetyAuditPreview = () => {
                                       : 'bg-emerald-100 text-emerald-800'
                                 }`}
                               >
-                                {severityLabel[d.severity] || d.severity}
+                                {isRailway
+                                  ? d.severity === 'high' ? '3 — אדום' : d.severity === 'medium' ? '2 — צהוב' : '1 — ירוק'
+                                  : severityLabel[d.severity] || d.severity}
                               </span>
                             </td>
                             <td className="border border-slate-200 p-2 align-top">{d.correctiveAction || '—'}</td>

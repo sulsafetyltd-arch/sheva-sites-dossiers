@@ -708,9 +708,9 @@ const SafetyAuditEditor = () => {
                     <SelectValue placeholder="דרגת חומרה" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="high">גבוהה</SelectItem>
-                    <SelectItem value="medium">בינונית</SelectItem>
-                    <SelectItem value="low">נמוכה</SelectItem>
+                    <SelectItem value="high">{isRailway ? '3 — אדום, אסור לעבוד' : 'גבוהה'}</SelectItem>
+                    <SelectItem value="medium">{isRailway ? '2 — צהוב, נדרש תיקון' : 'בינונית'}</SelectItem>
+                    <SelectItem value="low">{isRailway ? '1 — ירוק, סיכון קביל' : 'נמוכה'}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Input
