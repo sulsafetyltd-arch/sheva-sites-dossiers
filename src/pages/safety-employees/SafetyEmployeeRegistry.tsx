@@ -7,6 +7,7 @@ import {
   ChevronUp,
   Mail,
   Plus,
+  Share2,
   Trash2,
   Upload,
   Users,
@@ -39,6 +40,11 @@ import {
   trainingComplianceState,
 } from '@/types/safety-employee';
 import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
+import {
+  createElearningAssignment,
+  listElearningAssignments,
+} from '@/lib/safety-elearning-store';
+import type { SafetyElearningAssignment } from '@/types/safety-elearning';
 
 const trainingTypes = Object.keys(EMPLOYEE_TRAINING_DETAILS) as EmployeeTrainingType[];
 const today = () => new Date().toISOString().slice(0, 10);
@@ -49,6 +55,7 @@ export default function SafetyEmployeeRegistry() {
   const [client, setClient] = useState<SafetyAuditClient | null>(null);
   const [employees, setEmployees] = useState<SafetyClientEmployee[]>([]);
   const [records, setRecords] = useState<SafetyEmployeeTrainingRecord[]>([]);
+  const [elearningAssignments, setElearningAssignments] = useState<SafetyElearningAssignment[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [addingRecordFor, setAddingRecordFor] = useState<string | null>(null);
   const [newEmployee, setNewEmployee] = useState({ fullName: '', idNumber: '', jobTitle: '', phone: '', email: '' });
@@ -65,14 +72,16 @@ export default function SafetyEmployeeRegistry() {
   const refresh = useCallback(async () => {
     if (!clientId) return;
     try {
-      const [nextClient, nextEmployees] = await Promise.all([
+      const [nextClient, nextEmployees, nextAssignments] = await Promise.all([
         getClient(clientId),
         listClientEmployees(clientId),
+        listElearningAssignments(clientId),
       ]);
       const nextRecords = await listEmployeeTrainingRecords(nextEmployees.map((employee) => employee.id));
       setClient(nextClient);
       setEmployees(nextEmployees);
       setRecords(nextRecords);
+      setElearningAssignments(nextAssignments);
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'טעינת מאגר העובדים נכשלה');
@@ -178,6 +187,35 @@ export default function SafetyEmployeeRegistry() {
     window.location.href = `mailto:${encodeURIComponent(client.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
+  const shareElearning = async (employee: SafetyClientEmployee) => {
+    try {
+      const existing = elearningAssignments.find(
+        (assignment) => assignment.employeeId === employee.id && assignment.status !== 'completed',
+      );
+      const assignment = existing ?? await createElearningAssignment(employee);
+      const basePath = import.meta.env.BASE_URL.endsWith('/')
+        ? import.meta.env.BASE_URL
+        : `${import.meta.env.BASE_URL}/`;
+      const url = new URL(`${basePath}safety/learn/${assignment.accessToken}`, window.location.origin).toString();
+      const shareData: ShareData = {
+        title: 'לומדת בטיחות כללית',
+        text: `שלום ${employee.fullName}, זהו הקישור האישי שלך להשלמת לומדת הבטיחות הכללית:`,
+        url,
+      };
+      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.text}\n${url}`);
+        setMessage('קישור הלומדה הועתק וניתן לשלוח אותו לעובד');
+      }
+      await refresh();
+    } catch (cause) {
+      if (!(cause instanceof DOMException && cause.name === 'AbortError')) {
+        setError(cause instanceof Error ? cause.message : 'יצירת קישור הלומדה נכשלה');
+      }
+    }
+  };
+
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
       <main className="container mx-auto max-w-4xl p-4 space-y-5">
@@ -260,6 +298,9 @@ export default function SafetyEmployeeRegistry() {
                   <div className="border-t p-4 space-y-3">
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" onClick={() => openRecordForm(employee.id)}><Plus className="w-4 h-4 ml-1" /> תיעוד הדרכה</Button>
+                      <Button size="sm" variant="secondary" onClick={() => void shareElearning(employee)}>
+                        <Share2 className="w-4 h-4 ml-1" /> שלח לומדה
+                      </Button>
                       <Button size="sm" variant="outline" onClick={async () => { await updateClientEmployee(employee.id, { active: !employee.active }); await refresh(); }}>{employee.active ? 'הפוך ללא פעיל' : 'החזר לפעיל'}</Button>
                       {isAdmin && <Button size="sm" variant="ghost" className="text-red-600" onClick={async () => { if (confirm(`למחוק את ${employee.fullName}?`)) { await deleteClientEmployee(employee.id); await refresh(); } }}><Trash2 className="w-4 h-4" /></Button>}
                     </div>
@@ -277,6 +318,16 @@ export default function SafetyEmployeeRegistry() {
                         <div className="flex gap-2"><Button size="sm" onClick={() => void addRecord()}>שמור</Button><Button size="sm" variant="ghost" onClick={() => setAddingRecordFor(null)}>ביטול</Button></div>
                       </div>
                     )}
+                    {elearningAssignments
+                      .filter((assignment) => assignment.employeeId === employee.id)
+                      .slice(0, 2)
+                      .map((assignment) => (
+                        <div key={assignment.id} className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm">
+                          לומדה דיגיטלית: {assignment.status === 'completed'
+                            ? `הושלמה בציון ${assignment.score} · אישור ${assignment.certificateNumber}`
+                            : assignment.status === 'in_progress' ? 'בתהליך' : 'טרם נפתחה'}
+                        </div>
+                      ))}
                     {employeeRecords.length === 0 ? <div className="text-sm text-slate-500">אין תיעוד הדרכות</div> : employeeRecords.map((record) => (
                       <div key={record.id} className="rounded-lg border p-3 flex justify-between gap-2 text-sm">
                         <div><div className="font-medium">{employeeTrainingLabel(record.trainingType)}</div><div className="text-slate-500">בוצע: {record.completedAt}{record.expiresAt ? ` · תוקף: ${record.expiresAt}` : ''}{record.certificateNumber ? ` · אישור: ${record.certificateNumber}` : ''}</div>{record.notes && <div>{record.notes}</div>}</div>
