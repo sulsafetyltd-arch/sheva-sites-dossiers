@@ -169,7 +169,7 @@ export default function SafetyClientReports() {
           <section className="rounded-xl border-2 border-slate-900 bg-white p-4 space-y-4">
             <h3 className="font-semibold">יצירת דוח עבור {client.name}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              {(['workplace', 'construction', 'infrastructure', 'railway'] as ReportType[]).map((type) => (
+              {(['workplace', 'construction', 'infrastructure', 'railway', 'building_survey'] as ReportType[]).map((type) => (
                 <button
                   key={type}
                   type="button"
@@ -186,6 +186,8 @@ export default function SafetyClientReports() {
                         ? '48 בדיקות תשתיות'
                         : type === 'railway'
                           ? '30 בדיקות רכבת'
+                          : type === 'building_survey'
+                            ? 'סקר מבנה שנתי'
                         : '10 בדיקות עבודה'}
                   </div>
                 </button>
@@ -199,6 +201,8 @@ export default function SafetyClientReports() {
                     ? 'שם הפרויקט / אתר התשתיות'
                     : reportType === 'railway'
                       ? 'שם אתר רכבת ישראל'
+                      : reportType === 'building_survey'
+                        ? 'שם המבנה / המוסד'
                     : 'שם האתר / כתובת'
               }
               value={siteName}
@@ -232,6 +236,8 @@ export default function SafetyClientReports() {
                             ? 'bg-emerald-100 text-emerald-900'
                             : report.reportType === 'railway'
                               ? 'bg-violet-100 text-violet-900'
+                              : report.reportType === 'building_survey'
+                                ? 'bg-teal-100 text-teal-900'
                             : 'bg-sky-100 text-sky-900'
                       }`}>
                         {reportTypeLabel(report.reportType)}

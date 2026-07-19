@@ -59,7 +59,8 @@ const SafetyAuditEditor = () => {
   const isConstruction = report?.reportType === 'construction';
   const isInfrastructure = report?.reportType === 'infrastructure';
   const isRailway = report?.reportType === 'railway';
-  const isProjectReport = isConstruction || isInfrastructure || isRailway;
+  const isBuildingSurvey = report?.reportType === 'building_survey';
+  const isProjectReport = isConstruction || isInfrastructure || isRailway || isBuildingSurvey;
   const hasChapteredChecklist = isProjectReport;
   const chapters = useMemo(
     () => Array.from(new Set(topics.map((topic) => topic.chapter || 'כל הבדיקות'))),
@@ -358,6 +359,8 @@ const SafetyAuditEditor = () => {
                       ? 'bg-emerald-100 text-emerald-900'
                       : isRailway
                         ? 'bg-violet-100 text-violet-900'
+                        : isBuildingSurvey
+                          ? 'bg-teal-100 text-teal-900'
                       : 'bg-sky-100 text-sky-900'
                 }`}
               >
@@ -464,9 +467,11 @@ const SafetyAuditEditor = () => {
                 ? 'פרטי הביקורת באתר התשתיות'
                 : isRailway
                   ? 'פרטי ביקורת באתר רכבת ישראל'
+                  : isBuildingSurvey
+                    ? 'פרטי סקר בטיחות למבנה'
                 : '2. פרטי הביקורת'}
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isBuildingSurvey ? 'hidden' : ''}`}>
             <Input dir="rtl" placeholder="לכבוד" value={report.recipient || ''} onChange={(e) => setReport({ ...report, recipient: e.target.value })} />
             {isProjectReport ? (
               <>
@@ -519,13 +524,58 @@ const SafetyAuditEditor = () => {
               </>
             )}
           </div>
-          {isProjectReport && (
+          {isProjectReport && !isBuildingSurvey && (
             <Textarea
               dir="rtl"
               placeholder={isInfrastructure ? 'תיאור העבודות המתבצעות בעת הביקורת' : isRailway ? 'תיאור העבודות המתבצעות באתר' : 'שלבי עבודה'}
               value={report.workStagesDetail || ''}
               onChange={(e) => setReport({ ...report, workStagesDetail: e.target.value })}
             />
+          )}
+          {isBuildingSurvey && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Input
+                className="md:col-span-2"
+                value={report.projectName || report.siteName || ''}
+                onChange={(event) => setReport({ ...report, projectName: event.target.value, siteName: event.target.value })}
+                placeholder="שם המבנה / המכינה / המוסד"
+              />
+              <Input value={railwayDetails.buildingAddress || ''} onChange={(event) => setRailwayDetails({ buildingAddress: event.target.value })} placeholder="כתובת המבנה" />
+              <Input value={railwayDetails.buildingContactName || ''} onChange={(event) => setRailwayDetails({ buildingContactName: event.target.value })} placeholder="שם איש קשר" />
+              <Input value={railwayDetails.buildingContactPhone || ''} onChange={(event) => setRailwayDetails({ buildingContactPhone: event.target.value })} placeholder="טלפון איש קשר" />
+              <Input type="date" value={report.auditDate || ''} onChange={(event) => {
+                const signedAt = event.target.value;
+                const validDate = new Date(`${signedAt}T12:00:00`);
+                validDate.setFullYear(validDate.getFullYear() + 1);
+                setReport({
+                  ...report,
+                  auditDate: signedAt,
+                  domainDetails: {
+                    ...railwayDetails,
+                    approvalValidUntil: signedAt ? validDate.toISOString().slice(0, 10) : undefined,
+                  },
+                });
+              }} aria-label="תאריך ביצוע הסקר" />
+              <Input type="date" value={railwayDetails.approvalValidUntil || ''} onChange={(event) => setRailwayDetails({ approvalValidUntil: event.target.value })} aria-label="תוקף האישור" />
+              <Input value={report.auditor || ''} onChange={(event) => setReport({ ...report, auditor: event.target.value })} placeholder="שם המאשר" />
+              <Input value={report.auditorRole || ''} onChange={(event) => setReport({ ...report, auditorRole: event.target.value })} placeholder="תואר / תפקיד המאשר" />
+              <Input value={railwayDetails.approverLicenseNumber || ''} onChange={(event) => setRailwayDetails({ approverLicenseNumber: event.target.value })} placeholder="מספר רישיון / אישור כשירות" />
+              <label className="text-sm">תאריך אישור כיבוי אש<Input type="date" value={railwayDetails.fireApprovalDate || ''} onChange={(event) => setRailwayDetails({ fireApprovalDate: event.target.value })} /></label>
+              <label className="text-sm">תאריך אישור מהנדס מבנים<Input type="date" value={railwayDetails.structuralApprovalDate || ''} onChange={(event) => setRailwayDetails({ structuralApprovalDate: event.target.value })} /></label>
+              <label className="text-sm">תאריך אישור חשמלאי מוסמך<Input type="date" value={railwayDetails.electricalApprovalDate || ''} onChange={(event) => setRailwayDetails({ electricalApprovalDate: event.target.value })} /></label>
+              <label className="text-sm md:col-span-2">
+                החלטת המאשר — לא ניתן לאשר על תנאי
+                <select
+                  value={railwayDetails.approvalDecision || ''}
+                  onChange={(event) => setRailwayDetails({ approvalDecision: event.target.value as 'approved' | 'not_approved' })}
+                  className="flex h-11 w-full rounded-md border border-input bg-white px-3 mt-1"
+                >
+                  <option value="">בחר החלטה</option>
+                  <option value="approved">מאשר את בטיחות המבנה</option>
+                  <option value="not_approved">לא מאשר את בטיחות המבנה</option>
+                </select>
+              </label>
+            </div>
           )}
         </section>
         {isRailway && (
@@ -620,7 +670,7 @@ const SafetyAuditEditor = () => {
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : isRailway ? 'טבלת בדיקה — רכבת ישראל' : '3. רשימת בדיקה'}</h2>
+              <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : isRailway ? 'טבלת בדיקה — רכבת ישראל' : isBuildingSurvey ? 'סעיפי סקר בטיחות המבנה' : '3. רשימת בדיקה'}</h2>
               <div className="text-xs text-slate-500">{completedChecks} מתוך {topics.length} בדיקות הושלמו</div>
             </div>
             <div className="text-sm font-medium text-emerald-700">{Math.round((completedChecks / topics.length) * 100)}%</div>
@@ -682,7 +732,7 @@ const SafetyAuditEditor = () => {
         {step === 2 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">{isConstruction ? 'ליקויים ותיעוד צילומי' : isRailway ? 'ריכוז ליקויים מביקור נוכחי' : '4. ליקויים ופעולות מתקנות'}</h2>
+            <h2 className="text-lg font-semibold">{isConstruction ? 'ליקויים ותיעוד צילומי' : isRailway ? 'ריכוז ליקויים מביקור נוכחי' : isBuildingSurvey ? 'ממצאים והערות לסקר המבנה' : '4. ליקויים ופעולות מתקנות'}</h2>
             <Button size="sm" onClick={() => void addDefect()}>
               הוסף ליקוי
             </Button>
@@ -853,6 +903,18 @@ const SafetyAuditEditor = () => {
               className="flex-1 sm:flex-none gap-1"
               disabled={saving}
               onClick={async () => {
+                if (isBuildingSurvey && !railwayDetails.approvalDecision) {
+                  setError('לסקר מבנה יש לבחור החלטה: מאשר או לא מאשר');
+                  return;
+                }
+                if (isBuildingSurvey
+                  && railwayDetails.approvalDecision === 'approved'
+                  && (!railwayDetails.fireApprovalDate
+                    || !railwayDetails.structuralApprovalDate
+                    || !railwayDetails.electricalApprovalDate)) {
+                  setError('לא ניתן לאשר מבנה ללא אישורי כיבוי אש, מהנדס מבנים וחשמלאי מוסמך');
+                  return;
+                }
                 const saved = await saveBasics();
                 if (saved) navigate(`/safety/preview/${report.id}`);
               }}

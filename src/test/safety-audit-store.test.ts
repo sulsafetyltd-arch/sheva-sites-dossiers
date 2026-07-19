@@ -91,4 +91,28 @@ describe('safety report database mapping', () => {
     expect(getChecklistTopics(report.reportType)).toHaveLength(30);
     expect(report.domainDetails?.railwayKmFrom).toBe('12+500');
   });
+
+  it('supports annual building safety surveys', () => {
+    const report = mapSafetyReportRow({
+      id: 'report-building',
+      client_id: 'client-1',
+      report_type: 'building_survey',
+      date: '2026-07-19',
+      status: 'draft',
+      domain_details: {
+        approvalDecision: 'approved',
+        fireApprovalDate: '2026-06-01',
+        structuralApprovalDate: '2026-06-02',
+        electricalApprovalDate: '2026-06-03',
+        approvalValidUntil: '2027-07-19',
+      },
+      created_at: '2026-07-19T00:00:00Z',
+      updated_at: '2026-07-19T00:00:00Z',
+    });
+
+    expect(report.reportType).toBe('building_survey');
+    expect(reportTypeLabel(report.reportType)).toBe('סקר בטיחות למבנה');
+    expect(getChecklistTopics(report.reportType)).toHaveLength(23);
+    expect(report.domainDetails?.approvalDecision).toBe('approved');
+  });
 });

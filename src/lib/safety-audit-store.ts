@@ -66,6 +66,7 @@ export function mapSafetyReportRow(row: DatabaseRow): SafetyAuditReport {
     row.report_type === 'construction'
       || row.report_type === 'infrastructure'
       || row.report_type === 'railway'
+      || row.report_type === 'building_survey'
       ? row.report_type
       : 'workplace';
   return {

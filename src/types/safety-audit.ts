@@ -2,7 +2,8 @@ export type RiskLevel = 'low' | 'medium' | 'high';
 export type ReportStatus = 'draft' | 'final';
 export type ChecklistStatus = 'ok' | 'not_ok' | 'na';
 export type DefectSeverity = 'high' | 'medium' | 'low';
-export type ReportType = 'workplace' | 'construction' | 'infrastructure' | 'railway';
+export type ReportType =
+  | 'workplace' | 'construction' | 'infrastructure' | 'railway' | 'building_survey';
 
 export interface SafetyAuditClient {
   id: string;
@@ -86,6 +87,15 @@ export interface RailwayReportDetails {
   previousVisitDate?: string;
   participants?: RailwayTourParticipant[];
   previousFindings?: RailwayPreviousFinding[];
+  buildingAddress?: string;
+  buildingContactName?: string;
+  buildingContactPhone?: string;
+  fireApprovalDate?: string;
+  structuralApprovalDate?: string;
+  electricalApprovalDate?: string;
+  approvalDecision?: 'approved' | 'not_approved';
+  approvalValidUntil?: string;
+  approverLicenseNumber?: string;
 }
 
 export interface SafetyAuditDefect {
@@ -407,6 +417,33 @@ export const RAILWAY_CHECKLIST_TOPICS: ChecklistTopic[] = [
   { key: 'r_30', chapter: 'תנאי אתר וחירום', title: 'היערכות לטיפול רפואי: ערכות עזרה ראשונה, מגיש עזרה ראשונה, נגישות, שילוט והזעקת כוחות' },
 ];
 
+/** Annual building safety survey — Annex 3 supplied form */
+export const BUILDING_SURVEY_CHECKLIST_TOPICS: ChecklistTopic[] = [
+  { key: 'bs_01', chapter: 'אזורים לבדיקה', title: 'חדרי כיתות ומסדרונות' },
+  { key: 'bs_02', chapter: 'אזורים לבדיקה', title: 'סדנאות' },
+  { key: 'bs_03', chapter: 'אזורים לבדיקה', title: 'חצר' },
+  { key: 'bs_04', chapter: 'אזורים לבדיקה', title: 'מדרגות' },
+  { key: 'bs_05', chapter: 'אזורים לבדיקה', title: 'מטבח' },
+  { key: 'bs_06', chapter: 'אזורים לבדיקה', title: 'מסעדה / מזנון' },
+  { key: 'bs_07', chapter: 'אזורים לבדיקה', title: 'מרתף' },
+  { key: 'bs_08', chapter: 'אזורים לבדיקה', title: 'כל מקום אחר בעל סיכון בטיחותי' },
+  { key: 'bs_09a', chapter: 'כיבוי אש', title: 'קיום אישור כיבוי אש בתוקף' },
+  { key: 'bs_09b', chapter: 'כיבוי אש', title: 'קיום מילוטים וממלטים משריפה' },
+  { key: 'bs_09c', chapter: 'כיבוי אש', title: 'קיום ותקינות ציוד גילוי וכיבוי אש' },
+  { key: 'bs_10a', chapter: 'בטיחות מבנה', title: 'אישור מהנדס / הנדסאי מבנים או קונסטרוקציה הרשום בפנקס' },
+  { key: 'bs_10b', chapter: 'בטיחות מבנה', title: 'תקינות ובטיחות חלונות' },
+  { key: 'bs_10c', chapter: 'בטיחות מבנה', title: 'תקינות ובטיחות דלתות' },
+  { key: 'bs_11', chapter: 'מערכות וציוד', title: 'תקינות מערכות חשמל על פי אישור חשמלאי מוסמך' },
+  { key: 'bs_12', chapter: 'מערכות וציוד', title: 'תקינות מכונות וכלי עבודה' },
+  { key: 'bs_13a', chapter: 'כלים טעוני בדיקה', title: 'מעלית' },
+  { key: 'bs_13b', chapter: 'כלים טעוני בדיקה', title: 'דרגנוע' },
+  { key: 'bs_13c', chapter: 'כלים טעוני בדיקה', title: 'אביזרי הרמה' },
+  { key: 'bs_13d', chapter: 'כלים טעוני בדיקה', title: 'מכונות הרמה' },
+  { key: 'bs_13e', chapter: 'כלים טעוני בדיקה', title: 'כלי לחץ' },
+  { key: 'bs_14', chapter: 'ניהול ושילוט', title: 'שילוט בטיחות מתאים ותקין' },
+  { key: 'bs_15', chapter: 'ניהול ושילוט', title: 'חוזים והסדרי בטיחות עם קבלני משנה: מטבח, ניקיון ותחזוקה' },
+];
+
 /** @deprecated use WORKPLACE_CHECKLIST_TOPICS or getChecklistTopics(type) */
 export const CHECKLIST_TOPICS = WORKPLACE_CHECKLIST_TOPICS;
 
@@ -414,6 +451,7 @@ export function getChecklistTopics(type: ReportType = 'workplace'): ChecklistTop
   if (type === 'construction') return CONSTRUCTION_CHECKLIST_TOPICS;
   if (type === 'infrastructure') return INFRASTRUCTURE_CHECKLIST_TOPICS;
   if (type === 'railway') return RAILWAY_CHECKLIST_TOPICS;
+  if (type === 'building_survey') return BUILDING_SURVEY_CHECKLIST_TOPICS;
   return WORKPLACE_CHECKLIST_TOPICS;
 }
 
@@ -421,6 +459,7 @@ export function reportTypeLabel(type: ReportType): string {
   if (type === 'construction') return 'אתר בנייה';
   if (type === 'infrastructure') return 'אתר תשתיות';
   if (type === 'railway') return 'אתרי רכבת ישראל';
+  if (type === 'building_survey') return 'סקר בטיחות למבנה';
   return 'אתר עבודה';
 }
 

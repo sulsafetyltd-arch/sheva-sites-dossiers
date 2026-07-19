@@ -176,7 +176,8 @@ const SafetyAuditPreview = () => {
   const isConstruction = report.reportType === 'construction';
   const isInfrastructure = report.reportType === 'infrastructure';
   const isRailway = report.reportType === 'railway';
-  const isProjectReport = isConstruction || isInfrastructure || isRailway;
+  const isBuildingSurvey = report.reportType === 'building_survey';
+  const isProjectReport = isConstruction || isInfrastructure || isRailway || isBuildingSurvey;
   const railwayDetails = report.domainDetails ?? {};
   const topics = getChecklistTopics(report.reportType);
   const siteTitle = report.projectName || report.siteName || '—';
@@ -318,6 +319,17 @@ const SafetyAuditPreview = () => {
                     <MetaRow label="תאריך ביקורת" value={report.auditDate || '—'} />
                     <MetaRow label="מספר פועלים" value={String(report.workersCount ?? '—')} />
                   </>
+                ) : isBuildingSurvey ? (
+                  <>
+                    <MetaRow label="שם המבנה / המוסד" value={siteTitle} />
+                    <MetaRow label="כתובת" value={railwayDetails.buildingAddress || '—'} />
+                    <MetaRow label="איש קשר" value={`${railwayDetails.buildingContactName || '—'} · ${railwayDetails.buildingContactPhone || '—'}`} />
+                    <MetaRow label="תאריך הסקר" value={report.auditDate || '—'} />
+                    <MetaRow label="אישור כיבוי אש" value={railwayDetails.fireApprovalDate || 'חסר'} />
+                    <MetaRow label="אישור מהנדס מבנים" value={railwayDetails.structuralApprovalDate || 'חסר'} />
+                    <MetaRow label="אישור חשמלאי מוסמך" value={railwayDetails.electricalApprovalDate || 'חסר'} />
+                    <MetaRow label="תוקף הסקר" value={railwayDetails.approvalValidUntil || '—'} />
+                  </>
                 ) : isRailway ? (
                   <>
                     <MetaRow label="אתר רכבת ישראל" value={siteTitle} />
@@ -412,7 +424,7 @@ const SafetyAuditPreview = () => {
 
             <section>
               <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
-                {isConstruction ? 'ממצאי הביקורת' : isInfrastructure ? 'רשימת בדיקה' : isRailway ? 'טבלת בדיקה — אתרי רכבת ישראל' : '3. רשימת בדיקה'}
+                {isConstruction ? 'ממצאי הביקורת' : isInfrastructure ? 'רשימת בדיקה' : isRailway ? 'טבלת בדיקה — אתרי רכבת ישראל' : isBuildingSurvey ? 'א. אזורים ונושאים לבדיקת בטיחות המבנה' : '3. רשימת בדיקה'}
               </h3>
 
               {isConstruction ? (
@@ -555,6 +567,8 @@ const SafetyAuditPreview = () => {
                 <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
                   {isRailway
                     ? `ריכוז ליקויים מביקור נוכחי מתאריך ${report.auditDate || report.date}`
+                    : isBuildingSurvey
+                      ? 'ממצאים והערות לסקר בטיחות המבנה'
                     : '4. ליקויים, מפגעים ופעולות מתקנות'}
                 </h3>
                 <div className="rounded-lg border border-slate-300 overflow-hidden">
@@ -679,13 +693,43 @@ const SafetyAuditPreview = () => {
             ) : (
               <section className="text-xs space-y-2 text-slate-700">
                 <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
-                  אסמכתאות והצהרה
+                  {isBuildingSurvey ? 'הצהרת המאשר ותוקף האישור' : 'אסמכתאות והצהרה'}
                 </h3>
-                <p>
-                  {isRailway
-                    ? 'המבדק מדגמי ואין לראות ברשימת ההערות מיפוי מלא של כל הפרות הבטיחות באתר. על הקבלן לבצע פעולה מתקנת ולדווח על הביצוע.'
-                    : 'הדו״ח משקף את מצב האתר במועד הביקורת בלבד, על סמך הנראה לעין ולפי המידע שנמסר לעורך. ליקויים בדרגת חומרה ״גבוהה״ מחייבים טיפול מיידי.'}
-                </p>
+                {isBuildingSurvey ? (
+                  <>
+                    <div className={`rounded-lg border-2 p-4 text-center text-lg font-bold ${
+                      railwayDetails.approvalDecision === 'approved'
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
+                        : railwayDetails.approvalDecision === 'not_approved'
+                          ? 'border-red-500 bg-red-50 text-red-800'
+                          : 'border-amber-500 bg-amber-50 text-amber-900'
+                    }`}>
+                      {railwayDetails.approvalDecision === 'approved'
+                        ? 'מאשר את בטיחות המבנה'
+                        : railwayDetails.approvalDecision === 'not_approved'
+                          ? 'לא מאשר את בטיחות המבנה'
+                          : 'טרם נקבעה החלטת המאשר'}
+                    </div>
+                    <p>
+                      הריני מצהיר כי בדקתי את כל הסעיפים המפורטים לעיל. אין אפשרות לאשר בטיחות
+                      על תנאי או בכפוף לתיקונים. ללא אישורי כיבוי אש, מהנדס מבנים וחשמלאי מוסמך
+                      בתוקף — האישור אינו תקף.
+                    </p>
+                    <ul className="list-disc pr-5 space-y-1">
+                      <li>באחריות המנהלים והמדריכים לשמור על בטיחות השוהים במבנה.</li>
+                      <li>אין להדליק אש בחדרים ובחללי המבנה.</li>
+                      <li>אין לטפל בחשמל גלוי אלא באמצעות אדם מוסמך.</li>
+                      <li>יש לדווח מיד למנהל על כל מפגע בטיחותי.</li>
+                      <li>תוקף האישור לשנה קלנדרית אחת ויש לחדשו מדי שנה.</li>
+                    </ul>
+                  </>
+                ) : (
+                  <p>
+                    {isRailway
+                      ? 'המבדק מדגמי ואין לראות ברשימת ההערות מיפוי מלא של כל הפרות הבטיחות באתר. על הקבלן לבצע פעולה מתקנת ולדווח על הביצוע.'
+                      : 'הדו״ח משקף את מצב האתר במועד הביקורת בלבד, על סמך הנראה לעין ולפי המידע שנמסר לעורך. ליקויים בדרגת חומרה ״גבוהה״ מחייבים טיפול מיידי.'}
+                  </p>
+                )}
               </section>
             )}
 
@@ -694,20 +738,27 @@ const SafetyAuditPreview = () => {
               <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-4">
                 חתימות
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <SignatureBox
+              <div className={`grid grid-cols-1 gap-6 ${isBuildingSurvey ? '' : 'sm:grid-cols-2'}`}>
+                {!isBuildingSurvey && <SignatureBox
                   title="מנהל עבודה"
                   name={report.siteManager}
                   signatureUrl={report.siteManagerSignatureUrl}
                   signedAt={formatSignDate(report.siteManagerSignedAt)}
-                />
+                />}
                 <SignatureBox
-                  title={report.auditorRole || 'ממונה בטיחות'}
+                  title={isBuildingSurvey ? 'מאשר סקר בטיחות המבנה' : report.auditorRole || 'ממונה בטיחות'}
                   name={report.auditor || 'שלומי סולטן'}
                   signatureUrl={report.auditorSignatureUrl}
                   stampUrl={report.auditorStampUrl}
                   signedAt={formatSignDate(report.auditorSignedAt)}
-                  subtitle={['סול בטיחות בע״מ', report.auditorPhone].filter(Boolean).join(' · ')}
+                  subtitle={[
+                    'סול בטיחות בע״מ',
+                    report.auditorRole || 'ממונה בטיחות',
+                    isBuildingSurvey && railwayDetails.approverLicenseNumber
+                      ? `מ.ר ${railwayDetails.approverLicenseNumber}`
+                      : undefined,
+                    report.auditorPhone,
+                  ].filter(Boolean).join(' · ')}
                 />
               </div>
             </section>
