@@ -170,4 +170,26 @@ test('authorized auditor completes checklist and creates one defect', async ({ p
   await expect(page.getByPlaceholder(/ניתן לבחור פעולות/)).toHaveValue(/ציוד מגן אישי/);
   expect(defects).toHaveLength(1);
   expect((report.checklist as Record<string, { status: string }>).traffic_and_signage.status).toBe('not_ok');
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/safety');
+  const pageTitle = page.getByRole('heading', { name: 'דוחות ביקורת בטיחות' });
+  const profileButton = page.getByRole('link', { name: /הפרופיל שלי/ });
+  const usersButton = page.getByRole('link', { name: /משתמשים/ });
+  const signOutButton = page.getByRole('button', { name: /יציאה/ });
+  await expect(pageTitle).toBeVisible();
+  await expect(profileButton).toBeVisible();
+  await expect(usersButton).toBeVisible();
+  await expect(signOutButton).toBeVisible();
+  const [titleBox, profileBox, usersBox, signOutBox] = await Promise.all([
+    pageTitle.boundingBox(),
+    profileButton.boundingBox(),
+    usersButton.boundingBox(),
+    signOutButton.boundingBox(),
+  ]);
+  expect(profileBox?.y).toBeGreaterThan((titleBox?.y ?? 0) + (titleBox?.height ?? 0));
+  expect((profileBox?.width ?? 0) + (usersBox?.width ?? 0) + (signOutBox?.width ?? 0))
+    .toBeLessThanOrEqual(390);
+  await profileButton.click();
+  await expect(page).toHaveURL(/\/safety\/profile$/);
 });
