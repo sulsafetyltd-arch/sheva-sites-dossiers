@@ -3,5 +3,15 @@ import App from "./App.tsx";
 import "./index.css";
 import { registerSW } from "virtual:pwa-register";
 
-registerSW({ immediate: true });
+const updateServiceWorker = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    void updateServiceWorker(true);
+  },
+  onRegisteredSW(_serviceWorkerUrl, registration) {
+    if (!registration) return;
+    void registration.update();
+    window.setInterval(() => void registration.update(), 5 * 60 * 1000);
+  },
+});
 createRoot(document.getElementById("root")!).render(<App />);

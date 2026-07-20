@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "prompt",
+      registerType: "autoUpdate",
       includeAssets: [
         "favicon.ico",
         "safety-app-icon.svg",
@@ -65,7 +65,7 @@ export default defineConfig(({ mode }) => {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,txt}"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: false,
+        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
