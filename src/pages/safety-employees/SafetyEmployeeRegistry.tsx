@@ -55,6 +55,24 @@ import {
   loadConstructionInductionPdf,
   openConstructionInductionPdf,
 } from '@/lib/construction-induction-documents';
+import {
+  TRADE_RISK_TRADES,
+  getTradeRiskDocument,
+  languagesForTrade,
+  openTradeRiskPdf,
+  tradeRiskLabel,
+  type TradeRiskCode,
+  type TradeRiskLanguage,
+} from '@/lib/trade-risk-documents';
+import {
+  createClientSite,
+  createTradeRiskAssignment,
+  listClientSites,
+  listTradeRiskAssignments,
+  tradeRiskShareUrl,
+  updateClientSite,
+} from '@/lib/safety-trade-risk-store';
+import type { SafetyClientSite, SafetyTradeRiskAssignment } from '@/types/safety-trade-risk';
 
 const trainingTypes = Object.keys(EMPLOYEE_TRAINING_DETAILS) as EmployeeTrainingType[];
 const today = () => new Date().toISOString().slice(0, 10);
@@ -66,7 +84,15 @@ export default function SafetyEmployeeRegistry() {
   const [employees, setEmployees] = useState<SafetyClientEmployee[]>([]);
   const [records, setRecords] = useState<SafetyEmployeeTrainingRecord[]>([]);
   const [elearningAssignments, setElearningAssignments] = useState<SafetyElearningAssignment[]>([]);
+  const [sites, setSites] = useState<SafetyClientSite[]>([]);
+  const [tradeRiskAssignments, setTradeRiskAssignments] = useState<SafetyTradeRiskAssignment[]>([]);
   const [inductionLanguages, setInductionLanguages] = useState<Record<string, ConstructionInductionLanguage>>({});
+  const [tradeDrafts, setTradeDrafts] = useState<Record<string, {
+    tradeCode: TradeRiskCode;
+    language: TradeRiskLanguage;
+    siteId: string;
+  }>>({});
+  const [newSite, setNewSite] = useState({ name: '', address: '' });
   const [expanded, setExpanded] = useState<string | null>(null);
   const [addingRecordFor, setAddingRecordFor] = useState<string | null>(null);
   const [newEmployee, setNewEmployee] = useState({ fullName: '', idNumber: '', jobTitle: '', phone: '', email: '' });
@@ -83,16 +109,20 @@ export default function SafetyEmployeeRegistry() {
   const refresh = useCallback(async () => {
     if (!clientId) return;
     try {
-      const [nextClient, nextEmployees, nextAssignments] = await Promise.all([
+      const [nextClient, nextEmployees, nextAssignments, nextSites, nextTradeRisk] = await Promise.all([
         getClient(clientId),
         listClientEmployees(clientId),
         listElearningAssignments(clientId),
+        listClientSites(clientId),
+        listTradeRiskAssignments(clientId),
       ]);
       const nextRecords = await listEmployeeTrainingRecords(nextEmployees.map((employee) => employee.id));
       setClient(nextClient);
       setEmployees(nextEmployees);
       setRecords(nextRecords);
       setElearningAssignments(nextAssignments);
+      setSites(nextSites);
+      setTradeRiskAssignments(nextTradeRisk);
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'טעינת מאגר העובדים נכשלה');
@@ -227,6 +257,78 @@ export default function SafetyEmployeeRegistry() {
     }
   };
 
+  const activeSites = useMemo(() => sites.filter((site) => site.active), [sites]);
+
+  const tradeDraftFor = (employeeId: string) => {
+    const existing = tradeDrafts[employeeId];
+    if (existing) return existing;
+    const tradeCode = TRADE_RISK_TRADES[0].code;
+    const langs = languagesForTrade(tradeCode);
+    return {
+      tradeCode,
+      language: langs[0] ?? 'he',
+      siteId: activeSites[0]?.id ?? '',
+    };
+  };
+
+  const addSite = async () => {
+    if (!clientId || !newSite.name.trim()) return;
+    try {
+      await createClientSite({
+        clientId,
+        name: newSite.name,
+        address: newSite.address,
+      });
+      setNewSite({ name: '', address: '' });
+      setMessage('אתר הבנייה נוסף');
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'הוספת אתר נכשלה');
+    }
+  };
+
+  const shareTradeRisk = async (employee: SafetyClientEmployee) => {
+    const draft = tradeDraftFor(employee.id);
+    if (!draft.siteId) {
+      setError('יש להוסיף ולבחור אתר בנייה לפני שליחת טופס החתימה');
+      return;
+    }
+    try {
+      const existing = tradeRiskAssignments.find(
+        (assignment) =>
+          assignment.employeeId === employee.id
+          && assignment.siteId === draft.siteId
+          && assignment.tradeCode === draft.tradeCode
+          && assignment.languageCode === draft.language
+          && assignment.status !== 'completed',
+      );
+      const assignment = existing ?? await createTradeRiskAssignment({
+        employee,
+        siteId: draft.siteId,
+        tradeCode: draft.tradeCode,
+        languageCode: draft.language,
+      });
+      const url = tradeRiskShareUrl(assignment.accessToken);
+      const siteName = sites.find((site) => site.id === draft.siteId)?.name || 'אתר הבנייה';
+      const shareData: ShareData = {
+        title: `תמצית סיכונים — ${tradeRiskLabel(draft.tradeCode)}`,
+        text: `שלום ${employee.fullName}, נא לקרוא ולחתום על תמצית הסיכונים למקצוע ${tradeRiskLabel(draft.tradeCode)} באתר ${siteName}:`,
+        url,
+      };
+      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.text}\n${url}`);
+        setMessage('קישור החתימה הועתק — ניתן לשלוח לעובד בוואטסאפ/מייל');
+      }
+      await refresh();
+    } catch (cause) {
+      if (!(cause instanceof DOMException && cause.name === 'AbortError')) {
+        setError(cause instanceof Error ? cause.message : 'יצירת קישור החתימה נכשלה');
+      }
+    }
+  };
+
   const shareInductionDocument = async (
     employee: SafetyClientEmployee,
     language: ConstructionInductionLanguage,
@@ -277,6 +379,52 @@ export default function SafetyEmployeeRegistry() {
         )}
         {error && <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</div>}
         {message && <div className="rounded-lg bg-emerald-50 text-emerald-800 p-3 text-sm">{message}</div>}
+
+        <section className="rounded-xl border bg-white p-4 space-y-3">
+          <h2 className="font-semibold">אתרי בנייה של הלקוח</h2>
+          <p className="text-xs text-slate-500">
+            תמציות הסיכונים החתומות נשמרות תחת אתר בנייה ספציפי של הלקוח.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+            <Input
+              value={newSite.name}
+              onChange={(event) => setNewSite({ ...newSite, name: event.target.value })}
+              placeholder="שם אתר בנייה *"
+            />
+            <Input
+              value={newSite.address}
+              onChange={(event) => setNewSite({ ...newSite, address: event.target.value })}
+              placeholder="כתובת אתר (אופציונלי)"
+            />
+            <Button onClick={() => void addSite()} disabled={!newSite.name.trim()} className="gap-1">
+              <Plus className="w-4 h-4" /> הוסף אתר
+            </Button>
+          </div>
+          {sites.length === 0 ? (
+            <div className="text-sm text-slate-500">עדיין אין אתרים — הוסיפו אתר לפני שליחת טופס חתימה</div>
+          ) : (
+            <div className="space-y-2">
+              {sites.map((site) => (
+                <div key={site.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+                  <div>
+                    <div className="font-medium">{site.name}{!site.active ? ' (לא פעיל)' : ''}</div>
+                    {site.address && <div className="text-slate-500">{site.address}</div>}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={async () => {
+                      await updateClientSite(site.id, { active: !site.active });
+                      await refresh();
+                    }}
+                  >
+                    {site.active ? 'השבת' : 'הפעל'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
         <section className="rounded-xl border bg-white p-4 space-y-3">
           <h2 className="font-semibold">הוספת עובד</h2>
@@ -379,6 +527,102 @@ export default function SafetyEmployeeRegistry() {
                           <Share2 className="w-4 h-4 ml-1" /> שתף לעובד
                         </Button>
                       </div>
+                    </div>
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+                      <div className="flex items-center gap-2 font-medium text-sm">
+                        <FileText className="w-4 h-4" /> תמצית סיכונים לפי מקצוע — לחתימת העובד
+                      </div>
+                      {(() => {
+                        const draft = tradeDraftFor(employee.id);
+                        const langs = languagesForTrade(draft.tradeCode);
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <select
+                              value={draft.tradeCode}
+                              onChange={(event) => {
+                                const tradeCode = event.target.value as TradeRiskCode;
+                                const nextLangs = languagesForTrade(tradeCode);
+                                setTradeDrafts({
+                                  ...tradeDrafts,
+                                  [employee.id]: {
+                                    tradeCode,
+                                    language: nextLangs.includes(draft.language) ? draft.language : (nextLangs[0] ?? 'he'),
+                                    siteId: draft.siteId || activeSites[0]?.id || '',
+                                  },
+                                });
+                              }}
+                              className="h-10 rounded-md border bg-white px-3 text-sm"
+                              aria-label={`מקצוע לתמצית סיכונים עבור ${employee.fullName}`}
+                            >
+                              {TRADE_RISK_TRADES.map((trade) => (
+                                <option key={trade.code} value={trade.code}>{trade.label}</option>
+                              ))}
+                            </select>
+                            <select
+                              value={draft.language}
+                              onChange={(event) => setTradeDrafts({
+                                ...tradeDrafts,
+                                [employee.id]: { ...draft, language: event.target.value as TradeRiskLanguage },
+                              })}
+                              className="h-10 rounded-md border bg-white px-3 text-sm"
+                              aria-label={`שפת תמצית סיכונים עבור ${employee.fullName}`}
+                            >
+                              {langs.map((language) => {
+                                const document = getTradeRiskDocument(draft.tradeCode, language);
+                                return (
+                                  <option key={language} value={language}>
+                                    {document?.languageLabel || language}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            <select
+                              value={draft.siteId}
+                              onChange={(event) => setTradeDrafts({
+                                ...tradeDrafts,
+                                [employee.id]: { ...draft, siteId: event.target.value },
+                              })}
+                              className="h-10 rounded-md border bg-white px-3 text-sm"
+                              aria-label={`אתר בנייה לתמצית סיכונים עבור ${employee.fullName}`}
+                            >
+                              <option value="">בחרו אתר בנייה…</option>
+                              {activeSites.map((site) => (
+                                <option key={site.id} value={site.id}>{site.name}</option>
+                              ))}
+                            </select>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const document = getTradeRiskDocument(draft.tradeCode, draft.language);
+                                if (!document) {
+                                  setError('מסמך תמצית הסיכונים לא נמצא');
+                                  return;
+                                }
+                                void openTradeRiskPdf(document).catch((cause) => {
+                                  setError(cause instanceof Error ? cause.message : 'פתיחת המסמך נכשלה');
+                                });
+                              }}
+                            >
+                              פתח PDF
+                            </Button>
+                            <Button size="sm" className="sm:col-span-2" onClick={() => void shareTradeRisk(employee)}>
+                              <Share2 className="w-4 h-4 ml-1" /> שלח טופס חתימה לעובד
+                            </Button>
+                          </div>
+                        );
+                      })()}
+                      {tradeRiskAssignments
+                        .filter((assignment) => assignment.employeeId === employee.id)
+                        .slice(0, 5)
+                        .map((assignment) => (
+                          <div key={assignment.id} className="rounded-md border bg-white p-2 text-xs text-slate-700">
+                            {tradeRiskLabel(assignment.tradeCode)} · {assignment.siteName || 'אתר'} ·{' '}
+                            {assignment.status === 'completed'
+                              ? `נחתם${assignment.acknowledgedAt ? ` ב־${new Date(assignment.acknowledgedAt).toLocaleString('he-IL')}` : ''}${assignment.signerName ? ` ע״י ${assignment.signerName}` : ''}`
+                              : assignment.status === 'in_progress' ? 'נפתח — ממתין לחתימה' : 'נשלח — ממתין לפתיחה'}
+                          </div>
+                        ))}
                     </div>
                     {addingRecordFor === employee.id && (
                       <div className="rounded-lg border bg-slate-50 p-3 space-y-2">

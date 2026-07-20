@@ -20,6 +20,7 @@ import SafetyTrainingEditor from "./pages/safety-training/SafetyTrainingEditor.t
 import SafetyTrainingPreview from "./pages/safety-training/SafetyTrainingPreview.tsx";
 import SafetyEmployeeRegistry from "./pages/safety-employees/SafetyEmployeeRegistry.tsx";
 import SafetyElearningCourse from "./pages/safety-elearning/SafetyElearningCourse.tsx";
+import SafetyTradeRiskSign from "./pages/safety-trade-risk/SafetyTradeRiskSign.tsx";
 import RequireSafetyAuth from "./components/safety/RequireSafetyAuth.tsx";
 import RequireSafetyAdmin from "./components/safety/RequireSafetyAdmin.tsx";
 import { SafetyAuthProvider } from "./contexts/SafetyAuthContext.tsx";
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/reports/:id" element={<RequireSafetyAuth><DossierReports /></RequireSafetyAuth>} />
             <Route path="/safety/login" element={<SafetyLogin />} />
             <Route path="/safety/learn/:token" element={<SafetyElearningCourse />} />
+            <Route path="/safety/trade-risk/:token" element={<SafetyTradeRiskSign />} />
             <Route path="/safety" element={<RequireSafetyAuth><SafetyAuditIndex /></RequireSafetyAuth>} />
             <Route path="/safety/users" element={<RequireSafetyAuth><RequireSafetyAdmin><SafetyUserManagement /></RequireSafetyAdmin></RequireSafetyAuth>} />
             <Route path="/safety/profile" element={<RequireSafetyAuth><SafetyUserProfile /></RequireSafetyAuth>} />
