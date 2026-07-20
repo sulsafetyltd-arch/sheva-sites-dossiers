@@ -40,7 +40,7 @@ describe('construction induction acknowledgment', () => {
     expect(INDUCTION_DECLARATION_POINTS[1]).toContain('ציוד המגן');
   });
 
-  it('stamps fields onto the last page without adding a new page', async () => {
+  it('stamps header + footer fields without adding a new page', async () => {
     const source = new Uint8Array(
       readFileSync('src/assets/training-documents/new-worker-construction/hebrew.pdf.txt'),
     );
@@ -48,11 +48,14 @@ describe('construction induction acknowledgment', () => {
     expect(original.getPageCount()).toBe(2);
 
     const stamped = await PDFDocument.load(source);
-    const page = stamped.getPages()[1];
+    const [page1, page2] = stamped.getPages();
     const png = await stamped.embedPng(TINY_PNG);
-    page.drawImage(png, { x: 300, y: 72, width: 200, height: 16 });
-    page.drawImage(png, { x: 360, y: 55, width: 140, height: 15 });
-    page.drawImage(png, { x: 38, y: 54, width: 120, height: 58 });
+    // Page 1 header tables
+    page1.drawImage(png, { x: 318, y: 684, width: 155, height: 14 });
+    page1.drawImage(png, { x: 72, y: 684, width: 135, height: 14 });
+    // Page 2 acknowledgment table
+    page2.drawImage(png, { x: 255, y: 74, width: 175, height: 15 });
+    page2.drawImage(png, { x: 46, y: 58, width: 108, height: 48 });
     expect(stamped.getPageCount()).toBe(original.getPageCount());
   });
 });
