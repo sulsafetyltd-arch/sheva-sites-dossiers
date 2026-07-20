@@ -23,12 +23,26 @@ import {
   getChecklistTopics,
   reportTypeLabel,
 } from '@/types/safety-audit';
+import {
+  analyzeDefectPhoto,
+  hasVisionModelConfigured,
+  type DefectVisionSuggestion,
+} from '@/lib/safety-defect-vision';
+import { resizeImageToBlob } from '@/lib/storage-utils';
+import DefectVisionAssist from '@/components/safety/DefectVisionAssist';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SignaturePad from '@/components/dossier/SignaturePad';
 import { Check, ChevronLeft, ChevronRight, ClipboardCheck, FileText, PenLine, Trash2, TriangleAlert } from 'lucide-react';
+
+type DefectVisionState = {
+  suggestion?: DefectVisionSuggestion | null;
+  analyzing?: boolean;
+  error?: string | null;
+  imageBlob?: Blob | null;
+};
 
 const STEPS = [
   { label: 'פרטי הדוח', icon: FileText },
@@ -50,6 +64,7 @@ const SafetyAuditEditor = () => {
   const [step, setStep] = useState(0);
   const [activeChapter, setActiveChapter] = useState<string | null>(null);
   const [uploadingDefects, setUploadingDefects] = useState<Set<string>>(new Set());
+  const [visionByDefect, setVisionByDefect] = useState<Record<string, DefectVisionState>>({});
   const creatingTopics = useRef(new Set<string>());
 
   const topics = useMemo(
@@ -245,16 +260,99 @@ const SafetyAuditEditor = () => {
     void persistDefect(defect, 'correctiveAction', nextValue);
   };
 
+  const patchVision = (defectId: string, patch: Partial<DefectVisionState>) => {
+    setVisionByDefect((current) => ({
+      ...current,
+      [defectId]: { ...current[defectId], ...patch },
+    }));
+  };
+
+  const resolveVisionImage = async (defectId: string, imageBlob?: Blob | null): Promise<Blob | null> => {
+    if (imageBlob) return imageBlob;
+    if (visionByDefect[defectId]?.imageBlob) return visionByDefect[defectId].imageBlob ?? null;
+    const photo = (photosByDefect[defectId] ?? [])[0];
+    if (!photo) return null;
+    const url = getPublicUrl(photo.storagePath);
+    if (!url) return null;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('לא ניתן לטעון את תמונת הליקוי לניתוח');
+    return response.blob();
+  };
+
+  const runVisionAnalysis = async (defectId: string, imageBlob?: Blob | null) => {
+    if (!hasVisionModelConfigured()) {
+      patchVision(defectId, { error: 'יש להגדיר מפתח Vision (Gemini/OpenAI) או לבחור קטגוריה מקומית' });
+      return;
+    }
+    patchVision(defectId, { analyzing: true, error: null });
+    try {
+      const blob = await resolveVisionImage(defectId, imageBlob);
+      if (!blob) {
+        patchVision(defectId, { analyzing: false, error: 'נא לצלם או להעלות תמונה לפני הניתוח' });
+        return;
+      }
+      const suggestion = await analyzeDefectPhoto({
+        image: blob,
+        reportType: report?.reportType,
+        mimeType: blob.type || 'image/jpeg',
+      });
+      patchVision(defectId, { suggestion, analyzing: false, error: null, imageBlob: blob });
+    } catch (cause) {
+      const message =
+        cause instanceof Error && cause.message === 'VISION_KEY_MISSING'
+          ? 'חסר מפתח Vision — הגדירו מפתח או השתמשו בסיוע המקומי'
+          : cause instanceof Error
+            ? cause.message
+            : 'ניתוח התמונה נכשל';
+      patchVision(defectId, { analyzing: false, error: message });
+    }
+  };
+
+  const applyVisionSuggestion = async (
+    defect: SafetyAuditDefect,
+    suggestion: DefectVisionSuggestion,
+  ) => {
+    const patch = {
+      description: suggestion.description,
+      severity: suggestion.severity,
+      correctiveAction: suggestion.correctiveAction,
+      checklistTopicKey: suggestion.checklistTopicKey ?? defect.checklistTopicKey,
+    };
+    changeDefectLocal(defect, 'description', patch.description);
+    changeDefectLocal(defect, 'severity', patch.severity);
+    changeDefectLocal(defect, 'correctiveAction', patch.correctiveAction);
+    if (patch.checklistTopicKey) {
+      changeDefectLocal(defect, 'checklistTopicKey', patch.checklistTopicKey);
+    }
+    try {
+      const updated = await updateDefect(defect.id, patch);
+      setDefects((current) => current.map((item) => (item.id === defect.id ? updated : item)));
+      patchVision(defect.id, { suggestion: null, error: null });
+      setMessage('הצעת הזיהוי הוזנה לטופס — ניתן לערוך לפני שמירה סופית');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'עדכון הליקוי מההצעה נכשל');
+    }
+  };
+
   const onUploadPhoto = async (defectId: string, file?: File | null) => {
     if (!file || uploadingDefects.has(defectId)) return;
     setUploadingDefects((current) => new Set(current).add(defectId));
     try {
+      const analysisBlob = await resizeImageToBlob(file, 1280, 0.75);
       const photo = await addDefectPhoto(defectId, file);
       setPhotosByDefect((prev) => ({
         ...prev,
         [defectId]: [...(prev[defectId] ?? []), photo],
       }));
+      patchVision(defectId, {
+        imageBlob: analysisBlob,
+        suggestion: null,
+        error: null,
+      });
       setError(null);
+      if (hasVisionModelConfigured()) {
+        void runVisionAnalysis(defectId, analysisBlob);
+      }
     } catch (cause) {
       setError(`העלאת התמונה נכשלה: ${cause instanceof Error ? cause.message : 'שגיאה לא ידועה'}`);
     } finally {
@@ -842,6 +940,18 @@ const SafetyAuditEditor = () => {
                     </div>
                   ))}
                 </div>
+                {((photosByDefect[d.id] ?? []).length > 0 || visionByDefect[d.id]?.imageBlob) && (
+                  <DefectVisionAssist
+                    topics={topics}
+                    suggestion={visionByDefect[d.id]?.suggestion}
+                    analyzing={visionByDefect[d.id]?.analyzing}
+                    error={visionByDefect[d.id]?.error}
+                    onAnalyze={() => void runVisionAnalysis(d.id)}
+                    onApply={(suggestion) => void applyVisionSuggestion(d, suggestion)}
+                    onDismiss={() => patchVision(d.id, { suggestion: null, error: null })}
+                    onLocalCategory={(suggestion) => patchVision(d.id, { suggestion, error: null })}
+                  />
+                )}
               </div>
               <Button size="sm" variant="ghost" onClick={() => void removeDefect(d)}>
                 מחק ליקוי

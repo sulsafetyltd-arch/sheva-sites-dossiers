@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BadgeCheck, Camera, FolderOpen, Save, Trash2 } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Camera, FolderOpen, Save, Sparkles, Trash2 } from 'lucide-react';
 import SignaturePad from '@/components/dossier/SignaturePad';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { resizeImageToBlob } from '@/lib/storage-utils';
+import { getVisionApiKeys, saveVisionApiKeys } from '@/lib/safety-defect-vision';
 
 async function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -28,6 +29,9 @@ export default function SafetyUserProfile() {
   const [processingStamp, setProcessingStamp] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [geminiKey, setGeminiKey] = useState('');
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [visionMessage, setVisionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -37,6 +41,12 @@ export default function SafetyUserProfile() {
     setSignature(profile.signatureDataUrl);
     setStamp(profile.stampDataUrl);
   }, [profile]);
+
+  useEffect(() => {
+    const keys = getVisionApiKeys();
+    setGeminiKey(keys.gemini || '');
+    setOpenaiKey(keys.openai || '');
+  }, []);
 
   const uploadStamp = async (file?: File) => {
     if (!file) return;
@@ -168,6 +178,59 @@ export default function SafetyUserProfile() {
               />
             </label>
           </div>
+        </section>
+
+        <section className="rounded-xl border bg-white p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-amber-600" />
+            <div>
+              <h2 className="font-semibold">זיהוי ליקויים מתמונה (אבטיפוס)</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                מפתח Vision נשמר במכשיר זה בלבד ומשמש להצעות מסייעות בעורך הדוח. מומלץ Gemini.
+              </p>
+            </div>
+          </div>
+          <Input
+            dir="ltr"
+            className="text-left"
+            type="password"
+            placeholder="Gemini API key"
+            value={geminiKey}
+            onChange={(event) => setGeminiKey(event.target.value)}
+          />
+          <Input
+            dir="ltr"
+            className="text-left"
+            type="password"
+            placeholder="OpenAI API key (אופציונלי)"
+            value={openaiKey}
+            onChange={(event) => setOpenaiKey(event.target.value)}
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                saveVisionApiKeys({ gemini: geminiKey, openai: openaiKey });
+                setVisionMessage('מפתחות הזיהוי נשמרו במכשיר');
+              }}
+            >
+              שמור מפתחות Vision
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                saveVisionApiKeys({ gemini: '', openai: '' });
+                setGeminiKey('');
+                setOpenaiKey('');
+                setVisionMessage('מפתחות הזיהוי הוסרו');
+              }}
+            >
+              נקה מפתחות
+            </Button>
+          </div>
+          {visionMessage && <div className="text-sm text-emerald-700">{visionMessage}</div>}
         </section>
 
         {error && <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</div>}
