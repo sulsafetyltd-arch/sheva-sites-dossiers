@@ -6,6 +6,7 @@ import {
   languagesForTrade,
   tradeRiskLabel,
 } from '@/lib/trade-risk-documents';
+import { tradeRiskShareMessage, tradeRiskShareUrl } from '@/lib/safety-trade-risk-store';
 
 describe('trade risk summary documents', () => {
   it('registers all core construction trades', () => {
@@ -21,5 +22,19 @@ describe('trade risk summary documents', () => {
     }
     expect(languagesForTrade('crane')).toEqual(expect.arrayContaining(['he', 'zh_he', 'ar', 'ru']));
     expect(TRADE_RISK_DOCUMENTS.length).toBeGreaterThanOrEqual(28);
+  });
+
+  it('builds a short share URL embedded in the WhatsApp message body', () => {
+    const token = '11111111-1111-1111-1111-111111111111';
+    const url = tradeRiskShareUrl(token);
+    expect(url).toContain(`/t/${token}`);
+    const message = tradeRiskShareMessage({
+      employeeName: 'ישראל',
+      tradeLabel: 'רתך',
+      siteName: 'אטיאס חולון',
+      url,
+    });
+    expect(message).toContain(url);
+    expect(message).toContain('רתך');
   });
 });

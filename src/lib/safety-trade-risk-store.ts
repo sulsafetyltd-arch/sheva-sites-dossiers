@@ -162,10 +162,28 @@ export async function deleteTradeRiskAssignment(id: string): Promise<void> {
 }
 
 export function tradeRiskShareUrl(accessToken: string): string {
+  // Short /t/:token path is more reliable in WhatsApp and RTL messengers
+  // than the longer /safety/trade-risk/:token path.
   const basePath = import.meta.env.BASE_URL.endsWith('/')
     ? import.meta.env.BASE_URL
     : `${import.meta.env.BASE_URL}/`;
-  return new URL(`${basePath}safety/trade-risk/${accessToken}`, window.location.origin).toString();
+  return new URL(`${basePath}t/${accessToken}`, window.location.origin).toString();
+}
+
+export function tradeRiskShareMessage(options: {
+  employeeName: string;
+  tradeLabel: string;
+  siteName: string;
+  url: string;
+}): string {
+  // Embed the URL in the text body with an LTR mark so RTL apps don't break it.
+  return [
+    `שלום ${options.employeeName},`,
+    `נא לקרוא ולחתום על תמצית הסיכונים למקצוע ${options.tradeLabel} באתר ${options.siteName}.`,
+    '',
+    'לחצו על הקישור:',
+    `\u200E${options.url}`,
+  ].join('\n');
 }
 
 export async function getPublicTradeRiskAssignment(token: string): Promise<PublicTradeRiskAssignment> {

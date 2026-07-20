@@ -69,6 +69,7 @@ import {
   createTradeRiskAssignment,
   listClientSites,
   listTradeRiskAssignments,
+  tradeRiskShareMessage,
   tradeRiskShareUrl,
   updateClientSite,
 } from '@/lib/safety-trade-risk-store';
@@ -287,6 +288,12 @@ export default function SafetyEmployeeRegistry() {
     }
   };
 
+  const copyTradeRiskLink = async (accessToken: string, label?: string) => {
+    const url = tradeRiskShareUrl(accessToken);
+    await navigator.clipboard.writeText(url);
+    setMessage(label ? `הקישור הועתק (${label})` : 'הקישור הועתק — שלחו אותו לעובד בוואטסאפ');
+  };
+
   const shareTradeRisk = async (employee: SafetyClientEmployee) => {
     const draft = tradeDraftFor(employee.id);
     if (!draft.siteId) {
@@ -310,16 +317,24 @@ export default function SafetyEmployeeRegistry() {
       });
       const url = tradeRiskShareUrl(assignment.accessToken);
       const siteName = sites.find((site) => site.id === draft.siteId)?.name || 'אתר הבנייה';
+      const text = tradeRiskShareMessage({
+        employeeName: employee.fullName,
+        tradeLabel: tradeRiskLabel(draft.tradeCode),
+        siteName,
+        url,
+      });
+      // Prefer sharing a single text blob that already contains the URL.
+      // On some iOS/WhatsApp flows the separate `url` field is dropped in RTL.
       const shareData: ShareData = {
         title: `תמצית סיכונים — ${tradeRiskLabel(draft.tradeCode)}`,
-        text: `שלום ${employee.fullName}, נא לקרוא ולחתום על תמצית הסיכונים למקצוע ${tradeRiskLabel(draft.tradeCode)} באתר ${siteName}:`,
-        url,
+        text,
       };
       if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
         await navigator.share(shareData);
+        setMessage(`קישור נשלח. אפשר גם להעתיק ידנית: ${url}`);
       } else {
-        await navigator.clipboard.writeText(`${shareData.text}\n${url}`);
-        setMessage('קישור החתימה הועתק — ניתן לשלוח לעובד בוואטסאפ/מייל');
+        await navigator.clipboard.writeText(text);
+        setMessage(`קישור החתימה הועתק:\n${url}`);
       }
       await refresh();
     } catch (cause) {
@@ -616,11 +631,31 @@ export default function SafetyEmployeeRegistry() {
                         .filter((assignment) => assignment.employeeId === employee.id)
                         .slice(0, 5)
                         .map((assignment) => (
-                          <div key={assignment.id} className="rounded-md border bg-white p-2 text-xs text-slate-700">
-                            {tradeRiskLabel(assignment.tradeCode)} · {assignment.siteName || 'אתר'} ·{' '}
-                            {assignment.status === 'completed'
-                              ? `נחתם${assignment.acknowledgedAt ? ` ב־${new Date(assignment.acknowledgedAt).toLocaleString('he-IL')}` : ''}${assignment.signerName ? ` ע״י ${assignment.signerName}` : ''}`
-                              : assignment.status === 'in_progress' ? 'נפתח — ממתין לחתימה' : 'נשלח — ממתין לפתיחה'}
+                          <div key={assignment.id} className="rounded-md border bg-white p-2 text-xs text-slate-700 space-y-1">
+                            <div>
+                              {tradeRiskLabel(assignment.tradeCode)} · {assignment.siteName || 'אתר'} ·{' '}
+                              {assignment.status === 'completed'
+                                ? `נחתם${assignment.acknowledgedAt ? ` ב־${new Date(assignment.acknowledgedAt).toLocaleString('he-IL')}` : ''}${assignment.signerName ? ` ע״י ${assignment.signerName}` : ''}`
+                                : assignment.status === 'in_progress' ? 'נפתח — ממתין לחתימה' : 'נשלח — ממתין לפתיחה'}
+                            </div>
+                            {assignment.status !== 'completed' && (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span dir="ltr" className="break-all text-[11px] text-slate-500">
+                                  {tradeRiskShareUrl(assignment.accessToken)}
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs"
+                                  onClick={() => void copyTradeRiskLink(
+                                    assignment.accessToken,
+                                    tradeRiskLabel(assignment.tradeCode),
+                                  )}
+                                >
+                                  העתק קישור
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         ))}
                     </div>

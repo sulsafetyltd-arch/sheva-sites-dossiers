@@ -42,6 +42,8 @@ const App = () => (
             <Route path="/safety/login" element={<SafetyLogin />} />
             <Route path="/safety/learn/:token" element={<SafetyElearningCourse />} />
             <Route path="/safety/trade-risk/:token" element={<SafetyTradeRiskSign />} />
+            {/* Short public link for WhatsApp/RTL sharing reliability */}
+            <Route path="/t/:token" element={<SafetyTradeRiskSign />} />
             <Route path="/safety" element={<RequireSafetyAuth><SafetyAuditIndex /></RequireSafetyAuth>} />
             <Route path="/safety/users" element={<RequireSafetyAuth><RequireSafetyAdmin><SafetyUserManagement /></RequireSafetyAdmin></RequireSafetyAuth>} />
             <Route path="/safety/profile" element={<RequireSafetyAuth><SafetyUserProfile /></RequireSafetyAuth>} />
