@@ -15,11 +15,14 @@ const updateServiceWorker = registerSW({
   },
 });
 
-// Public trade-risk links must not stay stuck on a stale PWA shell.
-if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("tr")) {
-  void navigator.serviceWorker?.getRegistrations?.().then((regs) => {
-    regs.forEach((reg) => void reg.update());
-  });
+// Public share links (and explicit reset) must not stay stuck on a stale PWA shell.
+if (typeof window !== "undefined") {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("tr") || params.has("ci") || params.has("resetpwa")) {
+    void navigator.serviceWorker?.getRegistrations?.().then((regs) => {
+      regs.forEach((reg) => void reg.update());
+    });
+  }
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

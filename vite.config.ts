@@ -62,9 +62,11 @@ export default defineConfig(({ mode }) => {
       },
       workbox: {
         navigateFallback: `${base}index.html`,
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,txt}"],
-        // Trade-risk PDF catalog increases the main bundle above the 2 MiB default.
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        // Do NOT precache trade-risk / induction PDF `.txt` assets — they inflate
+        // the SW cache past iOS limits (~11MB) and leave the PWA stuck on a stale
+        // shell with missing CSS after deploy. PDFs are fetched on demand.
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
@@ -82,6 +84,16 @@ export default defineConfig(({ mode }) => {
             options: {
               cacheName: "google-fonts-webfonts",
               expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // On-demand PDF catalog (encoded as .txt) — cache after first use only.
+            urlPattern: /\/assets\/.*\.pdf-[A-Za-z0-9_-]+\.txt$/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "safety-pdf-documents",
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 30 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },

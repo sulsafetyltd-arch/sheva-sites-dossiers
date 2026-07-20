@@ -15,7 +15,53 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script>
+      // One-shot PWA recovery after oversized precache broke iOS installs.
+      // Bump SOL_PWA_BUILD whenever clients may be stuck on a stale shell.
+      (function () {
+        var BUILD = '2026-07-20-pwa-slim';
+        var KEY = 'sol-pwa-build';
+        var FLAG = 'sol-pwa-reloaded-' + BUILD;
+        try {
+          var params = new URLSearchParams(location.search);
+          var force = params.has('resetpwa');
+          var prev = localStorage.getItem(KEY);
+          if (!force && prev === BUILD) return;
+          localStorage.setItem(KEY, BUILD);
+          var finish = function () {
+            if (force) {
+              params.delete('resetpwa');
+              var next = location.pathname + (params.toString() ? '?' + params.toString() : '') + location.hash;
+              location.replace(next || '/safety');
+              return;
+            }
+            if (!sessionStorage.getItem(FLAG)) {
+              sessionStorage.setItem(FLAG, '1');
+              location.reload();
+            }
+          };
+          var clearCaches = function () {
+            if (!window.caches || !caches.keys) return Promise.resolve();
+            return caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+            });
+          };
+          if (!('serviceWorker' in navigator)) {
+            clearCaches().then(finish);
+            return;
+          }
+          navigator.serviceWorker.getRegistrations()
+            .then(function (regs) {
+              return Promise.all(regs.map(function (r) { return r.unregister(); }));
+            })
+            .then(clearCaches)
+            .then(finish)
+            .catch(finish);
+        } catch (e) {}
+      })();
+    </script>
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
