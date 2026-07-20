@@ -63,6 +63,8 @@ export default defineConfig(({ mode }) => {
       workbox: {
         navigateFallback: `${base}index.html`,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,txt}"],
+        // Trade-risk PDF catalog increases the main bundle above the 2 MiB default.
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
