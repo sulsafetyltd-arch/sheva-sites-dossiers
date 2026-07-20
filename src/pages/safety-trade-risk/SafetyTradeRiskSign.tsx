@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, FileText, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,8 +11,18 @@ import {
 import { getTradeRiskDocument, openTradeRiskPdf } from '@/lib/trade-risk-documents';
 import type { PublicTradeRiskAssignment } from '@/types/safety-trade-risk';
 
-export default function SafetyTradeRiskSign() {
-  const { token } = useParams();
+function normalizeToken(raw?: string | null): string | undefined {
+  if (!raw) return undefined;
+  // Strip trailing punctuation WhatsApp/RTL sometimes appends to URLs.
+  const cleaned = raw.trim().replace(/[)\].,;!?״"']+$/g, '');
+  return cleaned || undefined;
+}
+
+export default function SafetyTradeRiskSign({ forcedToken }: { forcedToken?: string } = {}) {
+  // forcedToken is used for /?tr=... public links via RootEntry
+  const { token: routeToken } = useParams();
+  const [searchParams] = useSearchParams();
+  const token = normalizeToken(forcedToken || routeToken || searchParams.get('tr'));
   const [assignment, setAssignment] = useState<PublicTradeRiskAssignment | null>(null);
   const [signerName, setSignerName] = useState('');
   const [signature, setSignature] = useState<string | undefined>();

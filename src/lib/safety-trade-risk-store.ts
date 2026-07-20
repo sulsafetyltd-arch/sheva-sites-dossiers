@@ -162,12 +162,12 @@ export async function deleteTradeRiskAssignment(id: string): Promise<void> {
 }
 
 export function tradeRiskShareUrl(accessToken: string): string {
-  // Short /t/:token path is more reliable in WhatsApp and RTL messengers
-  // than the longer /safety/trade-risk/:token path.
-  const basePath = import.meta.env.BASE_URL.endsWith('/')
-    ? import.meta.env.BASE_URL
-    : `${import.meta.env.BASE_URL}/`;
-  return new URL(`${basePath}t/${accessToken}`, window.location.origin).toString();
+  // Use /?tr=<token> so the browser always loads index.html.
+  // Path-based deep links (/t/..., /safety/trade-risk/...) break in WhatsApp/RTL
+  // and can hit stale PWA shells that render the React 404 page.
+  const url = new URL(import.meta.env.BASE_URL || '/', window.location.origin);
+  url.searchParams.set('tr', accessToken);
+  return url.toString();
 }
 
 export function tradeRiskShareMessage(options: {

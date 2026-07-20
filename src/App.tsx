@@ -3,7 +3,6 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
 import DossierEditor from "./pages/DossierEditor.tsx";
 import DossierPreview from "./pages/DossierPreview.tsx";
 import DossierReports from "./pages/DossierReports.tsx";
@@ -21,6 +20,7 @@ import SafetyTrainingPreview from "./pages/safety-training/SafetyTrainingPreview
 import SafetyEmployeeRegistry from "./pages/safety-employees/SafetyEmployeeRegistry.tsx";
 import SafetyElearningCourse from "./pages/safety-elearning/SafetyElearningCourse.tsx";
 import SafetyTradeRiskSign from "./pages/safety-trade-risk/SafetyTradeRiskSign.tsx";
+import RootEntry from "./components/safety/RootEntry.tsx";
 import RequireSafetyAuth from "./components/safety/RequireSafetyAuth.tsx";
 import RequireSafetyAdmin from "./components/safety/RequireSafetyAdmin.tsx";
 import { SafetyAuthProvider } from "./contexts/SafetyAuthContext.tsx";
@@ -35,14 +35,14 @@ const App = () => (
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <SafetyAuthProvider>
           <Routes>
-            <Route path="/" element={<RequireSafetyAuth><Index /></RequireSafetyAuth>} />
+            <Route path="/" element={<RootEntry />} />
             <Route path="/editor/:id" element={<RequireSafetyAuth><DossierEditor /></RequireSafetyAuth>} />
             <Route path="/preview/:id" element={<RequireSafetyAuth><DossierPreview /></RequireSafetyAuth>} />
             <Route path="/reports/:id" element={<RequireSafetyAuth><DossierReports /></RequireSafetyAuth>} />
             <Route path="/safety/login" element={<SafetyLogin />} />
             <Route path="/safety/learn/:token" element={<SafetyElearningCourse />} />
             <Route path="/safety/trade-risk/:token" element={<SafetyTradeRiskSign />} />
-            {/* Short public link for WhatsApp/RTL sharing reliability */}
+            {/* Legacy short path — prefer /?tr= for WhatsApp reliability */}
             <Route path="/t/:token" element={<SafetyTradeRiskSign />} />
             <Route path="/safety" element={<RequireSafetyAuth><SafetyAuditIndex /></RequireSafetyAuth>} />
             <Route path="/safety/users" element={<RequireSafetyAuth><RequireSafetyAdmin><SafetyUserManagement /></RequireSafetyAdmin></RequireSafetyAuth>} />

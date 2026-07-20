@@ -24,10 +24,10 @@ describe('trade risk summary documents', () => {
     expect(TRADE_RISK_DOCUMENTS.length).toBeGreaterThanOrEqual(28);
   });
 
-  it('builds a short share URL embedded in the WhatsApp message body', () => {
+  it('builds a query-param share URL embedded in the WhatsApp message body', () => {
     const token = '11111111-1111-1111-1111-111111111111';
     const url = tradeRiskShareUrl(token);
-    expect(url).toContain(`/t/${token}`);
+    expect(url).toContain(`tr=${token}`);
     const message = tradeRiskShareMessage({
       employeeName: 'ישראל',
       tradeLabel: 'רתך',
