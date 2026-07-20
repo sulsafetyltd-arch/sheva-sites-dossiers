@@ -635,7 +635,7 @@ export default function SafetyEmployeeRegistry() {
                             <div>
                               {tradeRiskLabel(assignment.tradeCode)} · {assignment.siteName || 'אתר'} ·{' '}
                               {assignment.status === 'completed'
-                                ? `נחתם${assignment.acknowledgedAt ? ` ב־${new Date(assignment.acknowledgedAt).toLocaleString('he-IL')}` : ''}${assignment.signerName ? ` ע״י ${assignment.signerName}` : ''}`
+                                ? `נחתם${assignment.acknowledgedAt ? ` ב־${new Date(assignment.acknowledgedAt).toLocaleString('he-IL')}` : ''}${assignment.signerName ? ` ע״י ${assignment.signerName}` : ''}${assignment.signerIdNumber ? ` · ת.ז. ${assignment.signerIdNumber}` : ''}`
                                 : assignment.status === 'in_progress' ? 'נפתח — ממתין לחתימה' : 'נשלח — ממתין לפתיחה'}
                             </div>
                             {assignment.status !== 'completed' && (

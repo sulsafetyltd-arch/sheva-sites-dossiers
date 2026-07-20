@@ -9,6 +9,7 @@ import type {
   PublicTradeRiskAssignment,
   SafetyClientSite,
   SafetyTradeRiskAssignment,
+  TradeRiskDeclarationInput,
 } from '@/types/safety-trade-risk';
 import type { SafetyClientEmployee } from '@/types/safety-employee';
 
@@ -42,6 +43,10 @@ function mapAssignment(row: Row): SafetyTradeRiskAssignment {
     accessToken: String(row.access_token),
     status: row.status as SafetyTradeRiskAssignment['status'],
     signerName: typeof row.signer_name === 'string' ? row.signer_name : undefined,
+    signerIdNumber: typeof row.signer_id_number === 'string' ? row.signer_id_number : undefined,
+    declarationDate: typeof row.declaration_date === 'string' ? row.declaration_date : undefined,
+    contractorName: typeof row.contractor_name === 'string' ? row.contractor_name : undefined,
+    instructorName: typeof row.instructor_name === 'string' ? row.instructor_name : undefined,
     signatureDataUrl: typeof row.signature_data_url === 'string' ? row.signature_data_url : undefined,
     acknowledgedAt: typeof row.acknowledged_at === 'string' ? row.acknowledged_at : undefined,
     createdAt: String(row.created_at),
@@ -208,6 +213,10 @@ export async function getPublicTradeRiskAssignment(token: string): Promise<Publi
     siteName: String(row.site_name),
     siteAddress: typeof row.site_address === 'string' ? row.site_address : undefined,
     signerName: typeof row.signer_name === 'string' ? row.signer_name : undefined,
+    signerIdNumber: typeof row.signer_id_number === 'string' ? row.signer_id_number : undefined,
+    declarationDate: typeof row.declaration_date === 'string' ? row.declaration_date : undefined,
+    contractorName: typeof row.contractor_name === 'string' ? row.contractor_name : undefined,
+    instructorName: typeof row.instructor_name === 'string' ? row.instructor_name : undefined,
     signatureDataUrl: typeof row.signature_data_url === 'string' ? row.signature_data_url : undefined,
     acknowledgedAt: typeof row.acknowledged_at === 'string' ? row.acknowledged_at : undefined,
   };
@@ -215,13 +224,16 @@ export async function getPublicTradeRiskAssignment(token: string): Promise<Publi
 
 export async function completePublicTradeRisk(
   token: string,
-  signerName: string,
-  signatureDataUrl: string,
-): Promise<{ status: string; acknowledgedAt?: string; signerName?: string }> {
+  declaration: TradeRiskDeclarationInput,
+): Promise<Partial<PublicTradeRiskAssignment> & { status: string }> {
   const { data, error } = await supabase.rpc('complete_safety_trade_risk', {
     p_token: token,
-    p_signer_name: signerName,
-    p_signature_data_url: signatureDataUrl,
+    p_signer_name: declaration.signerName,
+    p_signature_data_url: declaration.signatureDataUrl,
+    p_signer_id_number: declaration.signerIdNumber,
+    p_declaration_date: declaration.declarationDate,
+    p_contractor_name: declaration.contractorName,
+    p_instructor_name: declaration.instructorName,
   });
   fail(error);
   const row = data as Row;
@@ -229,5 +241,9 @@ export async function completePublicTradeRisk(
     status: String(row.status),
     acknowledgedAt: typeof row.acknowledged_at === 'string' ? row.acknowledged_at : undefined,
     signerName: typeof row.signer_name === 'string' ? row.signer_name : undefined,
+    signerIdNumber: typeof row.signer_id_number === 'string' ? row.signer_id_number : undefined,
+    declarationDate: typeof row.declaration_date === 'string' ? row.declaration_date : undefined,
+    contractorName: typeof row.contractor_name === 'string' ? row.contractor_name : undefined,
+    instructorName: typeof row.instructor_name === 'string' ? row.instructor_name : undefined,
   };
 }

@@ -23,6 +23,10 @@ export interface SafetyTradeRiskAssignment {
   accessToken: string;
   status: TradeRiskAssignmentStatus;
   signerName?: string;
+  signerIdNumber?: string;
+  declarationDate?: string;
+  contractorName?: string;
+  instructorName?: string;
   signatureDataUrl?: string;
   acknowledgedAt?: string;
   createdAt: string;
@@ -43,6 +47,19 @@ export interface PublicTradeRiskAssignment {
   siteName: string;
   siteAddress?: string;
   signerName?: string;
+  signerIdNumber?: string;
+  declarationDate?: string;
+  contractorName?: string;
+  instructorName?: string;
   signatureDataUrl?: string;
   acknowledgedAt?: string;
+}
+
+export interface TradeRiskDeclarationInput {
+  signerName: string;
+  signerIdNumber: string;
+  declarationDate: string;
+  contractorName: string;
+  instructorName: string;
+  signatureDataUrl: string;
 }
