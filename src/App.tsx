@@ -20,6 +20,7 @@ import SafetyTrainingPreview from "./pages/safety-training/SafetyTrainingPreview
 import SafetyEmployeeRegistry from "./pages/safety-employees/SafetyEmployeeRegistry.tsx";
 import SafetyElearningCourse from "./pages/safety-elearning/SafetyElearningCourse.tsx";
 import SafetyTradeRiskSign from "./pages/safety-trade-risk/SafetyTradeRiskSign.tsx";
+import SafetyInductionSign from "./pages/safety-induction/SafetyInductionSign.tsx";
 import RootEntry from "./components/safety/RootEntry.tsx";
 import RequireSafetyAuth from "./components/safety/RequireSafetyAuth.tsx";
 import RequireSafetyAdmin from "./components/safety/RequireSafetyAdmin.tsx";
@@ -42,8 +43,10 @@ const App = () => (
             <Route path="/safety/login" element={<SafetyLogin />} />
             <Route path="/safety/learn/:token" element={<SafetyElearningCourse />} />
             <Route path="/safety/trade-risk/:token" element={<SafetyTradeRiskSign />} />
-            {/* Legacy short path — prefer /?tr= for WhatsApp reliability */}
+            <Route path="/safety/induction/:token" element={<SafetyInductionSign />} />
+            {/* Legacy short paths — prefer /?tr= and /?ci= for WhatsApp reliability */}
             <Route path="/t/:token" element={<SafetyTradeRiskSign />} />
+            <Route path="/i/:token" element={<SafetyInductionSign />} />
             <Route path="/safety" element={<RequireSafetyAuth><SafetyAuditIndex /></RequireSafetyAuth>} />
             <Route path="/safety/users" element={<RequireSafetyAuth><RequireSafetyAdmin><SafetyUserManagement /></RequireSafetyAdmin></RequireSafetyAuth>} />
             <Route path="/safety/profile" element={<RequireSafetyAuth><SafetyUserProfile /></RequireSafetyAuth>} />

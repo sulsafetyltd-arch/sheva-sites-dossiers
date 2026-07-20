@@ -6,10 +6,16 @@ const NotFound = () => {
 
   useEffect(() => {
     // Migrate broken/old deep links to the resilient query-param form.
-    const match = location.pathname.match(/^\/(?:t|safety\/trade-risk)\/([^/]+)\/?$/i);
-    if (match?.[1]) {
-      const token = match[1].replace(/[)\].,;!?״"']+$/g, "");
+    const tradeMatch = location.pathname.match(/^\/(?:t|safety\/trade-risk)\/([^/]+)\/?$/i);
+    if (tradeMatch?.[1]) {
+      const token = tradeMatch[1].replace(/[)\].,;!?״"']+$/g, "");
       window.location.replace(`/?tr=${encodeURIComponent(token)}`);
+      return;
+    }
+    const inductionMatch = location.pathname.match(/^\/(?:i|safety\/induction)\/([^/]+)\/?$/i);
+    if (inductionMatch?.[1]) {
+      const token = inductionMatch[1].replace(/[)\].,;!?״"']+$/g, "");
+      window.location.replace(`/?ci=${encodeURIComponent(token)}`);
       return;
     }
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);

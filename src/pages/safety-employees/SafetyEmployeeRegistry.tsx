@@ -51,8 +51,6 @@ import {
 } from '@/types/safety-training';
 import {
   CONSTRUCTION_INDUCTION_DOCUMENTS,
-  downloadConstructionInductionPdf,
-  loadConstructionInductionPdf,
   openConstructionInductionPdf,
 } from '@/lib/construction-induction-documents';
 import {
@@ -73,7 +71,14 @@ import {
   tradeRiskShareUrl,
   updateClientSite,
 } from '@/lib/safety-trade-risk-store';
+import {
+  createInductionAssignment,
+  inductionShareMessage,
+  inductionShareUrl,
+  listInductionAssignments,
+} from '@/lib/safety-induction-store';
 import type { SafetyClientSite, SafetyTradeRiskAssignment } from '@/types/safety-trade-risk';
+import type { SafetyInductionAssignment } from '@/types/safety-induction';
 
 const trainingTypes = Object.keys(EMPLOYEE_TRAINING_DETAILS) as EmployeeTrainingType[];
 const today = () => new Date().toISOString().slice(0, 10);
@@ -87,7 +92,11 @@ export default function SafetyEmployeeRegistry() {
   const [elearningAssignments, setElearningAssignments] = useState<SafetyElearningAssignment[]>([]);
   const [sites, setSites] = useState<SafetyClientSite[]>([]);
   const [tradeRiskAssignments, setTradeRiskAssignments] = useState<SafetyTradeRiskAssignment[]>([]);
-  const [inductionLanguages, setInductionLanguages] = useState<Record<string, ConstructionInductionLanguage>>({});
+  const [inductionAssignments, setInductionAssignments] = useState<SafetyInductionAssignment[]>([]);
+  const [inductionDrafts, setInductionDrafts] = useState<Record<string, {
+    language: ConstructionInductionLanguage;
+    siteId: string;
+  }>>({});
   const [tradeDrafts, setTradeDrafts] = useState<Record<string, {
     tradeCode: TradeRiskCode;
     language: TradeRiskLanguage;
@@ -110,12 +119,13 @@ export default function SafetyEmployeeRegistry() {
   const refresh = useCallback(async () => {
     if (!clientId) return;
     try {
-      const [nextClient, nextEmployees, nextAssignments, nextSites, nextTradeRisk] = await Promise.all([
+      const [nextClient, nextEmployees, nextAssignments, nextSites, nextTradeRisk, nextInduction] = await Promise.all([
         getClient(clientId),
         listClientEmployees(clientId),
         listElearningAssignments(clientId),
         listClientSites(clientId),
         listTradeRiskAssignments(clientId),
+        listInductionAssignments(clientId),
       ]);
       const nextRecords = await listEmployeeTrainingRecords(nextEmployees.map((employee) => employee.id));
       setClient(nextClient);
@@ -124,6 +134,7 @@ export default function SafetyEmployeeRegistry() {
       setElearningAssignments(nextAssignments);
       setSites(nextSites);
       setTradeRiskAssignments(nextTradeRisk);
+      setInductionAssignments(nextInduction);
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'טעינת מאגר העובדים נכשלה');
@@ -272,6 +283,15 @@ export default function SafetyEmployeeRegistry() {
     };
   };
 
+  const inductionDraftFor = (employeeId: string) => {
+    const existing = inductionDrafts[employeeId];
+    if (existing) return existing;
+    return {
+      language: 'he' as ConstructionInductionLanguage,
+      siteId: activeSites[0]?.id ?? '',
+    };
+  };
+
   const addSite = async () => {
     if (!clientId || !newSite.name.trim()) return;
     try {
@@ -344,28 +364,56 @@ export default function SafetyEmployeeRegistry() {
     }
   };
 
-  const shareInductionDocument = async (
-    employee: SafetyClientEmployee,
-    language: ConstructionInductionLanguage,
-  ) => {
-    const document = CONSTRUCTION_INDUCTION_DOCUMENTS.find((item) => item.code === language)
-      ?? CONSTRUCTION_INDUCTION_DOCUMENTS[0];
+  const copyInductionLink = async (accessToken: string, label?: string) => {
+    const url = inductionShareUrl(accessToken);
+    await navigator.clipboard.writeText(url);
+    setMessage(label ? `הקישור הועתק (${label})` : 'הקישור הועתק — שלחו אותו לעובד בוואטסאפ');
+  };
+
+  const shareInduction = async (employee: SafetyClientEmployee) => {
+    const draft = inductionDraftFor(employee.id);
+    if (!draft.siteId) {
+      setError('יש להוסיף ולבחור אתר בנייה לפני שליחת טופס החתימה');
+      return;
+    }
     try {
-      const file = await loadConstructionInductionPdf(document);
-      const data: ShareData = {
-        title: `הדרכת עובד חדש באתר בנייה — ${document.label}`,
-        text: `שלום ${employee.fullName}, מצורף מסמך הוראות הבטיחות לעובד חדש באתר בנייה בשפה ${document.label}. יש לקרוא את המסמך במלואו לפני תחילת העבודה.`,
-        files: [file],
+      const existing = inductionAssignments.find(
+        (assignment) =>
+          assignment.employeeId === employee.id
+          && assignment.siteId === draft.siteId
+          && assignment.languageCode === draft.language
+          && assignment.status !== 'completed',
+      );
+      const assignment = existing ?? await createInductionAssignment({
+        employee,
+        siteId: draft.siteId,
+        languageCode: draft.language,
+      });
+      const url = inductionShareUrl(assignment.accessToken);
+      const siteName = sites.find((site) => site.id === draft.siteId)?.name || 'אתר הבנייה';
+      const document = CONSTRUCTION_INDUCTION_DOCUMENTS.find((item) => item.code === draft.language)
+        ?? CONSTRUCTION_INDUCTION_DOCUMENTS[0];
+      const text = inductionShareMessage({
+        employeeName: employee.fullName,
+        siteName,
+        languageLabel: `${document.label} — ${document.nativeLabel}`,
+        url,
+      });
+      const shareData: ShareData = {
+        title: `הוראות בטיחות לעובד חדש — ${document.label}`,
+        text,
       };
-      if (navigator.share && (!navigator.canShare || navigator.canShare(data))) {
-        await navigator.share(data);
+      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+        await navigator.share(shareData);
+        setMessage(`קישור נשלח. אפשר גם להעתיק ידנית: ${url}`);
       } else {
-        downloadConstructionInductionPdf(file);
-        setMessage('קובץ ה־PDF הורד וניתן לצרף אותו למייל או לוואטסאפ');
+        await navigator.clipboard.writeText(text);
+        setMessage(`קישור החתימה הועתק:\n${url}`);
       }
+      await refresh();
     } catch (cause) {
       if (!(cause instanceof DOMException && cause.name === 'AbortError')) {
-        setError(cause instanceof Error ? cause.message : 'שיתוף מסמך ההדרכה נכשל');
+        setError(cause instanceof Error ? cause.message : 'יצירת קישור החתימה נכשלה');
       }
     }
   };
@@ -506,42 +554,100 @@ export default function SafetyEmployeeRegistry() {
                     </div>
                     <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 space-y-2">
                       <div className="flex items-center gap-2 font-medium text-sm">
-                        <FileText className="w-4 h-4" /> הוראות בטיחות לעובד חדש באתר בנייה
+                        <FileText className="w-4 h-4" /> הוראות בטיחות לעובד חדש באתר בנייה — לחתימת העובד
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
-                        <select
-                          value={inductionLanguages[employee.id] ?? 'he'}
-                          onChange={(event) => setInductionLanguages({
-                            ...inductionLanguages,
-                            [employee.id]: event.target.value as ConstructionInductionLanguage,
-                          })}
-                          className="h-10 rounded-md border bg-white px-3 text-sm"
-                          aria-label={`שפת מסמך הדרכת עובד חדש עבור ${employee.fullName}`}
-                        >
-                          {CONSTRUCTION_INDUCTION_DOCUMENTS.map((document) => (
-                            <option key={document.code} value={document.code}>
-                              {document.label} — {document.nativeLabel}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            const document = CONSTRUCTION_INDUCTION_DOCUMENTS.find(
-                              (item) => item.code === (inductionLanguages[employee.id] ?? 'he'),
-                            ) ?? CONSTRUCTION_INDUCTION_DOCUMENTS[0];
-                            void openConstructionInductionPdf(document).catch((cause) => {
-                              setError(cause instanceof Error ? cause.message : 'פתיחת מסמך ההדרכה נכשלה');
-                            });
-                          }}
-                        >
-                          פתח PDF
-                        </Button>
-                        <Button size="sm" onClick={() => void shareInductionDocument(employee, inductionLanguages[employee.id] ?? 'he')}>
-                          <Share2 className="w-4 h-4 ml-1" /> שתף לעובד
-                        </Button>
-                      </div>
+                      {(() => {
+                        const draft = inductionDraftFor(employee.id);
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <select
+                              value={draft.language}
+                              onChange={(event) => setInductionDrafts({
+                                ...inductionDrafts,
+                                [employee.id]: {
+                                  ...draft,
+                                  language: event.target.value as ConstructionInductionLanguage,
+                                },
+                              })}
+                              className="h-10 rounded-md border bg-white px-3 text-sm"
+                              aria-label={`שפת מסמך הדרכת עובד חדש עבור ${employee.fullName}`}
+                            >
+                              {CONSTRUCTION_INDUCTION_DOCUMENTS.map((document) => (
+                                <option key={document.code} value={document.code}>
+                                  {document.label} — {document.nativeLabel}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={draft.siteId}
+                              onChange={(event) => setInductionDrafts({
+                                ...inductionDrafts,
+                                [employee.id]: { ...draft, siteId: event.target.value },
+                              })}
+                              className="h-10 rounded-md border bg-white px-3 text-sm"
+                              aria-label={`אתר בנייה להוראות בטיחות עבור ${employee.fullName}`}
+                            >
+                              <option value="">בחרו אתר בנייה…</option>
+                              {activeSites.map((site) => (
+                                <option key={site.id} value={site.id}>{site.name}</option>
+                              ))}
+                            </select>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const document = CONSTRUCTION_INDUCTION_DOCUMENTS.find(
+                                  (item) => item.code === draft.language,
+                                ) ?? CONSTRUCTION_INDUCTION_DOCUMENTS[0];
+                                void openConstructionInductionPdf(document).catch((cause) => {
+                                  setError(cause instanceof Error ? cause.message : 'פתיחת מסמך ההדרכה נכשלה');
+                                });
+                              }}
+                            >
+                              פתח PDF
+                            </Button>
+                            <Button size="sm" onClick={() => void shareInduction(employee)}>
+                              <Share2 className="w-4 h-4 ml-1" /> שלח טופס חתימה לעובד
+                            </Button>
+                          </div>
+                        );
+                      })()}
+                      {inductionAssignments
+                        .filter((assignment) => assignment.employeeId === employee.id)
+                        .slice(0, 5)
+                        .map((assignment) => {
+                          const document = CONSTRUCTION_INDUCTION_DOCUMENTS.find(
+                            (item) => item.code === assignment.languageCode,
+                          );
+                          const languageLabel = document
+                            ? `${document.label} — ${document.nativeLabel}`
+                            : assignment.languageCode;
+                          return (
+                            <div key={assignment.id} className="rounded-md border bg-white p-2 text-xs text-slate-700 space-y-1">
+                              <div>
+                                {languageLabel} · {assignment.siteName || 'אתר'} ·{' '}
+                                {assignment.status === 'completed'
+                                  ? `נחתם${assignment.acknowledgedAt ? ` ב־${new Date(assignment.acknowledgedAt).toLocaleString('he-IL')}` : ''}${assignment.signerName ? ` ע״י ${assignment.signerName}` : ''}${assignment.signerIdNumber ? ` · ת.ז. ${assignment.signerIdNumber}` : ''}`
+                                  : assignment.status === 'in_progress' ? 'נפתח — ממתין לחתימה' : 'נשלח — ממתין לפתיחה'}
+                              </div>
+                              {assignment.status !== 'completed' && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span dir="ltr" className="break-all text-[11px] text-slate-500">
+                                    {inductionShareUrl(assignment.accessToken)}
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    onClick={() => void copyInductionLink(assignment.accessToken, languageLabel)}
+                                  >
+                                    העתק קישור
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                     </div>
                     <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
                       <div className="flex items-center gap-2 font-medium text-sm">
