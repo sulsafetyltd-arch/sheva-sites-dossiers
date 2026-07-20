@@ -802,7 +802,7 @@ function SignatureBox({
   subtitle?: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-300 bg-slate-50/80 p-4 min-h-[170px] flex flex-col">
+    <div className="avoid-break rounded-xl border border-slate-300 bg-slate-50/80 p-4 min-h-[170px] flex flex-col">
       <div className="text-xs text-slate-500 mb-1">{title}</div>
       <div className="font-semibold text-sm mb-2">{name || '____________________'}</div>
       <div className="flex-1 flex items-center justify-center gap-3 border border-dashed border-slate-300 rounded-lg bg-white min-h-[88px] mb-2 px-2">

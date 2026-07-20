@@ -4,6 +4,51 @@ import { jsPDF } from 'jspdf';
 const PDF_USABLE_WIDTH_MM = 190;
 const PDF_USABLE_HEIGHT_MM = 277;
 
+export interface PdfProtectedRange {
+  top: number;
+  bottom: number;
+}
+
+export interface PdfPageSlice {
+  start: number;
+  end: number;
+}
+
+export function calculateSafePageSlices(
+  imageHeight: number,
+  maxPageHeight: number,
+  protectedRanges: PdfProtectedRange[],
+): PdfPageSlice[] {
+  if (imageHeight <= 0 || maxPageHeight <= 0) return [];
+  const ranges = protectedRanges
+    .filter((range) => range.bottom > range.top && range.top >= 0)
+    .sort((a, b) => a.top - b.top);
+  const slices: PdfPageSlice[] = [];
+  let start = 0;
+
+  while (start < imageHeight) {
+    const idealEnd = Math.min(start + maxPageHeight, imageHeight);
+    if (idealEnd === imageHeight) {
+      slices.push({ start, end: imageHeight });
+      break;
+    }
+
+    const crossing = ranges.filter((range) =>
+      range.top > start + 2
+      && range.top < idealEnd
+      && range.bottom > idealEnd
+      && range.bottom - range.top < maxPageHeight,
+    );
+    const candidate = crossing.length > 0
+      ? Math.min(...crossing.map((range) => range.top)) - 2
+      : idealEnd;
+    const end = candidate - start >= maxPageHeight * 0.35 ? candidate : idealEnd;
+    slices.push({ start, end });
+    start = end;
+  }
+  return slices;
+}
+
 export function calculateKeepTogetherPadding(
   sectionTop: number,
   sectionHeight: number,
@@ -40,6 +85,26 @@ function alignKeepTogetherSections(container: HTMLElement): () => void {
 
   return () => originals.forEach(({ element, marginTop }) => {
     element.style.marginTop = marginTop;
+  });
+}
+
+function collectProtectedRanges(container: HTMLElement): PdfProtectedRange[] {
+  const containerTop = container.getBoundingClientRect().top;
+  const selectors = [
+    '.pdf-keep-together',
+    '.avoid-break',
+    'h1', 'h2', 'h3', 'h4',
+    'p', 'li', 'tr', 'img',
+  ].join(',');
+  return Array.from(container.querySelectorAll<HTMLElement>(selectors)).flatMap((element) => {
+    const rect = element.getBoundingClientRect();
+    if (rect.height <= 0 || rect.width <= 0) return [];
+    const top = rect.top - containerTop;
+    const isHeading = /^H[1-4]$/.test(element.tagName);
+    const bottom = isHeading
+      ? Math.max(rect.bottom - containerTop, top + 90)
+      : rect.bottom - containerTop;
+    return [{ top, bottom }];
   });
 }
 
@@ -82,11 +147,15 @@ export async function createPdfBlob(contentElement: HTMLElement): Promise<Blob> 
   body.classList.add('pdf-capturing');
   const restoreImages = await inlineImages(contentElement);
   let restorePagination = () => {};
+  let protectedRangesCss: PdfProtectedRange[] = [];
+  let capturedContentHeight = 0;
   let canvas: HTMLCanvasElement;
   try {
     await new Promise(r => setTimeout(r, 300));
     restorePagination = alignKeepTogetherSections(contentElement);
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    protectedRangesCss = collectProtectedRanges(contentElement);
+    capturedContentHeight = contentElement.scrollHeight;
     // The report is rendered at a fixed A4-friendly width. Capturing that exact
     // width prevents responsive/mobile styles from distorting table columns.
     canvas = await html2canvas(contentElement, {
@@ -108,7 +177,6 @@ export async function createPdfBlob(contentElement: HTMLElement): Promise<Blob> 
     restoreImages();
   }
 
-  const imgData = canvas.toDataURL('image/jpeg', 0.92);
   const imgWidth = canvas.width;
   const imgHeight = canvas.height;
 
@@ -121,19 +189,26 @@ export async function createPdfBlob(contentElement: HTMLElement): Promise<Blob> 
 
   // Scale image to fit page width
   const ratio = usableWidth / imgWidth;
-  const scaledHeight = imgHeight * ratio;
-
-  // Total pages
-  const pageCount = Math.ceil(scaledHeight / usableHeight);
+  const maxPageSourceHeight = usableHeight / ratio;
+  const verticalScale = imgHeight / capturedContentHeight;
+  const protectedRanges = protectedRangesCss.map((range) => ({
+    top: range.top * verticalScale,
+    bottom: range.bottom * verticalScale,
+  }));
+  const pageSlices = calculateSafePageSlices(
+    imgHeight,
+    maxPageSourceHeight,
+    protectedRanges,
+  );
+  const pageCount = pageSlices.length;
 
   const pdf = new jsPDF('p', 'mm', 'a4');
 
   for (let page = 0; page < pageCount; page++) {
     if (page > 0) pdf.addPage();
 
-    // Source crop from canvas
-    const srcY = (page * usableHeight) / ratio;
-    const srcH = Math.min(usableHeight / ratio, imgHeight - srcY);
+    const { start: srcY, end: srcEnd } = pageSlices[page];
+    const srcH = srcEnd - srcY;
 
     // Create a cropped canvas for this page
     const pageCanvas = document.createElement('canvas');
