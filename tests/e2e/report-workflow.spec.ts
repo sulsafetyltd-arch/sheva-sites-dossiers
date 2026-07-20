@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { generateKeyPairSync, sign } from 'node:crypto';
+import { stat } from 'node:fs/promises';
 
 const SUPABASE_ORIGIN = 'https://vwgkwhycbnyasolmbmqd.supabase.co';
 const REPORT_ID = '11111111-1111-4111-8111-111111111111';
@@ -229,4 +230,13 @@ test('building survey decision persists across tabs', async ({ page }) => {
   expect((report.domain_details as { approvalDecision?: string }).approvalDecision).toBe('approved');
   await page.getByRole('button', { name: 'פרטי הדוח' }).click();
   await expect(page.getByLabel(/החלטת המאשר/)).toHaveValue('approved');
+
+  await page.goto(`/safety/preview/${REPORT_ID}`);
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: /הורד PDF/ }).click(),
+  ]);
+  const downloadPath = await download.path();
+  expect(downloadPath).toBeTruthy();
+  expect((await stat(downloadPath!)).size).toBeGreaterThan(30_000);
 });
