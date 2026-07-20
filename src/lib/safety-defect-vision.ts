@@ -126,11 +126,24 @@ export const VISION_HAZARD_CATEGORIES: VisionHazardCategory[] = [
   },
 ];
 
+/** Strip common copy/paste noise from API keys. */
+export function sanitizeVisionApiKey(raw: string | undefined | null): string {
+  if (!raw) return '';
+  return String(raw)
+    .replace(/^\uFEFF/, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/^(Bearer|API[_-]?KEY)\s*[:=]?\s*/i, '')
+    .replace(/\s+/g, '')
+    .trim();
+}
+
 export function getVisionApiKeys(): { openai?: string; gemini?: string } {
-  const envOpenAi = String(import.meta.env.VITE_OPENAI_API_KEY || '').trim();
-  const envGemini = String(import.meta.env.VITE_GEMINI_API_KEY || '').trim();
-  const storedOpenAi = localStorage.getItem(OPENAI_KEY_STORAGE)?.trim() || '';
-  const storedGemini = localStorage.getItem(GEMINI_KEY_STORAGE)?.trim() || '';
+  const envOpenAi = sanitizeVisionApiKey(import.meta.env.VITE_OPENAI_API_KEY);
+  const envGemini = sanitizeVisionApiKey(import.meta.env.VITE_GEMINI_API_KEY);
+  const storedOpenAi = sanitizeVisionApiKey(localStorage.getItem(OPENAI_KEY_STORAGE));
+  const storedGemini = sanitizeVisionApiKey(localStorage.getItem(GEMINI_KEY_STORAGE));
   return {
     openai: storedOpenAi || envOpenAi || undefined,
     gemini: storedGemini || envGemini || undefined,
@@ -139,12 +152,12 @@ export function getVisionApiKeys(): { openai?: string; gemini?: string } {
 
 export function saveVisionApiKeys(keys: { openai?: string; gemini?: string }): void {
   if (keys.openai !== undefined) {
-    const value = keys.openai.trim();
+    const value = sanitizeVisionApiKey(keys.openai);
     if (value) localStorage.setItem(OPENAI_KEY_STORAGE, value);
     else localStorage.removeItem(OPENAI_KEY_STORAGE);
   }
   if (keys.gemini !== undefined) {
-    const value = keys.gemini.trim();
+    const value = sanitizeVisionApiKey(keys.gemini);
     if (value) localStorage.setItem(GEMINI_KEY_STORAGE, value);
     else localStorage.removeItem(GEMINI_KEY_STORAGE);
   }
@@ -153,6 +166,41 @@ export function saveVisionApiKeys(keys: { openai?: string; gemini?: string }): v
 export function hasVisionModelConfigured(): boolean {
   const keys = getVisionApiKeys();
   return Boolean(keys.openai || keys.gemini);
+}
+
+export function looksLikeGeminiApiKey(key: string): boolean {
+  const value = sanitizeVisionApiKey(key);
+  return /^AIza[0-9A-Za-z_-]{20,}$/.test(value);
+}
+
+export function formatVisionApiError(provider: 'gemini' | 'openai', status: number, detail: string): string {
+  const lower = detail.toLowerCase();
+  if (
+    status === 400 &&
+    (lower.includes('api key not valid') ||
+      lower.includes('invalid api key') ||
+      lower.includes('api_key_invalid') ||
+      lower.includes('invalid_argument'))
+  ) {
+    if (provider === 'gemini') {
+      return 'מפתח Gemini לא תקין. צרו מפתח חדש ב-Google AI Studio (Create API key), הדביקו אותו מחדש ב«החלף מפתח», ושמרו.';
+    }
+    return 'מפתח OpenAI לא תקין. בדקו את המפתח ב-platform.openai.com והדביקו אותו מחדש.';
+  }
+  if (status === 401 || status === 403) {
+    if (provider === 'gemini') {
+      return 'אין הרשאה למפתח Gemini. צרו מפתח חדש ב-AI Studio (לא מפתח Cloud רגיל ללא הגבלה), והפעילו Generative Language API.';
+    }
+    return 'אין הרשאה למפתח OpenAI (401/403). בדקו חיוב והרשאות במפתח.';
+  }
+  if (status === 429) {
+    return provider === 'gemini'
+      ? 'חריגה ממכסת Gemini. נסו שוב בעוד כמה דקות או השתמשו בסיוע המקומי.'
+      : 'חריגה ממכסת OpenAI. נסו שוב מאוחר יותר או השתמשו בסיוע המקומי.';
+  }
+  return provider === 'gemini'
+    ? `Gemini Vision נכשל (${status}). נסו מפתח חדש או סיוע מקומי.`
+    : `OpenAI Vision נכשל (${status}). נסו מפתח חדש או סיוע מקומי.`;
 }
 
 export async function blobToBase64(blob: Blob): Promise<string> {
@@ -302,7 +350,7 @@ async function analyzeWithOpenAi(
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`OpenAI Vision נכשל (${response.status}): ${detail.slice(0, 180)}`);
+    throw new Error(formatVisionApiError('openai', response.status, detail));
   }
 
   const data = (await response.json()) as {
@@ -313,6 +361,12 @@ async function analyzeWithOpenAi(
   return suggestionFromModelPayload(extractJsonObject(content), topics, 'openai');
 }
 
+const GEMINI_VISION_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+] as const;
+
 async function analyzeWithGemini(
   base64: string,
   mimeType: string,
@@ -320,38 +374,52 @@ async function analyzeWithGemini(
   reportType: ReportType,
   topics: ChecklistTopic[],
 ): Promise<DefectVisionSuggestion> {
-  const url =
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            { text: buildVisionPrompt(reportType, topics) },
-            { inline_data: { mime_type: mimeType, data: base64 } },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.2,
-        responseMimeType: 'application/json',
+  const body = {
+    contents: [
+      {
+        parts: [
+          { text: buildVisionPrompt(reportType, topics) },
+          { inline_data: { mime_type: mimeType || 'image/jpeg', data: base64 } },
+        ],
       },
-    }),
-  });
+    ],
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: 'application/json',
+    },
+  };
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Gemini Vision נכשל (${response.status}): ${detail.slice(0, 180)}`);
+  let lastError = 'Gemini Vision נכשל';
+  for (const model of GEMINI_VISION_MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const detail = await response.text();
+      // Try next model only when the model itself is missing.
+      if (response.status === 404 && /model/i.test(detail)) {
+        lastError = formatVisionApiError('gemini', response.status, detail);
+        continue;
+      }
+      throw new Error(formatVisionApiError('gemini', response.status, detail));
+    }
+
+    const data = (await response.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    const content = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('\n');
+    if (!content) throw new Error('Gemini לא החזיר תוכן');
+    return suggestionFromModelPayload(extractJsonObject(content), topics, 'gemini');
   }
 
-  const data = (await response.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-  const content = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('\n');
-  if (!content) throw new Error('Gemini לא החזיר תוכן');
-  return suggestionFromModelPayload(extractJsonObject(content), topics, 'gemini');
+  throw new Error(lastError);
 }
 
 export function suggestionFromHazardCategory(
@@ -380,12 +448,14 @@ export async function analyzeDefectPhoto(options: {
   const mimeType = options.mimeType || options.image.type || 'image/jpeg';
   const base64 = await blobToBase64(options.image);
   const keys = getVisionApiKeys();
+  const gemini = sanitizeVisionApiKey(keys.gemini);
+  const openai = sanitizeVisionApiKey(keys.openai);
 
-  if (keys.gemini) {
-    return analyzeWithGemini(base64, mimeType, keys.gemini, reportType, topics);
+  if (gemini) {
+    return analyzeWithGemini(base64, mimeType, gemini, reportType, topics);
   }
-  if (keys.openai) {
-    return analyzeWithOpenAi(base64, mimeType, keys.openai, reportType, topics);
+  if (openai) {
+    return analyzeWithOpenAi(base64, mimeType, openai, reportType, topics);
   }
 
   throw new Error('VISION_KEY_MISSING');

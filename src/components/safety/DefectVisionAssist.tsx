@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, Loader2, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,9 @@ import {
   VISION_HAZARD_CATEGORIES,
   getVisionApiKeys,
   hasVisionModelConfigured,
+  looksLikeGeminiApiKey,
   saveVisionApiKeys,
+  sanitizeVisionApiKey,
   suggestionFromHazardCategory,
   visionSourceLabel,
   type DefectVisionSuggestion,
@@ -52,11 +54,28 @@ export default function DefectVisionAssist({
   const [geminiKey, setGeminiKey] = useState(initialKeys.gemini || '');
   const [openaiKey, setOpenaiKey] = useState(initialKeys.openai || '');
   const [keyMessage, setKeyMessage] = useState<string | null>(null);
+  const [keyWarning, setKeyWarning] = useState<string | null>(null);
 
   const refreshConfigured = () => setConfigured(hasVisionModelConfigured());
+  const showLocalAssist = !suggestion && (!configured || Boolean(error));
+
+  useEffect(() => {
+    if (error && /מפתח|הרשאה|Gemini|OpenAI/i.test(error)) {
+      setShowKeySetup(true);
+    }
+  }, [error]);
 
   const saveKeys = () => {
-    saveVisionApiKeys({ gemini: geminiKey, openai: openaiKey });
+    const gemini = sanitizeVisionApiKey(geminiKey);
+    const openai = sanitizeVisionApiKey(openaiKey);
+    if (gemini && !looksLikeGeminiApiKey(gemini)) {
+      setKeyWarning('מפתח Gemini נראה לא תקין. מפתח מ-AI Studio בדרך כלל מתחיל ב-AIza…');
+    } else {
+      setKeyWarning(null);
+    }
+    saveVisionApiKeys({ gemini, openai });
+    setGeminiKey(gemini);
+    setOpenaiKey(openai);
     refreshConfigured();
     setKeyMessage('המפתח נשמר במכשיר זה בלבד (אבטיפוס)');
     setShowKeySetup(false);
@@ -93,6 +112,7 @@ export default function DefectVisionAssist({
             onClick={() => {
               setShowKeySetup((value) => !value);
               setKeyMessage(null);
+              setKeyWarning(null);
             }}
           >
             {configured ? 'החלף מפתח' : 'הגדר מודל'}
@@ -108,13 +128,25 @@ export default function DefectVisionAssist({
         <div className="space-y-2 rounded-md border bg-white p-3">
           <div className="text-sm font-medium">מפתח Vision לאבטיפוס</div>
           <p className="text-xs text-slate-600">
-            מומלץ Gemini (חינמי יחסית). המפתח נשמר רק ב־localStorage במכשיר זה.
+            צרו מפתח ב־{' '}
+            <a
+              className="underline text-blue-700"
+              href="https://aistudio.google.com/apikey"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Google AI Studio
+            </a>
+            {' '}
+            (Create API key), העתיקו את המפתח המלא שמתחיל ב־AIza, והדביקו כאן. המפתח נשמר רק במכשיר זה.
           </p>
           <Input
             dir="ltr"
             className="text-left"
             type="password"
-            placeholder="Gemini API key"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="AIza… (Gemini API key)"
             value={geminiKey}
             onChange={(event) => setGeminiKey(event.target.value)}
           />
@@ -122,6 +154,8 @@ export default function DefectVisionAssist({
             dir="ltr"
             className="text-left"
             type="password"
+            autoComplete="off"
+            spellCheck={false}
             placeholder="OpenAI API key (אופציונלי)"
             value={openaiKey}
             onChange={(event) => setOpenaiKey(event.target.value)}
@@ -139,6 +173,7 @@ export default function DefectVisionAssist({
                 setGeminiKey('');
                 setOpenaiKey('');
                 refreshConfigured();
+                setKeyWarning(null);
                 setKeyMessage('המפתחות הוסרו מהמכשיר');
               }}
             >
@@ -149,11 +184,16 @@ export default function DefectVisionAssist({
       )}
 
       {keyMessage && <div className="text-xs text-emerald-700">{keyMessage}</div>}
-      {error && <div className="text-xs text-red-700">{error}</div>}
+      {keyWarning && <div className="text-xs text-amber-800">{keyWarning}</div>}
+      {error && <div className="text-xs text-red-700 whitespace-pre-wrap">{error}</div>}
 
-      {!configured && !suggestion && (
+      {showLocalAssist && (
         <div className="space-y-2">
-          <div className="text-xs font-medium text-slate-700">או בחרו מה נראה בתמונה (סיוע מקומי):</div>
+          <div className="text-xs font-medium text-slate-700">
+            {error
+              ? 'בינתיים אפשר לבחור מה נראה בתמונה (סיוע מקומי):'
+              : 'או בחרו מה נראה בתמונה (סיוע מקומי):'}
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {VISION_HAZARD_CATEGORIES.map((category) => (
               <Button

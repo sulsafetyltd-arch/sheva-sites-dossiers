@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   VISION_HAZARD_CATEGORIES,
+  formatVisionApiError,
   getVisionApiKeys,
   hasVisionModelConfigured,
+  looksLikeGeminiApiKey,
   saveVisionApiKeys,
+  sanitizeVisionApiKey,
   suggestionFromHazardCategory,
   visionSourceLabel,
 } from '@/lib/safety-defect-vision';
@@ -22,6 +25,21 @@ describe('safety defect vision assist', () => {
     expect(getVisionApiKeys()).toEqual({ gemini: 'gem-test', openai: 'oa-test' });
     saveVisionApiKeys({ gemini: '', openai: '' });
     expect(hasVisionModelConfigured()).toBe(false);
+  });
+
+  it('sanitizes pasted API keys and explains invalid Gemini keys', () => {
+    expect(sanitizeVisionApiKey('  "Bearer AIzaSyDummyKeyValue1234567890"  ')).toBe(
+      'AIzaSyDummyKeyValue1234567890',
+    );
+    expect(looksLikeGeminiApiKey('AIzaSyDummyKeyValue1234567890')).toBe(true);
+    expect(looksLikeGeminiApiKey('not-a-key')).toBe(false);
+    expect(
+      formatVisionApiError(
+        'gemini',
+        400,
+        '{"error":{"message":"API key not valid. Please pass a valid API key."}}',
+      ),
+    ).toContain('מפתח Gemini לא תקין');
   });
 
   it('builds a local assistive suggestion from a hazard category', () => {

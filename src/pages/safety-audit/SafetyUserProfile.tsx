@@ -186,8 +186,17 @@ export default function SafetyUserProfile() {
             <div>
               <h2 className="font-semibold">זיהוי ליקויים מתמונה (אבטיפוס)</h2>
               <p className="text-xs text-slate-500 mt-1">
-                מפתח Vision נשמר במכשיר זה בלבד ומשמש להצעות מסייעות בעורך הדוח. מומלץ Gemini.
+                צרו מפתח ב־AI Studio (Create API key), העתיקו מפתח שמתחיל ב־AIza, ושמרו כאן.
+                המפתח נשמר במכשיר זה בלבד.
               </p>
+              <a
+                className="text-xs text-blue-700 underline"
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noreferrer"
+              >
+                פתיחת Google AI Studio
+              </a>
             </div>
           </div>
           <Input
