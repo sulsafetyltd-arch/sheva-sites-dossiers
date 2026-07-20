@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Download, FileText, Loader2, Share2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,6 @@ export default function SafetyInductionSign({ forcedToken }: { forcedToken?: str
   const { token: routeToken } = useParams();
   const [searchParams] = useSearchParams();
   const token = normalizeToken(forcedToken || routeToken || searchParams.get('ci'));
-  const sheetRef = useRef<HTMLDivElement>(null);
 
   const [assignment, setAssignment] = useState<PublicInductionAssignment | null>(null);
   const [signerName, setSignerName] = useState('');
@@ -81,12 +80,11 @@ export default function SafetyInductionSign({ forcedToken }: { forcedToken?: str
     return () => { cancelled = true; };
   }, [token]);
 
-  const buildPdf = async () => {
-    if (!assignment || !document || !sheetRef.current) throw new Error('לא ניתן ליצור PDF חתום');
+  const buildPdf = async (current: PublicInductionAssignment) => {
+    if (!document) throw new Error('לא ניתן ליצור PDF חתום');
     return buildSignedInductionPdfFile({
-      assignment,
+      assignment: current,
       document,
-      sheetElement: sheetRef.current,
     });
   };
 
@@ -134,7 +132,7 @@ export default function SafetyInductionSign({ forcedToken }: { forcedToken?: str
         acknowledgedAt: result.acknowledgedAt || new Date().toISOString(),
         certificateNumber: result.certificateNumber,
       });
-      setMessage('החתימה נשמרה. ניתן להוריד או לשלוח את ה־PDF המלא החתום.');
+      setMessage('החתימה נשמרה. ניתן להוריד או לשלוח את ה־PDF עם הפרטים המוטמעים בטופס.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'שמירת החתימה נכשלה');
     } finally {
@@ -143,11 +141,18 @@ export default function SafetyInductionSign({ forcedToken }: { forcedToken?: str
   };
 
   const downloadSigned = async () => {
+    if (!assignment) return;
     setPreparingPdf(true);
     setError(null);
     try {
-      downloadPdfFile(await buildPdf());
-      setMessage('ה־PDF המלא החתום הורד למכשיר');
+      const current: PublicInductionAssignment = {
+        ...assignment,
+        signerName: assignment.signerName || signerName,
+        signerIdNumber: assignment.signerIdNumber || signerIdNumber,
+        signatureDataUrl: assignment.signatureDataUrl || signature,
+      };
+      downloadPdfFile(await buildPdf(current));
+      setMessage('ה־PDF החתום הורד — הפרטים מוטמעים בטופס המקורי');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'יצירת ה־PDF נכשלה');
     } finally {
@@ -160,7 +165,13 @@ export default function SafetyInductionSign({ forcedToken }: { forcedToken?: str
     setPreparingPdf(true);
     setError(null);
     try {
-      const file = await buildPdf();
+      const current: PublicInductionAssignment = {
+        ...assignment,
+        signerName: assignment.signerName || signerName,
+        signerIdNumber: assignment.signerIdNumber || signerIdNumber,
+        signatureDataUrl: assignment.signatureDataUrl || signature,
+      };
+      const file = await buildPdf(current);
       const mode = await sharePdfFile(
         file,
         `הוראות בטיחות חתומות — ${assignment.siteName}`,
@@ -246,7 +257,7 @@ export default function SafetyInductionSign({ forcedToken }: { forcedToken?: str
             {dSignature && <img src={dSignature} alt="חתימת העובד" className="h-24 bg-white border rounded-md" />}
             <div className="flex flex-wrap gap-2">
               <Button disabled={preparingPdf || !document} onClick={() => void downloadSigned()}>
-                <Download className="w-4 h-4 ml-1" /> {preparingPdf ? 'מכין PDF…' : 'הורד PDF מלא חתום'}
+                <Download className="w-4 h-4 ml-1" /> {preparingPdf ? 'מכין PDF…' : 'הורד PDF חתום'}
               </Button>
               <Button variant="secondary" disabled={preparingPdf || !document} onClick={() => void shareSigned()}>
                 <Share2 className="w-4 h-4 ml-1" /> שלח העתק PDF
@@ -303,35 +314,6 @@ export default function SafetyInductionSign({ forcedToken }: { forcedToken?: str
             </section>
           </>
         )}
-
-        <div className="fixed -left-[9999px] top-0 w-[720px] pointer-events-none" aria-hidden>
-          <div ref={sheetRef} className="bg-white text-black p-8 space-y-4" dir="rtl" style={{ fontFamily: 'Heebo, Arial, sans-serif' }}>
-            <div className="text-center border-b pb-3 space-y-1">
-              <div className="text-xl font-bold">הצהרת עובד חדש — הוראות בטיחות באתר בנייה</div>
-              <div className="text-sm">{dCompany} · אתר {assignment.siteName}</div>
-              <div className="text-sm text-slate-700">{assignment.languageLabel}</div>
-            </div>
-            <div className="text-sm space-y-2">
-              {INDUCTION_DECLARATION_POINTS.map((point, index) => (
-                <p key={point}><strong>{index + 1}. </strong>{point}</p>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-sm border rounded-lg p-4">
-              <div><strong>שם העובד:</strong> {dName || '—'}</div>
-              <div><strong>תעודת זהות:</strong> {dId || '—'}</div>
-              <div><strong>מקצוע העובד:</strong> {dJob || '—'}</div>
-              <div><strong>תאריך:</strong> {dDate || '—'}</div>
-              <div><strong>שם המדריך:</strong> {dInstructor || '—'}</div>
-              <div><strong>שם מנהל עבודה:</strong> {dManager || '—'}</div>
-              <div className="col-span-2"><strong>שם החברה:</strong> {dCompany || '—'}</div>
-              {dHeight && <div className="col-span-2"><strong>תוקף הדרכה לעבודה בגובה:</strong> {dHeight}</div>}
-            </div>
-            <div>
-              <div className="font-semibold text-sm mb-1">חתימת העובד:</div>
-              {dSignature ? <img src={dSignature} alt="" className="h-28 border rounded bg-white object-contain" /> : <div className="h-28 border rounded" />}
-            </div>
-          </div>
-        </div>
       </main>
     </div>
   );

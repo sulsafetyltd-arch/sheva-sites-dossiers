@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Download, FileText, Loader2, Share2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,8 +29,6 @@ export default function SafetyTradeRiskSign({ forcedToken }: { forcedToken?: str
   const { token: routeToken } = useParams();
   const [searchParams] = useSearchParams();
   const token = normalizeToken(forcedToken || routeToken || searchParams.get('tr'));
-  const sheetRef = useRef<HTMLDivElement>(null);
-
   const [assignment, setAssignment] = useState<PublicTradeRiskAssignment | null>(null);
   const [signerName, setSignerName] = useState('');
   const [signerIdNumber, setSignerIdNumber] = useState('');
@@ -76,14 +74,13 @@ export default function SafetyTradeRiskSign({ forcedToken }: { forcedToken?: str
     };
   }, [token]);
 
-  const buildSignedPdf = async () => {
-    if (!assignment || !document || !sheetRef.current) {
+  const buildSignedPdf = async (current: PublicTradeRiskAssignment = assignment!) => {
+    if (!current || !document) {
       throw new Error('לא ניתן ליצור את ה־PDF החתום');
     }
     return buildSignedTradeRiskPdfFile({
-      assignment,
+      assignment: current,
       document,
-      sheetElement: sheetRef.current,
     });
   };
 
@@ -124,7 +121,7 @@ export default function SafetyTradeRiskSign({ forcedToken }: { forcedToken?: str
         signatureDataUrl: signature,
         acknowledgedAt: result.acknowledgedAt || new Date().toISOString(),
       });
-      setMessage('החתימה נשמרה. ניתן להוריד או לשלוח את ה־PDF המלא החתום.');
+      setMessage('החתימה נשמרה. ניתן להוריד או לשלוח את ה־PDF עם הפרטים המוטמעים בטופס.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'שמירת החתימה נכשלה');
     } finally {
@@ -133,11 +130,21 @@ export default function SafetyTradeRiskSign({ forcedToken }: { forcedToken?: str
   };
 
   const downloadSigned = async () => {
+    if (!assignment) return;
     setPreparingPdf(true);
     setError(null);
     try {
-      downloadPdfFile(await buildSignedPdf());
-      setMessage('ה־PDF המלא החתום הורד למכשיר');
+      const current: PublicTradeRiskAssignment = {
+        ...assignment,
+        signerName: assignment.signerName || signerName,
+        signerIdNumber: assignment.signerIdNumber || signerIdNumber,
+        declarationDate: assignment.declarationDate || declarationDate,
+        contractorName: assignment.contractorName || contractorName,
+        instructorName: assignment.instructorName || instructorName,
+        signatureDataUrl: assignment.signatureDataUrl || signature,
+      };
+      downloadPdfFile(await buildSignedPdf(current));
+      setMessage('ה־PDF החתום הורד — הפרטים מוטמעים בטופס המקורי');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'יצירת ה־PDF נכשלה');
     } finally {
@@ -150,7 +157,16 @@ export default function SafetyTradeRiskSign({ forcedToken }: { forcedToken?: str
     setPreparingPdf(true);
     setError(null);
     try {
-      const file = await buildSignedPdf();
+      const current: PublicTradeRiskAssignment = {
+        ...assignment,
+        signerName: assignment.signerName || signerName,
+        signerIdNumber: assignment.signerIdNumber || signerIdNumber,
+        declarationDate: assignment.declarationDate || declarationDate,
+        contractorName: assignment.contractorName || contractorName,
+        instructorName: assignment.instructorName || instructorName,
+        signatureDataUrl: assignment.signatureDataUrl || signature,
+      };
+      const file = await buildSignedPdf(current);
       const mode = await sharePdfFile(
         file,
         `תמצית סיכונים חתומה — ${assignment.tradeLabel}`,
@@ -236,7 +252,7 @@ export default function SafetyTradeRiskSign({ forcedToken }: { forcedToken?: str
             <div className="flex flex-wrap gap-2">
               <Button disabled={preparingPdf || !document} onClick={() => void downloadSigned()}>
                 <Download className="w-4 h-4 ml-1" />
-                {preparingPdf ? 'מכין PDF…' : 'הורד PDF מלא חתום'}
+                {preparingPdf ? 'מכין PDF…' : 'הורד PDF חתום'}
               </Button>
               <Button variant="secondary" disabled={preparingPdf || !document} onClick={() => void shareSigned()}>
                 <Share2 className="w-4 h-4 ml-1" />
@@ -310,39 +326,6 @@ export default function SafetyTradeRiskSign({ forcedToken }: { forcedToken?: str
             </section>
           </>
         )}
-
-        {/* Off-screen sheet used to rasterize the filled declaration into the signed PDF */}
-        <div className="fixed -left-[9999px] top-0 w-[720px] pointer-events-none" aria-hidden>
-          <div ref={sheetRef} className="bg-white text-black p-8 space-y-5" dir="rtl" style={{ fontFamily: 'Heebo, Arial, sans-serif' }}>
-            <div className="text-center space-y-1 border-b pb-4">
-              <div className="text-xl font-bold">הצהרת עובד — תמצית סיכונים תעסוקתיים</div>
-              <div className="text-sm">{assignment.tradeLabel} · {assignment.languageLabel}</div>
-              <div className="text-sm text-slate-700">
-                {assignment.clientName} · אתר {assignment.siteName}
-                {assignment.siteAddress ? ` · ${assignment.siteAddress}` : ''}
-              </div>
-            </div>
-            <p className="text-base leading-7">{DECLARATION_TEXT}</p>
-            <div className="grid grid-cols-2 gap-4 text-sm border rounded-lg p-4">
-              <div><span className="font-semibold">פרטי העובד — שם ומשפחה:</span> {displayName || '—'}</div>
-              <div><span className="font-semibold">מס׳ ת.ז. / דרכון:</span> {displayId || '—'}</div>
-              <div><span className="font-semibold">תאריך:</span> {displayDate || '—'}</div>
-              <div><span className="font-semibold">שם הקבלן:</span> {displayContractor || '—'}</div>
-              <div className="col-span-2"><span className="font-semibold">מבצע ההדרכה:</span> {displayInstructor || '—'}</div>
-            </div>
-            <div className="space-y-2">
-              <div className="font-semibold text-sm">חתימת העובד:</div>
-              {displaySignature ? (
-                <img src={displaySignature} alt="" className="h-28 border rounded bg-white object-contain" />
-              ) : (
-                <div className="h-28 border rounded bg-slate-50" />
-              )}
-            </div>
-            <div className="text-xs text-slate-600 border-t pt-3">
-              מסמך זה מצורף לתמצית הסיכונים הרשמית למקצוע {assignment.tradeLabel}. הבטיחות בידיים שלך!
-            </div>
-          </div>
-        </div>
       </main>
     </div>
   );
