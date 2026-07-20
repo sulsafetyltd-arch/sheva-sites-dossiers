@@ -145,6 +145,7 @@ const SafetyAuditEditor = () => {
         auditorStampUrl: report.auditorStampUrl,
         siteManagerSignedAt: report.siteManagerSignedAt,
         auditorSignedAt: report.auditorSignedAt,
+        domainDetails: report.domainDetails,
       });
       setReport(saved);
       setError(null);
@@ -301,9 +302,10 @@ const SafetyAuditEditor = () => {
       siteManager: report.siteManager,
     };
     const previous = report;
-    setReport({ ...report, ...patch });
+    const optimistic = { ...report, ...patch };
+    setReport(optimistic);
     try {
-      const saved = await updateReport(id, patch);
+      const saved = await updateReport(id, optimistic);
       setReport(saved);
       setError(null);
       setMessage(dataUrl ? 'חתימת מנהל העבודה נשמרה' : 'החתימה נמחקה');
@@ -320,9 +322,10 @@ const SafetyAuditEditor = () => {
       auditorSignedAt: dataUrl ? new Date().toISOString() : undefined,
     };
     const previous = report;
-    setReport({ ...report, ...patch });
+    const optimistic = { ...report, ...patch };
+    setReport(optimistic);
     try {
-      const saved = await updateReport(id, patch);
+      const saved = await updateReport(id, optimistic);
       setReport(saved);
       setError(null);
       setMessage(dataUrl ? 'חתימת ממונה הבטיחות נשמרה' : 'החתימה נמחקה');
@@ -336,8 +339,12 @@ const SafetyAuditEditor = () => {
   if (error && !report) return <div className="p-4 text-red-600" dir="rtl">{error}</div>;
   if (!report) return <div className="p-4" dir="rtl">לא נמצא דוח</div>;
   const railwayDetails = report.domainDetails ?? {};
-  const setRailwayDetails = (patch: Partial<NonNullable<SafetyAuditReport['domainDetails']>>) =>
-    setReport({ ...report, domainDetails: { ...railwayDetails, ...patch } });
+  const setRailwayDetails = (patch: Partial<NonNullable<SafetyAuditReport['domainDetails']>>) => {
+    setReport((current) => current
+      ? { ...current, domainDetails: { ...(current.domainDetails ?? {}), ...patch } }
+      : current);
+    setError(null);
+  };
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
@@ -400,7 +407,12 @@ const SafetyAuditEditor = () => {
                 <button
                   key={item.label}
                   type="button"
-                  onClick={() => setStep(index)}
+                  onClick={async () => {
+                    if (index === step) return;
+                    const saved = await saveBasics();
+                    if (saved) setStep(index);
+                  }}
+                  disabled={saving}
                   className={`rounded-lg px-1 py-2 min-h-16 text-xs flex flex-col sm:flex-row items-center justify-center gap-1.5 transition touch-manipulation ${
                     step === index ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border'
                   }`}
