@@ -206,6 +206,12 @@ export function formatVisionApiError(provider: 'gemini' | 'openai', status: numb
     }
     return 'חריגה ממכסת OpenAI. נסו שוב מאוחר יותר או השתמשו בסיוע המקומי.';
   }
+  if (status === 503 || lower.includes('high demand')) {
+    return 'שירות Gemini עמוס כרגע. נסו שוב בעוד רגע או השתמשו בסיוע המקומי.';
+  }
+  if (status === 404 && lower.includes('model')) {
+    return 'מודל Gemini שנבחר אינו זמין. רעננו את האפליקציה (עודכן למודלים חדשים) ונסו שוב.';
+  }
   return provider === 'gemini'
     ? `Gemini Vision נכשל (${status}). נסו מפתח חדש או סיוע מקומי.`
     : `OpenAI Vision נכשל (${status}). נסו מפתח חדש או סיוע מקומי.`;
@@ -369,11 +375,21 @@ async function analyzeWithOpenAi(
   return suggestionFromModelPayload(extractJsonObject(content), topics, 'openai');
 }
 
+/** Prefer current AI Studio models; older flash IDs are unavailable to many new keys. */
 const GEMINI_VISION_MODELS = [
+  'gemini-3-flash-preview',
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-flash-latest',
   'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
 ] as const;
+
+function shouldRetryGeminiModel(status: number, detail: string): boolean {
+  const lower = detail.toLowerCase();
+  if (status === 404 && /model|no longer available|not found/i.test(detail)) return true;
+  if (status === 503 || lower.includes('high demand')) return true;
+  return false;
+}
 
 async function analyzeWithGemini(
   base64: string,
@@ -411,12 +427,9 @@ async function analyzeWithGemini(
 
     if (!response.ok) {
       const detail = await response.text();
-      // Try next model only when the model itself is missing.
-      if (response.status === 404 && /model/i.test(detail)) {
-        lastError = formatVisionApiError('gemini', response.status, detail);
-        continue;
-      }
-      throw new Error(formatVisionApiError('gemini', response.status, detail));
+      lastError = formatVisionApiError('gemini', response.status, detail);
+      if (shouldRetryGeminiModel(response.status, detail)) continue;
+      throw new Error(lastError);
     }
 
     const data = (await response.json()) as {
