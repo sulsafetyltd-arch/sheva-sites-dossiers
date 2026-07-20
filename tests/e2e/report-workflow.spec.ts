@@ -193,3 +193,40 @@ test('authorized auditor completes checklist and creates one defect', async ({ p
   await profileButton.click();
   await expect(page).toHaveURL(/\/safety\/profile$/);
 });
+
+test('building survey decision persists across tabs', async ({ page }) => {
+  await seedAuthenticatedSession(page);
+  let report = {
+    ...initialReport,
+    report_type: 'building_survey',
+    report_number: 'BS-2026-002',
+    project_name: 'מבנה בדיקה',
+    site_name: 'מבנה בדיקה',
+    domain_details: {},
+  };
+
+  await page.route(`${SUPABASE_ORIGIN}/**`, async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path === '/auth/v1/user') return json(route, user);
+    if (path.endsWith('/.well-known/jwks.json')) return json(route, { keys: [publicJwk] });
+    if (path === '/rest/v1/profiles') return json(route, profile);
+    if (path === '/rest/v1/safety_audit_reports' && request.method() === 'GET') return json(route, report);
+    if (path === '/rest/v1/safety_audit_reports' && request.method() === 'PATCH') {
+      report = { ...report, ...(request.postDataJSON() as object), updated_at: new Date().toISOString() };
+      return json(route, report);
+    }
+    if (path === '/rest/v1/safety_audit_defects') return json(route, []);
+    return json(route, []);
+  });
+
+  await page.goto(`/safety/editor/${REPORT_ID}`);
+  const decision = page.getByLabel(/החלטת המאשר/);
+  await decision.selectOption('approved');
+  await expect(decision).toHaveValue('approved');
+
+  await page.getByRole('button', { name: 'חתימות' }).click();
+  expect((report.domain_details as { approvalDecision?: string }).approvalDecision).toBe('approved');
+  await page.getByRole('button', { name: 'פרטי הדוח' }).click();
+  await expect(page.getByLabel(/החלטת המאשר/)).toHaveValue('approved');
+});
