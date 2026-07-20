@@ -186,7 +186,7 @@ export default function SafetyUserProfile() {
             <div>
               <h2 className="font-semibold">זיהוי ליקויים מתמונה (אבטיפוס)</h2>
               <p className="text-xs text-slate-500 mt-1">
-                צרו מפתח ב־AI Studio (Create API key), העתיקו מפתח שמתחיל ב־AIza, ושמרו כאן.
+                צרו מפתח ב־AI Studio (Create API key), העתיקו מפתח שמתחיל ב־AQ. או AIza, ושמרו כאן.
                 המפתח נשמר במכשיר זה בלבד.
               </p>
               <a

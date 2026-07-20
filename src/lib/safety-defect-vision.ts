@@ -170,7 +170,11 @@ export function hasVisionModelConfigured(): boolean {
 
 export function looksLikeGeminiApiKey(key: string): boolean {
   const value = sanitizeVisionApiKey(key);
-  return /^AIza[0-9A-Za-z_-]{20,}$/.test(value);
+  // Legacy standard keys (AIza…) and new AI Studio auth keys (AQ.… / AQ.Ab…).
+  return (
+    /^AIza[0-9A-Za-z_-]{20,}$/.test(value) ||
+    /^AQ\.[0-9A-Za-z_-]{20,}$/.test(value)
+  );
 }
 
 export function formatVisionApiError(provider: 'gemini' | 'openai', status: number, detail: string): string {
@@ -194,9 +198,13 @@ export function formatVisionApiError(provider: 'gemini' | 'openai', status: numb
     return 'אין הרשאה למפתח OpenAI (401/403). בדקו חיוב והרשאות במפתח.';
   }
   if (status === 429) {
-    return provider === 'gemini'
-      ? 'חריגה ממכסת Gemini. נסו שוב בעוד כמה דקות או השתמשו בסיוע המקומי.'
-      : 'חריגה ממכסת OpenAI. נסו שוב מאוחר יותר או השתמשו בסיוע המקומי.';
+    if (provider === 'gemini') {
+      if (lower.includes('limit: 0') || lower.includes('free_tier')) {
+        return 'מכסת Gemini החינמית אזלה או חסומה (429). בדקו Quota ב-AI Studio, המתינו לאיפוס יומי, הפעילו חיוב, או השתמשו בסיוע המקומי.';
+      }
+      return 'חריגה ממכסת Gemini. נסו שוב בעוד כמה דקות או השתמשו בסיוע המקומי.';
+    }
+    return 'חריגה ממכסת OpenAI. נסו שוב מאוחר יותר או השתמשו בסיוע המקומי.';
   }
   return provider === 'gemini'
     ? `Gemini Vision נכשל (${status}). נסו מפתח חדש או סיוע מקומי.`

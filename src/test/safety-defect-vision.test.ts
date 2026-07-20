@@ -32,6 +32,7 @@ describe('safety defect vision assist', () => {
       'AIzaSyDummyKeyValue1234567890',
     );
     expect(looksLikeGeminiApiKey('AIzaSyDummyKeyValue1234567890')).toBe(true);
+    expect(looksLikeGeminiApiKey('AQ.AbExampleAuthKeyValue1234567890xyz')).toBe(true);
     expect(looksLikeGeminiApiKey('not-a-key')).toBe(false);
     expect(
       formatVisionApiError(
@@ -40,6 +41,13 @@ describe('safety defect vision assist', () => {
         '{"error":{"message":"API key not valid. Please pass a valid API key."}}',
       ),
     ).toContain('מפתח Gemini לא תקין');
+    expect(
+      formatVisionApiError(
+        'gemini',
+        429,
+        'Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0',
+      ),
+    ).toContain('מכסת Gemini החינמית');
   });
 
   it('builds a local assistive suggestion from a hazard category', () => {

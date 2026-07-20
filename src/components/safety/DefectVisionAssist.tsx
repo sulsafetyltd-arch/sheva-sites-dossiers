@@ -69,7 +69,7 @@ export default function DefectVisionAssist({
     const gemini = sanitizeVisionApiKey(geminiKey);
     const openai = sanitizeVisionApiKey(openaiKey);
     if (gemini && !looksLikeGeminiApiKey(gemini)) {
-      setKeyWarning('מפתח Gemini נראה לא תקין. מפתח מ-AI Studio בדרך כלל מתחיל ב-AIza…');
+      setKeyWarning('מפתח Gemini נראה לא תקין. מפתח מ-AI Studio מתחיל ב-AQ. או ב-AIza…');
     } else {
       setKeyWarning(null);
     }
@@ -138,7 +138,7 @@ export default function DefectVisionAssist({
               Google AI Studio
             </a>
             {' '}
-            (Create API key), העתיקו את המפתח המלא שמתחיל ב־AIza, והדביקו כאן. המפתח נשמר רק במכשיר זה.
+            (Create API key). מפתחות חדשים מתחילים ב־AQ. (או AIza). הדביקו כאן — נשמר רק במכשיר זה.
           </p>
           <Input
             dir="ltr"
@@ -146,7 +146,7 @@ export default function DefectVisionAssist({
             type="password"
             autoComplete="off"
             spellCheck={false}
-            placeholder="AIza… (Gemini API key)"
+            placeholder="AQ.… או AIza… (Gemini API key)"
             value={geminiKey}
             onChange={(event) => setGeminiKey(event.target.value)}
           />
