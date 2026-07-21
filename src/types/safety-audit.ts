@@ -3,7 +3,12 @@ export type ReportStatus = 'draft' | 'final';
 export type ChecklistStatus = 'ok' | 'not_ok' | 'na';
 export type DefectSeverity = 'high' | 'medium' | 'low';
 export type ReportType =
-  | 'workplace' | 'construction' | 'infrastructure' | 'railway' | 'building_survey';
+  | 'workplace'
+  | 'construction'
+  | 'infrastructure'
+  | 'railway'
+  | 'building_survey'
+  | 'education_institution';
 
 export interface SafetyAuditClient {
   id: string;
@@ -96,6 +101,16 @@ export interface RailwayReportDetails {
   approvalDecision?: 'approved' | 'not_approved';
   approvalValidUntil?: string;
   approverLicenseNumber?: string;
+  /** Education institution (משרד החינוך) */
+  ownership?: string;
+  institutionSymbol?: string;
+  studentsCount?: string;
+  yearBuilt?: string;
+  institutionPhone?: string;
+  principalName?: string;
+  inspectorName?: string;
+  institutionParticipants?: string;
+  authorityParticipants?: string;
 }
 
 export interface SafetyAuditDefect {
@@ -444,6 +459,62 @@ export const BUILDING_SURVEY_CHECKLIST_TOPICS: ChecklistTopic[] = [
   { key: 'bs_15', chapter: 'ניהול ושילוט', title: 'חוזים והסדרי בטיחות עם קבלני משנה: מטבח, ניקיון ותחזוקה' },
 ];
 
+/**
+ * Ministry of Education guiding checklist (Sept 2025) — chapter-level topics
+ * for kindergartens, schools and boarding institutions. Mark N/A when irrelevant.
+ */
+export const EDUCATION_INSTITUTION_CHECKLIST_TOPICS: ChecklistTopic[] = [
+  { key: 'ed_01', chapter: 'אישורים ובדיקות תקופתיות', title: 'פרק 1 — ריכוז בדיקות בטיחות ואישורים נדרשים' },
+  { key: 'ed_02', chapter: 'סביבה וחצר', title: 'פרק 2 — הסביבה החיצונית' },
+  { key: 'ed_03', chapter: 'סביבה וחצר', title: 'פרק 3 — חצר המוסד' },
+  { key: 'ed_04', chapter: 'סביבה וחצר', title: 'פרק 4 — הערכות למצבי חירום' },
+  { key: 'ed_05', chapter: 'מבנה וכיתות', title: 'פרק 5 — אלמנטים וחומרים במבנה' },
+  { key: 'ed_06', chapter: 'מבנה וכיתות', title: 'פרק 6 — המקלט' },
+  { key: 'ed_07', chapter: 'מבנה וכיתות', title: 'פרק 7 — תכולת וארגון הכיתות' },
+  { key: 'ed_08', chapter: 'מבנה וכיתות', title: 'פרק 8 — התקנת מבנים יבילים' },
+  { key: 'ed_09', chapter: 'חשמל ואנרגיה', title: 'פרק 9 — מערכות חשמל' },
+  { key: 'ed_10', chapter: 'חשמל ואנרגיה', title: 'פרק 10 — ציוד ומערכות אנרגיה' },
+  { key: 'ed_11', chapter: 'מתקנים ייעודיים', title: 'פרק 11 — אולמות ספורט' },
+  { key: 'ed_12', chapter: 'מתקנים ייעודיים', title: 'פרק 12 — מעבדות למדעי הכימיה' },
+  { key: 'ed_13', chapter: 'מתקנים ייעודיים', title: 'פרק 13 — חדרי מלאכה' },
+  { key: 'ed_14', chapter: 'מתקנים ייעודיים', title: 'פרק 14 — הצבת מוצגים' },
+  { key: 'ed_15', chapter: 'מתקנים ייעודיים', title: 'פרק 15 — מטבח' },
+  { key: 'ed_16', chapter: 'מתקנים ייעודיים', title: 'פרק 16 — חדר אוכל' },
+  { key: 'ed_17', chapter: 'נוי וחקלאות', title: 'פרק 17 — הנוי' },
+  { key: 'ed_18', chapter: 'נוי וחקלאות', title: 'פרק 18 — טרקטורים ומכונות חקלאיות' },
+  { key: 'ed_19', chapter: 'נוי וחקלאות', title: 'פרק 19 — מכונות חקלאיות ייחודיות' },
+  { key: 'ed_20', chapter: 'נוי וחקלאות', title: 'פרק 20 — התקני בטיחות בטרקטורים' },
+  { key: 'ed_21', chapter: 'נוי וחקלאות', title: 'פרק 21 — ציוד וכלים נגררים' },
+  { key: 'ed_22', chapter: 'נוי וחקלאות', title: 'פרק 22 — סככת המכונות החקלאיות' },
+  { key: 'ed_23', chapter: 'נוי וחקלאות', title: 'פרק 23 — החממה' },
+  { key: 'ed_24', chapter: 'נוי וחקלאות', title: 'פרק 24 — הרפת והדיר' },
+  { key: 'ed_25', chapter: 'נוי וחקלאות', title: 'פרק 25 — חדרי חליבה' },
+  { key: 'ed_26', chapter: 'נוי וחקלאות', title: 'פרק 26 — סככת רביצה' },
+  { key: 'ed_27', chapter: 'נוי וחקלאות', title: 'פרק 27 — בורות זבל ונוזלים' },
+  { key: 'ed_28', chapter: 'נוי וחקלאות', title: 'פרק 28 — מרכזי מזון ומכלי תערובת' },
+  { key: 'ed_29', chapter: 'נוי וחקלאות', title: 'פרק 29 — המטע והפרדס' },
+  { key: 'ed_30', chapter: 'נוי וחקלאות', title: 'פרק 30 — חומרי הדברה' },
+  { key: 'ed_31', chapter: 'נוי וחקלאות', title: 'פרק 31 — מפעלים לאספקת מים' },
+  { key: 'ed_32', chapter: 'נוי וחקלאות', title: 'פרק 32 — ברכות חמצון' },
+  { key: 'ed_33', chapter: 'סדנאות ומלאכה', title: 'פרק 33 — המוסך' },
+  { key: 'ed_34', chapter: 'סדנאות ומלאכה', title: 'פרק 34 — המסגרייה' },
+  { key: 'ed_35', chapter: 'סדנאות ומלאכה', title: 'פרק 35 — הנגרייה' },
+  { key: 'ed_36', chapter: 'סדנאות ומלאכה', title: 'פרק 36 — דוד הקיטור' },
+  { key: 'ed_37', chapter: 'פינות חי', title: 'פרק 37 — פינות חי ובתי גידול בתוך מבנה' },
+  { key: 'ed_38', chapter: 'פינות חי', title: 'פרק 38 — בתי גידול מחוץ למבנה וספארי' },
+  { key: 'ed_39', chapter: 'פינות חי', title: 'פרק 39 — פינות חי (כללי)' },
+  { key: 'ed_40', chapter: 'פינות חי', title: 'פרק 40 — חדר/כיתה עם בעלי חיים טורפים' },
+];
+
+export const EDUCATION_GENERAL_NOTES: string[] = [
+  'הממצאים אותרו מתוך השוואת המצב הקיים עם סטנדרטים ברשימות המנחות לעריכת מבדק של משרד החינוך.',
+  'קדימות 0 — מפגע חמור המחייב סגירה מיידית של המקום עד אישור המשך שימוש.',
+  'קדימות 1 — מפגע בטיחותי המחייב הסרה מיידית.',
+  'קדימות 2 — ליקוי בטיחותי לטיפול במסגרת תכנית עבודה סדורה של הרשות/הבעלות.',
+  'יש לנהל את הבטיחות במוסדות חינוך כמוגדר בחוזר מנכ״ל משרד החינוך.',
+  'יש להמציא את האישורים הנדרשים לפי ריכוז הבדיקות התקופתיות (פרק 1).',
+];
+
 /** @deprecated use WORKPLACE_CHECKLIST_TOPICS or getChecklistTopics(type) */
 export const CHECKLIST_TOPICS = WORKPLACE_CHECKLIST_TOPICS;
 
@@ -452,6 +523,7 @@ export function getChecklistTopics(type: ReportType = 'workplace'): ChecklistTop
   if (type === 'infrastructure') return INFRASTRUCTURE_CHECKLIST_TOPICS;
   if (type === 'railway') return RAILWAY_CHECKLIST_TOPICS;
   if (type === 'building_survey') return BUILDING_SURVEY_CHECKLIST_TOPICS;
+  if (type === 'education_institution') return EDUCATION_INSTITUTION_CHECKLIST_TOPICS;
   return WORKPLACE_CHECKLIST_TOPICS;
 }
 
@@ -460,7 +532,28 @@ export function reportTypeLabel(type: ReportType): string {
   if (type === 'infrastructure') return 'אתר תשתיות';
   if (type === 'railway') return 'אתרי רכבת ישראל';
   if (type === 'building_survey') return 'סקר בטיחות למבנה';
+  if (type === 'education_institution') return 'מבדק בטיחות במוסדות חינוך';
   return 'אתר עבודה';
+}
+
+/** Defect severity labels — MoE priority scale for education audits. */
+export function defectSeverityLabel(
+  severity: DefectSeverity,
+  reportType?: ReportType,
+): string {
+  if (reportType === 'education_institution') {
+    if (severity === 'high') return 'קדימות 0 — סגירה מיידית';
+    if (severity === 'medium') return 'קדימות 1 — הסרה מיידית';
+    return 'קדימות 2 — תכנית עבודה';
+  }
+  if (reportType === 'railway') {
+    if (severity === 'high') return '3 — אדום, אסור לעבוד';
+    if (severity === 'medium') return '2 — צהוב, נדרש תיקון';
+    return '1 — ירוק, סיכון קביל';
+  }
+  if (severity === 'high') return 'גבוהה';
+  if (severity === 'medium') return 'בינונית';
+  return 'נמוכה';
 }
 
 export const CORRECTIVE_ACTION_SUGGESTIONS = [

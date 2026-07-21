@@ -4,18 +4,14 @@ import { getReport, listDefects, listReportPhotos, getPublicUrl } from '@/lib/sa
 import type { SafetyAuditDefect, SafetyAuditReport } from '@/types/safety-audit';
 import {
   CONSTRUCTION_GENERAL_NOTES,
+  EDUCATION_GENERAL_NOTES,
+  defectSeverityLabel,
   getChecklistTopics,
   reportTypeLabel,
 } from '@/types/safety-audit';
 import { Button } from '@/components/ui/button';
 import { createPdfBlob, downloadPdfBlob, exportToPdf } from '@/lib/pdf-export';
 import { Download, Mail, MessageCircle, Share2, X } from 'lucide-react';
-
-const severityLabel: Record<string, string> = {
-  high: 'גבוהה',
-  medium: 'בינונית',
-  low: 'נמוכה',
-};
 
 const riskLabel: Record<string, string> = {
   low: 'נמוך',
@@ -177,10 +173,15 @@ const SafetyAuditPreview = () => {
   const isInfrastructure = report.reportType === 'infrastructure';
   const isRailway = report.reportType === 'railway';
   const isBuildingSurvey = report.reportType === 'building_survey';
-  const isProjectReport = isConstruction || isInfrastructure || isRailway || isBuildingSurvey;
+  const isEducation = report.reportType === 'education_institution';
+  const isProjectReport = isConstruction || isInfrastructure || isRailway || isBuildingSurvey || isEducation;
   const railwayDetails = report.domainDetails ?? {};
   const topics = getChecklistTopics(report.reportType);
   const siteTitle = report.projectName || report.siteName || '—';
+
+  const reportHeading = isEducation
+    ? 'הבטחת תנאים בטיחותיים במוסדות חינוך'
+    : `דו״ח ביקורת בטיחות — ${reportTypeLabel(report.reportType)}`;
 
   const statusMark = (key: string, want: 'ok' | 'not_ok' | 'na') => {
     const s = report.checklist?.[key]?.status;
@@ -253,7 +254,7 @@ const SafetyAuditPreview = () => {
               <div>
                 <div className="text-xs tracking-[0.2em] text-slate-300 mb-1">סול בטיחות בע״מ</div>
                 <h2 className="text-xl sm:text-2xl font-bold leading-snug">
-                  דו״ח ביקורת בטיחות — {reportTypeLabel(report.reportType)}
+                  {reportHeading}
                 </h2>
                 <div className="mt-2 text-sm text-slate-200">{siteTitle}</div>
               </div>
@@ -329,6 +330,22 @@ const SafetyAuditPreview = () => {
                     <MetaRow label="אישור מהנדס מבנים" value={railwayDetails.structuralApprovalDate || 'חסר'} />
                     <MetaRow label="אישור חשמלאי מוסמך" value={railwayDetails.electricalApprovalDate || 'חסר'} />
                     <MetaRow label="תוקף הסקר" value={railwayDetails.approvalValidUntil || '—'} />
+                  </>
+                ) : isEducation ? (
+                  <>
+                    <MetaRow label="שם המוסד" value={siteTitle} />
+                    <MetaRow label="הישוב / הבעלות" value={railwayDetails.ownership || '—'} />
+                    <MetaRow label="סמל המוסד" value={railwayDetails.institutionSymbol || '—'} />
+                    <MetaRow label="כתובת" value={railwayDetails.buildingAddress || '—'} />
+                    <MetaRow label="מספר תלמידים" value={railwayDetails.studentsCount || '—'} />
+                    <MetaRow label="שנת הקמה" value={railwayDetails.yearBuilt || '—'} />
+                    <MetaRow label="טלפון המוסד" value={railwayDetails.institutionPhone || '—'} />
+                    <MetaRow label="מנהל/ת / גננת" value={railwayDetails.principalName || '—'} />
+                    <MetaRow label="מפקח/ת כללי" value={railwayDetails.inspectorName || '—'} />
+                    <MetaRow label="תאריך המבדק" value={report.auditDate || '—'} />
+                    <MetaRow label="עורך המבדק" value={`${report.auditor || '—'} (${report.auditorRole || 'עורך מבדק'})`} />
+                    <MetaRow label="משתתפים מהמוסד" value={railwayDetails.institutionParticipants || '—'} />
+                    <MetaRow label="משתתפים מהרשות" value={railwayDetails.authorityParticipants || '—'} />
                   </>
                 ) : isRailway ? (
                   <>
@@ -424,7 +441,7 @@ const SafetyAuditPreview = () => {
 
             <section>
               <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
-                {isConstruction ? 'ממצאי הביקורת' : isInfrastructure ? 'רשימת בדיקה' : isRailway ? 'טבלת בדיקה — אתרי רכבת ישראל' : isBuildingSurvey ? 'א. אזורים ונושאים לבדיקת בטיחות המבנה' : '3. רשימת בדיקה'}
+                {isConstruction ? 'ממצאי הביקורת' : isInfrastructure ? 'רשימת בדיקה' : isRailway ? 'טבלת בדיקה — אתרי רכבת ישראל' : isBuildingSurvey ? 'א. אזורים ונושאים לבדיקת בטיחות המבנה' : isEducation ? 'רשימה מנחה — מבדק מוסדות חינוך (משרד החינוך)' : '3. רשימת בדיקה'}
               </h3>
 
               {isConstruction ? (
@@ -569,6 +586,8 @@ const SafetyAuditPreview = () => {
                     ? `ריכוז ליקויים מביקור נוכחי מתאריך ${report.auditDate || report.date}`
                     : isBuildingSurvey
                       ? 'ממצאים והערות לסקר בטיחות המבנה'
+                      : isEducation
+                        ? 'פירוט הממצאים לפי קדימות טיפול'
                     : '4. ליקויים, מפגעים ופעולות מתקנות'}
                 </h3>
                 <div className="rounded-lg border border-slate-300 overflow-hidden">
@@ -586,7 +605,7 @@ const SafetyAuditPreview = () => {
                       <tr className="bg-[#0f2744] text-white">
                         <th className="border border-slate-600 p-2 w-8">#</th>
                         <th className="border border-slate-600 p-2 text-right">תיאור הליקוי</th>
-                        <th className="border border-slate-600 p-2">חומרה</th>
+                        <th className="border border-slate-600 p-2">{isEducation ? 'קדימות' : 'חומרה'}</th>
                         <th className="border border-slate-600 p-2 text-right">פעולה מתקנת</th>
                         <th className="border border-slate-600 p-2">אחראי</th>
                         <th className="border border-slate-600 p-2">יעד</th>
@@ -617,9 +636,7 @@ const SafetyAuditPreview = () => {
                                       : 'bg-emerald-100 text-emerald-800'
                                 }`}
                               >
-                                {isRailway
-                                  ? d.severity === 'high' ? '3 — אדום' : d.severity === 'medium' ? '2 — צהוב' : '1 — ירוק'
-                                  : severityLabel[d.severity] || d.severity}
+                                {defectSeverityLabel(d.severity, report.reportType)}
                               </span>
                             </td>
                             <td className="border border-slate-200 p-2 align-top">{d.correctiveAction || '—'}</td>
@@ -661,7 +678,7 @@ const SafetyAuditPreview = () => {
                           <div className="font-medium">{d.description}</div>
                           <div className="text-slate-600">{d.correctiveAction}</div>
                           <div className="text-xs text-slate-500">
-                            חומרה: {severityLabel[d.severity]} · אחראי: {d.responsible || '—'}
+                            חומרה: {defectSeverityLabel(d.severity, report.reportType)} · אחראי: {d.responsible || '—'}
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -688,6 +705,21 @@ const SafetyAuditPreview = () => {
                 <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-3 space-y-1">
                   <div>• ממצאי המבדק נכונים ליום המבדק בלבד.</div>
                   <div>• אבקש לתקן את הליקויים ולעדכן את הח״מ.</div>
+                </div>
+              </section>
+            ) : isEducation ? (
+              <section className="text-xs space-y-1 text-slate-700">
+                <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
+                  הערות וסדרי קדימויות
+                </h3>
+                <ol className="list-decimal pr-5 space-y-1">
+                  {EDUCATION_GENERAL_NOTES.map((n, i) => (
+                    <li key={i}>{n}</li>
+                  ))}
+                </ol>
+                <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-3 space-y-1">
+                  <div>• ממצאי המבדק נכונים ליום המבדק בלבד.</div>
+                  <div>• יש לטפל במפגעי קדימות 0 ו־1 באופן מיידי, ובקדימות 2 במסגרת תכנית עבודה.</div>
                 </div>
               </section>
             ) : (

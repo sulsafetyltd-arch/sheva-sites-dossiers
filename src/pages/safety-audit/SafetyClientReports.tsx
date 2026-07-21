@@ -168,8 +168,15 @@ export default function SafetyClientReports() {
         {showNewReport && (
           <section className="rounded-xl border-2 border-slate-900 bg-white p-4 space-y-4">
             <h3 className="font-semibold">יצירת דוח עבור {client.name}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              {(['workplace', 'construction', 'infrastructure', 'railway', 'building_survey'] as ReportType[]).map((type) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {([
+                'workplace',
+                'construction',
+                'infrastructure',
+                'railway',
+                'building_survey',
+                'education_institution',
+              ] as ReportType[]).map((type) => (
                 <button
                   key={type}
                   type="button"
@@ -188,6 +195,8 @@ export default function SafetyClientReports() {
                           ? '30 בדיקות רכבת'
                           : type === 'building_survey'
                             ? 'סקר מבנה שנתי'
+                            : type === 'education_institution'
+                              ? '40 פרקים — משרד החינוך'
                         : '10 בדיקות עבודה'}
                   </div>
                 </button>
@@ -203,6 +212,8 @@ export default function SafetyClientReports() {
                       ? 'שם אתר רכבת ישראל'
                       : reportType === 'building_survey'
                         ? 'שם המבנה / המוסד'
+                        : reportType === 'education_institution'
+                          ? 'שם המוסד החינוכי (גן / בית ספר / פנימייה)'
                     : 'שם האתר / כתובת'
               }
               value={siteName}
@@ -238,6 +249,8 @@ export default function SafetyClientReports() {
                               ? 'bg-violet-100 text-violet-900'
                               : report.reportType === 'building_survey'
                                 ? 'bg-teal-100 text-teal-900'
+                                : report.reportType === 'education_institution'
+                                  ? 'bg-rose-100 text-rose-900'
                             : 'bg-sky-100 text-sky-900'
                       }`}>
                         {reportTypeLabel(report.reportType)}

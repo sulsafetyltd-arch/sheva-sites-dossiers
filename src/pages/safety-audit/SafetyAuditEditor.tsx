@@ -22,6 +22,7 @@ import {
   CORRECTIVE_ACTION_SUGGESTIONS,
   getChecklistTopics,
   reportTypeLabel,
+  defectSeverityLabel,
 } from '@/types/safety-audit';
 import {
   analyzeDefectPhoto,
@@ -75,7 +76,8 @@ const SafetyAuditEditor = () => {
   const isInfrastructure = report?.reportType === 'infrastructure';
   const isRailway = report?.reportType === 'railway';
   const isBuildingSurvey = report?.reportType === 'building_survey';
-  const isProjectReport = isConstruction || isInfrastructure || isRailway || isBuildingSurvey;
+  const isEducation = report?.reportType === 'education_institution';
+  const isProjectReport = isConstruction || isInfrastructure || isRailway || isBuildingSurvey || isEducation;
   const hasChapteredChecklist = isProjectReport;
   const chapters = useMemo(
     () => Array.from(new Set(topics.map((topic) => topic.chapter || 'כל הבדיקות'))),
@@ -466,6 +468,8 @@ const SafetyAuditEditor = () => {
                         ? 'bg-violet-100 text-violet-900'
                         : isBuildingSurvey
                           ? 'bg-teal-100 text-teal-900'
+                          : isEducation
+                            ? 'bg-rose-100 text-rose-900'
                       : 'bg-sky-100 text-sky-900'
                 }`}
               >
@@ -579,9 +583,11 @@ const SafetyAuditEditor = () => {
                   ? 'פרטי ביקורת באתר רכבת ישראל'
                   : isBuildingSurvey
                     ? 'פרטי סקר בטיחות למבנה'
+                    : isEducation
+                      ? 'פרטי מבדק בטיחות במוסד חינוך'
                 : '2. פרטי הביקורת'}
           </h2>
-          <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isBuildingSurvey ? 'hidden' : ''}`}>
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isBuildingSurvey || isEducation ? 'hidden' : ''}`}>
             <Input dir="rtl" placeholder="לכבוד" value={report.recipient || ''} onChange={(e) => setReport({ ...report, recipient: e.target.value })} />
             {isProjectReport ? (
               <>
@@ -634,7 +640,7 @@ const SafetyAuditEditor = () => {
               </>
             )}
           </div>
-          {isProjectReport && !isBuildingSurvey && (
+          {isProjectReport && !isBuildingSurvey && !isEducation && (
             <Textarea
               dir="rtl"
               placeholder={isInfrastructure ? 'תיאור העבודות המתבצעות בעת הביקורת' : isRailway ? 'תיאור העבודות המתבצעות באתר' : 'שלבי עבודה'}
@@ -685,6 +691,47 @@ const SafetyAuditEditor = () => {
                   <option value="not_approved">לא מאשר את בטיחות המבנה</option>
                 </select>
               </label>
+            </div>
+          )}
+          {isEducation && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Input
+                className="md:col-span-2"
+                value={report.projectName || report.siteName || ''}
+                onChange={(event) => setReport({ ...report, projectName: event.target.value, siteName: event.target.value })}
+                placeholder="שם המוסד החינוכי"
+              />
+              <Input value={railwayDetails.ownership || ''} onChange={(event) => setRailwayDetails({ ownership: event.target.value })} placeholder="הישוב / הבעלות" />
+              <Input value={railwayDetails.institutionSymbol || ''} onChange={(event) => setRailwayDetails({ institutionSymbol: event.target.value })} placeholder="סמל המוסד" />
+              <Input value={railwayDetails.buildingAddress || ''} onChange={(event) => setRailwayDetails({ buildingAddress: event.target.value })} placeholder="כתובת המוסד" />
+              <Input value={railwayDetails.studentsCount || ''} onChange={(event) => setRailwayDetails({ studentsCount: event.target.value })} placeholder="מספר תלמידים" />
+              <Input value={railwayDetails.yearBuilt || ''} onChange={(event) => setRailwayDetails({ yearBuilt: event.target.value })} placeholder="שנת הקמה" />
+              <Input value={railwayDetails.institutionPhone || ''} onChange={(event) => setRailwayDetails({ institutionPhone: event.target.value })} placeholder="טלפון המוסד" />
+              <Input value={railwayDetails.principalName || ''} onChange={(event) => setRailwayDetails({ principalName: event.target.value })} placeholder="פרטי המנהל/ת / הגננת" />
+              <Input value={railwayDetails.inspectorName || ''} onChange={(event) => setRailwayDetails({ inspectorName: event.target.value })} placeholder="פרטי המפקח/ת הכללי" />
+              <Input
+                className="md:col-span-2"
+                value={railwayDetails.institutionParticipants || ''}
+                onChange={(event) => setRailwayDetails({ institutionParticipants: event.target.value })}
+                placeholder="משתתפים מטעם המוסד החינוכי"
+              />
+              <Input
+                className="md:col-span-2"
+                value={railwayDetails.authorityParticipants || ''}
+                onChange={(event) => setRailwayDetails({ authorityParticipants: event.target.value })}
+                placeholder="משתתפים מטעם הרשות / הבעלות"
+              />
+              <Input type="date" value={report.auditDate || ''} onChange={(event) => setReport({ ...report, auditDate: event.target.value })} aria-label="תאריך המבדק" />
+              <Input value={report.auditor || ''} onChange={(event) => setReport({ ...report, auditor: event.target.value })} placeholder="פרטי עורך המבדק" />
+              <Input value={report.auditorRole || ''} onChange={(event) => setReport({ ...report, auditorRole: event.target.value })} placeholder="תפקיד עורך המבדק" />
+              <Input value={report.auditorPhone || ''} onChange={(event) => setReport({ ...report, auditorPhone: event.target.value })} placeholder="טלפון עורך המבדק" />
+              <Input
+                className="md:col-span-2"
+                dir="rtl"
+                placeholder="לכבוד (מנהל המוסד / מנהל בטיחות ברשות)"
+                value={report.recipient || ''}
+                onChange={(event) => setReport({ ...report, recipient: event.target.value })}
+              />
             </div>
           )}
         </section>
@@ -780,7 +827,7 @@ const SafetyAuditEditor = () => {
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : isRailway ? 'טבלת בדיקה — רכבת ישראל' : isBuildingSurvey ? 'סעיפי סקר בטיחות המבנה' : '3. רשימת בדיקה'}</h2>
+              <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : isRailway ? 'טבלת בדיקה — רכבת ישראל' : isBuildingSurvey ? 'סעיפי סקר בטיחות המבנה' : isEducation ? 'רשימה מנחה — מבדק מוסדות חינוך' : '3. רשימת בדיקה'}</h2>
               <div className="text-xs text-slate-500">{completedChecks} מתוך {topics.length} בדיקות הושלמו</div>
             </div>
             <div className="text-sm font-medium text-emerald-700">{Math.round((completedChecks / topics.length) * 100)}%</div>
@@ -842,7 +889,7 @@ const SafetyAuditEditor = () => {
         {step === 2 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">{isConstruction ? 'ליקויים ותיעוד צילומי' : isRailway ? 'ריכוז ליקויים מביקור נוכחי' : isBuildingSurvey ? 'ממצאים והערות לסקר המבנה' : '4. ליקויים ופעולות מתקנות'}</h2>
+            <h2 className="text-lg font-semibold">{isConstruction ? 'ליקויים ותיעוד צילומי' : isRailway ? 'ריכוז ליקויים מביקור נוכחי' : isBuildingSurvey ? 'ממצאים והערות לסקר המבנה' : isEducation ? 'פירוט הממצאים לפי קדימות טיפול' : '4. ליקויים ופעולות מתקנות'}</h2>
             <Button size="sm" onClick={() => void addDefect()}>
               הוסף ליקוי
             </Button>
@@ -868,9 +915,9 @@ const SafetyAuditEditor = () => {
                     <SelectValue placeholder="דרגת חומרה" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="high">{isRailway ? '3 — אדום, אסור לעבוד' : 'גבוהה'}</SelectItem>
-                    <SelectItem value="medium">{isRailway ? '2 — צהוב, נדרש תיקון' : 'בינונית'}</SelectItem>
-                    <SelectItem value="low">{isRailway ? '1 — ירוק, סיכון קביל' : 'נמוכה'}</SelectItem>
+                    <SelectItem value="high">{defectSeverityLabel('high', report.reportType)}</SelectItem>
+                    <SelectItem value="medium">{defectSeverityLabel('medium', report.reportType)}</SelectItem>
+                    <SelectItem value="low">{defectSeverityLabel('low', report.reportType)}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Input

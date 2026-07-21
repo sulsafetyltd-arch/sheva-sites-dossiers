@@ -115,4 +115,27 @@ describe('safety report database mapping', () => {
     expect(getChecklistTopics(report.reportType)).toHaveLength(23);
     expect(report.domainDetails?.approvalDecision).toBe('approved');
   });
+
+  it('supports Ministry of Education institution safety audits', () => {
+    const report = mapSafetyReportRow({
+      id: 'report-education',
+      client_id: 'client-1',
+      report_type: 'education_institution',
+      date: '2026-07-21',
+      status: 'draft',
+      domain_details: {
+        ownership: 'מועצה אזורית שדות נגב',
+        institutionSymbol: '707240',
+        studentsCount: '28',
+        principalName: 'חגית כהן',
+      },
+      created_at: '2026-07-21T00:00:00Z',
+      updated_at: '2026-07-21T00:00:00Z',
+    });
+
+    expect(report.reportType).toBe('education_institution');
+    expect(reportTypeLabel(report.reportType)).toBe('מבדק בטיחות במוסדות חינוך');
+    expect(getChecklistTopics(report.reportType)).toHaveLength(40);
+    expect(report.domainDetails?.institutionSymbol).toBe('707240');
+  });
 });
