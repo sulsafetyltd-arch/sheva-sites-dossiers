@@ -50,12 +50,13 @@ describe('construction induction acknowledgment', () => {
     const stamped = await PDFDocument.load(source);
     const [page1, page2] = stamped.getPages();
     const png = await stamped.embedPng(TINY_PNG);
-    // Page 1 header tables
-    page1.drawImage(png, { x: 318, y: 684, width: 155, height: 14 });
-    page1.drawImage(png, { x: 72, y: 684, width: 135, height: 14 });
+    // Page 1 header tables — value cells measured from template borders
+    page1.drawImage(png, { x: 298, y: 678, width: 140, height: 14 });
+    page1.drawImage(png, { x: 42, y: 678, width: 88, height: 14 });
+    page1.drawImage(png, { x: 300, y: 699, width: 90, height: 15 });
     // Page 2 acknowledgment table
-    page2.drawImage(png, { x: 255, y: 74, width: 175, height: 15 });
-    page2.drawImage(png, { x: 46, y: 58, width: 108, height: 48 });
+    page2.drawImage(png, { x: 345, y: 72, width: 118, height: 14 });
+    page2.drawImage(png, { x: 42, y: 50, width: 115, height: 44 });
     expect(stamped.getPageCount()).toBe(original.getPageCount());
   });
 });

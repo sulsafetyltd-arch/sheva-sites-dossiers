@@ -1,4 +1,4 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
 import type { ConstructionInductionDocument } from '@/lib/construction-induction-documents';
 import { loadConstructionInductionPdf } from '@/lib/construction-induction-documents';
 import type { ConstructionInductionLanguage } from '@/types/safety-training';
@@ -17,72 +17,63 @@ interface Rect {
 }
 
 interface InductionStampLayout {
-  /** Page 1 — title company blank + header tables */
   page1: {
     companyName: Rect;
     heightValidUntil: Rect;
     employeeName: Rect;
-    employeeId: Rect;
+    /** Centers of the 9 ID digit boxes (page 1). */
+    employeeIdDigitCenters: readonly number[];
+    employeeIdY: number;
+    employeeIdHeight: number;
     jobTitle: Rect;
     instructorName: Rect;
     siteManagerName: Rect;
     instructorSignature: Rect;
   };
-  /** Page 2 (last) — bottom acknowledgment table */
   page2: {
     employeeName: Rect;
-    employeeId: Rect;
+    /** Centers of the 9 ID digit boxes (acknowledgment table). */
+    employeeIdDigitCenters: readonly number[];
+    employeeIdY: number;
+    employeeIdHeight: number;
     signature: Rect;
   };
-  align: 'right' | 'left';
 }
 
 /**
- * Coordinates measured against the Sol Safety Hebrew induction template (A4).
- * Other languages share the same table geometry with small vertical drift; we
- * reuse Hebrew slots unless a language-specific override is added.
+ * Coordinates measured from table borders on the Hebrew A4 template
+ * (pdf-lib origin = bottom-left). Value cells sit to the LEFT of RTL labels.
  */
 const HEBREW_LAYOUT: InductionStampLayout = {
   page1: {
-    // Blank after "באתרי חברת ____" (left side of the RTL title line)
-    companyName: { x: 95, y: 742, width: 130, height: 12 },
-    // Date placeholder in "תוקף הדרכה לעבודה בגובה"
-    heightValidUntil: { x: 318, y: 708, width: 82, height: 11 },
-    // Right table value cells (left of the Hebrew labels)
-    employeeName: { x: 318, y: 684, width: 155, height: 14 },
-    employeeId: { x: 348, y: 656, width: 138, height: 18 },
-    jobTitle: { x: 318, y: 630, width: 155, height: 14 },
-    // Left table value cells
-    instructorName: { x: 72, y: 684, width: 135, height: 14 },
-    siteManagerName: { x: 72, y: 656, width: 135, height: 14 },
-    instructorSignature: { x: 78, y: 612, width: 155, height: 40 },
+    // Underline after "באתרי חברת" (right edge must stay left of חברת ~x208)
+    companyName: { x: 70, y: 735, width: 115, height: 13 },
+    // Date cell printed as "__/__/____" — covered with white before stamp
+    heightValidUntil: { x: 300, y: 698, width: 90, height: 15 },
+    // Right table value column (x≈292–443), left of label column
+    employeeName: { x: 298, y: 678, width: 140, height: 14 },
+    employeeIdDigitCenters: [314.64, 329.76, 344.88, 360.0, 375.36, 390.48, 405.6, 420.96, 436.32],
+    employeeIdY: 659,
+    employeeIdHeight: 14,
+    jobTitle: { x: 298, y: 634, width: 140, height: 14 },
+    // Left table value column (x≈36–135), left of label column
+    instructorName: { x: 42, y: 678, width: 88, height: 14 },
+    siteManagerName: { x: 42, y: 659, width: 88, height: 14 },
+    instructorSignature: { x: 42, y: 628, width: 88, height: 28 },
   },
   page2: {
-    // Keep clear of the RTL labels on the right of each row
-    employeeName: { x: 255, y: 74, width: 175, height: 15 },
-    employeeId: { x: 335, y: 56, width: 120, height: 14 },
-    signature: { x: 46, y: 58, width: 108, height: 48 },
+    // Acknowledgment value column (x≈336–474), left of "שם העובד" / "תעודת זהות"
+    employeeName: { x: 345, y: 72, width: 118, height: 14 },
+    employeeIdDigitCenters: [342.7, 356.4, 370.1, 383.8, 397.7, 411.6, 425.5, 439.4, 453.1],
+    employeeIdY: 53,
+    employeeIdHeight: 14,
+    signature: { x: 42, y: 50, width: 115, height: 44 },
   },
-  align: 'right',
 };
 
 const LANGUAGE_LAYOUT: Partial<Record<ConstructionInductionLanguage, InductionStampLayout>> = {
   he: HEBREW_LAYOUT,
-  // Arabic template mirrors the Hebrew table geometry closely.
-  ar: {
-    ...HEBREW_LAYOUT,
-    page1: {
-      ...HEBREW_LAYOUT.page1,
-      companyName: { x: 95, y: 738, width: 130, height: 12 },
-      heightValidUntil: { x: 318, y: 712, width: 82, height: 11 },
-      employeeName: { x: 318, y: 680, width: 155, height: 14 },
-      employeeId: { x: 348, y: 652, width: 138, height: 18 },
-      jobTitle: { x: 318, y: 626, width: 155, height: 14 },
-      instructorName: { x: 72, y: 680, width: 135, height: 14 },
-      siteManagerName: { x: 72, y: 652, width: 135, height: 14 },
-      instructorSignature: { x: 78, y: 608, width: 155, height: 40 },
-    },
-  },
+  ar: HEBREW_LAYOUT,
 };
 
 function layoutFor(language: ConstructionInductionLanguage): InductionStampLayout {
@@ -103,15 +94,13 @@ function formatDisplayDate(iso?: string): string {
   return `${m[3]}/${m[2]}/${m[1]}`;
 }
 
-/** Rasterize text so Hebrew/Arabic render correctly without embedding a PDF font. */
+/** Same text rasterizer used for trade-risk (no backdrop / no canvas direction hacks). */
 async function textToPng(options: {
   text: string;
   widthPt: number;
   heightPt: number;
   fontSize: number;
-  align: 'left' | 'right' | 'center';
-  /** Paint a soft white plate so text stays readable over the form grid. */
-  backdrop?: boolean;
+  align?: 'left' | 'right' | 'center';
 }): Promise<Uint8Array> {
   const scale = 3;
   const canvas = requireBrowserCanvas();
@@ -121,21 +110,19 @@ async function textToPng(options: {
   if (!ctx) throw new Error('Canvas unavailable');
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   ctx.clearRect(0, 0, options.widthPt, options.heightPt);
-  if (options.backdrop !== false) {
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.fillRect(0, 0, options.widthPt, options.heightPt);
-  }
   ctx.fillStyle = '#111111';
   ctx.font = `600 ${options.fontSize}px Heebo, Arial, sans-serif`;
-  ctx.direction = options.align === 'left' ? 'ltr' : 'rtl';
-  ctx.textAlign = options.align;
+  const align = options.align ?? 'right';
+  ctx.textAlign = align;
   ctx.textBaseline = 'middle';
-  const x = options.align === 'right'
-    ? options.widthPt - 3
-    : options.align === 'left'
-      ? 3
-      : options.widthPt / 2;
-  ctx.fillText(options.text, x, options.heightPt / 2 + 0.5, options.widthPt - 6);
+  const pad = options.widthPt > 20 ? 3 : 0.5;
+  const x = align === 'right' ? options.widthPt - pad : align === 'left' ? pad : options.widthPt / 2;
+  // Avoid tiny maxWidth on digit boxes — it skews glyph centering.
+  if (options.widthPt > 20) {
+    ctx.fillText(options.text, x, options.heightPt / 2, options.widthPt - pad * 2);
+  } else {
+    ctx.fillText(options.text, x, options.heightPt / 2);
+  }
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((value) => (value ? resolve(value) : reject(new Error('PNG encode failed'))), 'image/png');
   });
@@ -148,6 +135,21 @@ async function dataUrlToBytes(dataUrl: string): Promise<Uint8Array> {
   return new Uint8Array(await response.arrayBuffer());
 }
 
+function coverPrintedPlaceholder(
+  page: ReturnType<PDFDocument['getPages']>[number],
+  box: Rect,
+): void {
+  // Hide template underscores / date masks so stamped values read cleanly.
+  page.drawRectangle({
+    x: box.x,
+    y: box.y,
+    width: box.width,
+    height: box.height,
+    color: rgb(1, 1, 1),
+    borderWidth: 0,
+  });
+}
+
 async function stampText(
   pdfDoc: PDFDocument,
   page: ReturnType<PDFDocument['getPages']>[number],
@@ -155,9 +157,13 @@ async function stampText(
   box: Rect,
   align: 'left' | 'right' | 'center',
   fontSize: number,
+  options?: { cover?: boolean; coverBox?: Rect },
 ): Promise<void> {
   const value = (text || '').trim();
   if (!value) return;
+  if (options?.cover || options?.coverBox) {
+    coverPrintedPlaceholder(page, options.coverBox ?? box);
+  }
   const png = await textToPng({
     text: value,
     widthPt: box.width,
@@ -166,6 +172,28 @@ async function stampText(
     align,
   });
   page.drawImage(await pdfDoc.embedPng(png), box);
+}
+
+async function stampIdDigits(
+  pdfDoc: PDFDocument,
+  page: ReturnType<PDFDocument['getPages']>[number],
+  idNumber: string | undefined,
+  centers: readonly number[],
+  y: number,
+  height: number,
+): Promise<void> {
+  const digits = (idNumber || '').replace(/\D/g, '').slice(0, centers.length);
+  if (!digits) return;
+  for (let i = 0; i < digits.length; i += 1) {
+    await stampText(
+      pdfDoc,
+      page,
+      digits[i],
+      { x: centers[i] - 5.5, y, width: 11, height },
+      'center',
+      10,
+    );
+  }
 }
 
 async function stampSignature(
@@ -179,7 +207,7 @@ async function stampSignature(
   const image = signatureDataUrl.includes('image/jpeg')
     ? await pdfDoc.embedJpg(bytes)
     : await pdfDoc.embedPng(bytes);
-  const pad = 3;
+  const pad = 2;
   const maxW = box.width - pad * 2;
   const maxH = box.height - pad * 2;
   const scale = Math.min(maxW / image.width, maxH / image.height);
@@ -207,7 +235,6 @@ export async function buildSignedInductionPdfFile(options: {
   const layout = layoutFor(options.document.code);
   const page1 = pages[0];
   const pageLast = pages[pages.length - 1];
-  const align = layout.align;
 
   const signerName = (options.assignment.signerName || options.assignment.employeeName || '').trim();
   const signerId = (options.assignment.signerIdNumber || options.assignment.employeeIdNumber || '').trim();
@@ -218,20 +245,35 @@ export async function buildSignedInductionPdfFile(options: {
   const heightDate = formatDisplayDate(options.assignment.heightTrainingValidUntil);
   const signatureDataUrl = options.assignment.signatureDataUrl;
 
-  // ---- Page 1 header tables ----
-  await stampText(pdfDoc, page1, companyName, layout.page1.companyName, align, 9);
-  await stampText(pdfDoc, page1, heightDate, layout.page1.heightValidUntil, 'center', 8);
-  await stampText(pdfDoc, page1, signerName, layout.page1.employeeName, align, 10);
-  await stampText(pdfDoc, page1, signerId, layout.page1.employeeId, 'center', 10);
-  await stampText(pdfDoc, page1, jobTitle, layout.page1.jobTitle, align, 10);
-  await stampText(pdfDoc, page1, instructorName, layout.page1.instructorName, align, 10);
-  await stampText(pdfDoc, page1, siteManagerName, layout.page1.siteManagerName, align, 10);
-  // Instructor signature cell: reuse the employee signature as proof of briefing completion.
+  // Page 1 — header tables
+  await stampText(pdfDoc, page1, companyName, layout.page1.companyName, 'right', 10, {
+    coverBox: { x: 63, y: 732, width: 142, height: 18 },
+  });
+  await stampText(pdfDoc, page1, heightDate, layout.page1.heightValidUntil, 'center', 9, { cover: true });
+  await stampText(pdfDoc, page1, signerName, layout.page1.employeeName, 'right', 10);
+  await stampIdDigits(
+    pdfDoc,
+    page1,
+    signerId,
+    layout.page1.employeeIdDigitCenters,
+    layout.page1.employeeIdY,
+    layout.page1.employeeIdHeight,
+  );
+  await stampText(pdfDoc, page1, jobTitle, layout.page1.jobTitle, 'right', 10);
+  await stampText(pdfDoc, page1, instructorName, layout.page1.instructorName, 'right', 10);
+  await stampText(pdfDoc, page1, siteManagerName, layout.page1.siteManagerName, 'right', 10);
   await stampSignature(pdfDoc, page1, signatureDataUrl, layout.page1.instructorSignature);
 
-  // ---- Last page acknowledgment table ----
-  await stampText(pdfDoc, pageLast, signerName, layout.page2.employeeName, align, 10);
-  await stampText(pdfDoc, pageLast, signerId, layout.page2.employeeId, 'center', 10);
+  // Last page — acknowledgment table
+  await stampText(pdfDoc, pageLast, signerName, layout.page2.employeeName, 'right', 10);
+  await stampIdDigits(
+    pdfDoc,
+    pageLast,
+    signerId,
+    layout.page2.employeeIdDigitCenters,
+    layout.page2.employeeIdY,
+    layout.page2.employeeIdHeight,
+  );
   await stampSignature(pdfDoc, pageLast, signatureDataUrl, layout.page2.signature);
 
   const pdfBytes = await pdfDoc.save();
