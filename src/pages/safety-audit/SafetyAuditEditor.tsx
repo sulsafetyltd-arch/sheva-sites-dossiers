@@ -33,12 +33,13 @@ import {
 import { resizeImageToBlob } from '@/lib/storage-utils';
 import DefectVisionAssist from '@/components/safety/DefectVisionAssist';
 import EducationCatalogPicker from '@/components/safety/EducationCatalogPicker';
+import EducationPhotoAiStep, { type EducationPhotoDraft } from '@/components/safety/EducationPhotoAiStep';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SignaturePad from '@/components/dossier/SignaturePad';
-import { Check, ChevronLeft, ChevronRight, ClipboardCheck, FileText, PenLine, Trash2, TriangleAlert } from 'lucide-react';
+import { Camera, Check, ChevronLeft, ChevronRight, ClipboardCheck, FileText, PenLine, Trash2, TriangleAlert } from 'lucide-react';
 import {
   EDUCATION_KIND_DEFAULT_APPROVALS,
   EDUCATION_KIND_LABELS,
@@ -54,10 +55,10 @@ type DefectVisionState = {
 };
 
 const STEPS = [
-  { label: 'פרטי הדוח', icon: FileText },
-  { label: 'בדיקות', icon: ClipboardCheck },
-  { label: 'ליקויים', icon: TriangleAlert },
-  { label: 'חתימות', icon: PenLine },
+  { id: 'details', label: 'פרטי הדוח', icon: FileText },
+  { id: 'checks', label: 'בדיקות', icon: ClipboardCheck },
+  { id: 'findings', label: 'ליקויים', icon: TriangleAlert },
+  { id: 'signatures', label: 'חתימות', icon: PenLine },
 ] as const;
 
 const SafetyAuditEditor = () => {
@@ -114,14 +115,20 @@ const SafetyAuditEditor = () => {
   const editorSteps = useMemo(
     () => (isEducation
       ? [
-          { label: 'פרטי הדוח', icon: FileText },
-          { label: 'אישורים וסעיפים', icon: ClipboardCheck },
-          { label: 'ממצאים', icon: TriangleAlert },
-          { label: 'חתימות', icon: PenLine },
+          { id: 'details', label: 'פרטי הדוח', icon: FileText },
+          { id: 'photo_ai', label: 'צילום AI', icon: Camera },
+          { id: 'catalog', label: 'מאגר מנחה', icon: ClipboardCheck },
+          { id: 'findings', label: 'ממצאים', icon: TriangleAlert },
+          { id: 'signatures', label: 'חתימות', icon: PenLine },
         ]
-      : STEPS),
+      : [...STEPS]),
     [isEducation],
   );
+  const stepId = editorSteps[step]?.id ?? 'details';
+  const goToStepId = (id: string) => {
+    const index = editorSteps.findIndex((item) => item.id === id);
+    if (index >= 0) setStep(index);
+  };
 
   const applyInstitutionKind = (kind: EducationInstitutionKind) => {
     if (!report) return;
@@ -172,8 +179,44 @@ const SafetyAuditEditor = () => {
       return next;
     });
     setMessage(`נוספו ${created.length} ממצאים מהסעיפים שנבחרו`);
-    setStep(2);
+    goToStepId('findings');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const acceptEducationPhotoFinding = async (
+    draft: EducationPhotoDraft,
+    suggestion: DefectVisionSuggestion,
+  ) => {
+    if (!id) throw new Error('חסר מזהה דוח');
+    const topicKey = suggestion.checklistTopicKey;
+    const created = await createDefect(id, {
+      checklistTopicKey: topicKey,
+      description: suggestion.description,
+      severity: suggestion.severity,
+      correctiveAction: suggestion.correctiveAction,
+      sortOrder: defects.length,
+    });
+    const photo = await addDefectPhoto(created.id, draft.file);
+    setDefects((prev) => (prev.some((item) => item.id === created.id) ? prev : [...prev, created]));
+    setPhotosByDefect((prev) => ({
+      ...prev,
+      [created.id]: [...(prev[created.id] ?? []), photo],
+    }));
+    if (topicKey) {
+      setReport((current) => {
+        if (!current) return current;
+        const selected = new Set(current.domainDetails?.selectedSectionKeys ?? []);
+        selected.add(topicKey);
+        return {
+          ...current,
+          domainDetails: {
+            ...(current.domainDetails ?? {}),
+            selectedSectionKeys: Array.from(selected),
+          },
+        };
+      });
+    }
+    setMessage('הממצא נוסף מהתמונה — ניתן לערוך בשלב הממצאים');
   };
 
   useEffect(() => {
@@ -606,12 +649,12 @@ const SafetyAuditEditor = () => {
           className="sticky z-20 -mx-4 px-4 py-3 bg-slate-50/95 backdrop-blur border-y"
           style={{ top: 'env(safe-area-inset-top)' }}
         >
-          <div className="grid grid-cols-4 gap-1">
+          <div className={`grid gap-1 ${isEducation ? 'grid-cols-5' : 'grid-cols-4'}`}>
             {editorSteps.map((item, index) => {
               const Icon = item.icon;
               return (
                 <button
-                  key={item.label}
+                  key={item.id}
                   type="button"
                   onClick={async () => {
                     if (index === step) return;
@@ -619,12 +662,12 @@ const SafetyAuditEditor = () => {
                     if (saved) setStep(index);
                   }}
                   disabled={saving}
-                  className={`rounded-lg px-1 py-2 min-h-16 text-xs flex flex-col sm:flex-row items-center justify-center gap-1.5 transition touch-manipulation ${
+                  className={`rounded-lg px-1 py-2 min-h-16 text-[10px] sm:text-xs flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition touch-manipulation ${
                     step === index ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.label}</span>
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="text-center leading-tight">{item.label}</span>
                 </button>
               );
             })}
@@ -634,7 +677,7 @@ const SafetyAuditEditor = () => {
           </div>
         </nav>
 
-        {step === 0 && (
+        {stepId === 'details' && (
         <>
         {!isProjectReport && (
           <section className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
@@ -951,15 +994,37 @@ const SafetyAuditEditor = () => {
         </>
         )}
 
-        {step === 1 && (
-        <section className="space-y-3">
-          {isEducation ? (
-            !railwayDetails.institutionKind ? (
+        {stepId === 'photo_ai' && isEducation && (
+          <section className="space-y-3">
+            {!railwayDetails.institutionKind ? (
+              <div className="rounded-xl border border-dashed bg-white p-6 text-center space-y-3">
+                <p className="text-sm text-slate-600">
+                  לפני צילום וזיהוי AI יש לבחור סוג מוסד בפרטי הדוח (גן ילדים / בית ספר / פנימייה / כפר נוער).
+                </p>
+                <Button type="button" onClick={() => goToStepId('details')}>חזרה לפרטי הדוח</Button>
+              </div>
+            ) : (
+              <EducationPhotoAiStep
+                details={railwayDetails}
+                defects={defects}
+                onAccept={acceptEducationPhotoFinding}
+                onSkipToCatalog={() => {
+                  goToStepId('catalog');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              />
+            )}
+          </section>
+        )}
+
+        {stepId === 'catalog' && isEducation && (
+          <section className="space-y-3">
+            {!railwayDetails.institutionKind ? (
               <div className="rounded-xl border border-dashed bg-white p-6 text-center space-y-3">
                 <p className="text-sm text-slate-600">
                   לפני בחירת אישורים וסעיפים יש לבחור סוג מוסד בפרטי הדוח (גן ילדים / בית ספר / פנימייה / כפר נוער).
                 </p>
-                <Button type="button" onClick={() => setStep(0)}>חזרה לפרטי הדוח</Button>
+                <Button type="button" onClick={() => goToStepId('details')}>חזרה לפרטי הדוח</Button>
               </div>
             ) : (
               <EducationCatalogPicker
@@ -968,93 +1033,112 @@ const SafetyAuditEditor = () => {
                 onDetailsChange={setRailwayDetails}
                 onAddFindings={addEducationFindings}
               />
-            )
-          ) : (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : isRailway ? 'טבלת בדיקה — רכבת ישראל' : isBuildingSurvey ? 'סעיפי סקר בטיחות המבנה' : '3. רשימת בדיקה'}</h2>
-                  <div className="text-xs text-slate-500">{completedChecks} מתוך {topics.length} בדיקות הושלמו</div>
-                </div>
-                <div className="text-sm font-medium text-emerald-700">{topics.length ? Math.round((completedChecks / topics.length) * 100) : 0}%</div>
-              </div>
-              {hasChapteredChecklist && (
-                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-                  {chapters.map((chapter) => (
-                    <Button
-                      key={chapter}
-                      type="button"
-                      size="sm"
-                      variant={currentChapter === chapter ? 'default' : 'outline'}
-                      className="shrink-0"
-                      onClick={() => setActiveChapter(chapter)}
-                    >
-                      {chapter}
-                    </Button>
-                  ))}
-                </div>
-              )}
-              {visibleTopics.map((t) => {
-                const idx = topics.findIndex((topic) => topic.key === t.key);
-                const current = report.checklist?.[t.key] ?? { status: 'na' as ChecklistStatus };
-                return (
-                  <div key={t.key} className={`rounded-xl border bg-white p-3 space-y-2 shadow-sm ${current.status === 'not_ok' ? 'border-red-300' : ''}`}>
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="text-xs text-slate-400">{idx + 1}.</span>
-                      {t.chapter && <span className="text-xs rounded bg-slate-100 px-2 py-0.5 text-slate-600">{t.chapter}</span>}
-                      <div className="font-medium">{t.title}</div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant={current.status === 'ok' ? 'default' : 'secondary'} onClick={() => setChecklist(t.key, { status: 'ok' })}>
-                        תקין
-                      </Button>
-                      <Button size="sm" variant={current.status === 'not_ok' ? 'destructive' : 'secondary'} onClick={() => void markNotOk(t.key)}>
-                        לא תקין
-                      </Button>
-                      {!isConstruction && (
-                        <Button size="sm" variant={current.status === 'na' ? 'default' : 'secondary'} onClick={() => setChecklist(t.key, { status: 'na' })}>
-                          לא רלוונטי
-                        </Button>
-                      )}
-                    </div>
-                    {isConstruction && current.status === 'not_ok' && (
-                      <>
-                        <Textarea dir="rtl" placeholder="ממצאים והמלצות לביצוע" value={current.findings ?? ''} onChange={(e) => setChecklist(t.key, { findings: e.target.value })} />
-                        <Input dir="rtl" placeholder="אחראי ליישום המלצה" value={current.responsible ?? ''} onChange={(e) => setChecklist(t.key, { responsible: e.target.value })} />
-                      </>
-                    )}
-                    {current.status === 'not_ok' && (
-                      <Textarea dir="rtl" placeholder="הערות נוספות (אופציונלי)" value={current.notes ?? ''} onChange={(e) => setChecklist(t.key, { notes: e.target.value })} />
-                    )}
-                  </div>
-                );
-              })}
-            </>
+            )}
+          </section>
+        )}
+
+        {stepId === 'checks' && !isEducation && (
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : isRailway ? 'טבלת בדיקה — רכבת ישראל' : isBuildingSurvey ? 'סעיפי סקר בטיחות המבנה' : '3. רשימת בדיקה'}</h2>
+              <div className="text-xs text-slate-500">{completedChecks} מתוך {topics.length} בדיקות הושלמו</div>
+            </div>
+            <div className="text-sm font-medium text-emerald-700">{topics.length ? Math.round((completedChecks / topics.length) * 100) : 0}%</div>
+          </div>
+          {hasChapteredChecklist && (
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+              {chapters.map((chapter) => (
+                <Button
+                  key={chapter}
+                  type="button"
+                  size="sm"
+                  variant={currentChapter === chapter ? 'default' : 'outline'}
+                  className="shrink-0"
+                  onClick={() => setActiveChapter(chapter)}
+                >
+                  {chapter}
+                </Button>
+              ))}
+            </div>
           )}
+          {visibleTopics.map((t) => {
+            const idx = topics.findIndex((topic) => topic.key === t.key);
+            const current = report.checklist?.[t.key] ?? { status: 'na' as ChecklistStatus };
+            return (
+              <div key={t.key} className={`rounded-xl border bg-white p-3 space-y-2 shadow-sm ${current.status === 'not_ok' ? 'border-red-300' : ''}`}>
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="text-xs text-slate-400">{idx + 1}.</span>
+                  {t.chapter && <span className="text-xs rounded bg-slate-100 px-2 py-0.5 text-slate-600">{t.chapter}</span>}
+                  <div className="font-medium">{t.title}</div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant={current.status === 'ok' ? 'default' : 'secondary'} onClick={() => setChecklist(t.key, { status: 'ok' })}>
+                    תקין
+                  </Button>
+                  <Button size="sm" variant={current.status === 'not_ok' ? 'destructive' : 'secondary'} onClick={() => void markNotOk(t.key)}>
+                    לא תקין
+                  </Button>
+                  {!isConstruction && (
+                    <Button size="sm" variant={current.status === 'na' ? 'default' : 'secondary'} onClick={() => setChecklist(t.key, { status: 'na' })}>
+                      לא רלוונטי
+                    </Button>
+                  )}
+                </div>
+                {isConstruction && current.status === 'not_ok' && (
+                  <>
+                    <Textarea dir="rtl" placeholder="ממצאים והמלצות לביצוע" value={current.findings ?? ''} onChange={(e) => setChecklist(t.key, { findings: e.target.value })} />
+                    <Input dir="rtl" placeholder="אחראי ליישום המלצה" value={current.responsible ?? ''} onChange={(e) => setChecklist(t.key, { responsible: e.target.value })} />
+                  </>
+                )}
+                {current.status === 'not_ok' && (
+                  <Textarea dir="rtl" placeholder="הערות נוספות (אופציונלי)" value={current.notes ?? ''} onChange={(e) => setChecklist(t.key, { notes: e.target.value })} />
+                )}
+              </div>
+            );
+          })}
         </section>
         )}
 
-        {step === 2 && (
+        {stepId === 'findings' && (
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold">{isConstruction ? 'ליקויים ותיעוד צילומי' : isRailway ? 'ריכוז ליקויים מביקור נוכחי' : isBuildingSurvey ? 'ממצאים והערות לסקר המבנה' : isEducation ? 'פירוט הממצאים לפי קדימות טיפול' : '4. ליקויים ופעולות מתקנות'}</h2>
-            <Button
-              size="sm"
-              onClick={() => {
-                if (isEducation) {
-                  setStep(1);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                  return;
-                }
-                void addDefect();
-              }}
-            >
-              {isEducation ? 'בחירת סעיפים נוספים' : 'הוסף ליקוי'}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {isEducation && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    goToStepId('photo_ai');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                >
+                  צילום AI
+                </Button>
+              )}
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (isEducation) {
+                    goToStepId('catalog');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                  }
+                  void addDefect();
+                }}
+              >
+                {isEducation ? 'בחירה מהמאגר' : 'הוסף ליקוי'}
+              </Button>
+            </div>
           </div>
           {isEducation && defects.length === 0 && (
-            <div className="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-slate-500">
-              עדיין אין ממצאים. עברו לאישורים וסעיפים ובחרו סעיפים ספציפיים מתוך הפרקים הרלוונטיים.
+            <div className="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-slate-500 space-y-3">
+              <p>עדיין אין ממצאים. צלמו תמונה לזיהוי AI, או בחרו סעיפים מהמאגר המנחה.</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button type="button" size="sm" onClick={() => goToStepId('photo_ai')}>צילום וזיהוי AI</Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => goToStepId('catalog')}>מאגר מנחה</Button>
+              </div>
             </div>
           )}
           {defects.map((d, idx) => (
@@ -1195,7 +1279,7 @@ const SafetyAuditEditor = () => {
         </section>
         )}
 
-        {step === 3 && (
+        {stepId === 'signatures' && (
         <section className="rounded-xl border bg-white p-4 space-y-4 shadow-sm">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <PenLine className="w-5 h-5" />
@@ -1245,7 +1329,7 @@ const SafetyAuditEditor = () => {
             <Button
               className="flex-1 sm:flex-none gap-1"
               onClick={async () => {
-                if (isEducation && step === 0 && !railwayDetails.institutionKind) {
+                if (isEducation && stepId === 'details' && !railwayDetails.institutionKind) {
                   setError('יש לבחור סוג מוסד (גן ילדים / בית ספר / פנימייה / כפר נוער)');
                   return;
                 }
