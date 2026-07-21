@@ -1,13 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  EDUCATION_VISION_HAZARD_CATEGORIES,
   VISION_HAZARD_CATEGORIES,
+  buildVisionPrompt,
   formatVisionApiError,
   getVisionApiKeys,
+  getVisionHazardCategories,
   hasVisionModelConfigured,
   looksLikeGeminiApiKey,
   saveVisionApiKeys,
   sanitizeVisionApiKey,
   suggestionFromHazardCategory,
+  topicsForVisionPrompt,
   visionSourceLabel,
 } from '@/lib/safety-defect-vision';
 import { getChecklistTopics } from '@/types/safety-audit';
@@ -66,5 +70,26 @@ describe('safety defect vision assist', () => {
     expect(VISION_HAZARD_CATEGORIES.length).toBeGreaterThanOrEqual(8);
     expect(VISION_HAZARD_CATEGORIES.some((entry) => entry.id === 'electrical')).toBe(true);
     expect(VISION_HAZARD_CATEGORIES.some((entry) => entry.id === 'work_at_height')).toBe(true);
+  });
+
+  it('uses MoE education prompt and hazard categories for institution audits', () => {
+    expect(getVisionHazardCategories('education_institution')).toBe(EDUCATION_VISION_HAZARD_CATEGORIES);
+    expect(EDUCATION_VISION_HAZARD_CATEGORIES.some((entry) => entry.id === 'ed_playground')).toBe(true);
+
+    const topics = topicsForVisionPrompt('education_institution', {
+      institutionKind: 'kindergarten',
+      preferredTopicKeys: ['ed_s_3_1'],
+    });
+    expect(topics[0]?.key).toBe('ed_s_3_1');
+    expect(topics.length).toBeLessThanOrEqual(90);
+
+    const prompt = buildVisionPrompt('education_institution', topics, {
+      institutionKind: 'kindergarten',
+    });
+    expect(prompt).toContain('משרד החינוך');
+    expect(prompt).toContain('גן ילדים');
+    expect(prompt).toContain('קדימות 0');
+    expect(prompt).toContain('קדימות 1');
+    expect(prompt).toContain('קדימות 2');
   });
 });

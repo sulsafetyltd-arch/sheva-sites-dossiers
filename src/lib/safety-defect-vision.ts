@@ -1,5 +1,7 @@
+import type { EducationInstitutionKind } from '@/data/education-moe-catalog';
+import { EDUCATION_KIND_LABELS, educationSectionsForKind } from '@/data/education-moe-catalog';
 import type { ChecklistTopic, DefectSeverity, ReportType } from '@/types/safety-audit';
-import { getChecklistTopics } from '@/types/safety-audit';
+import { getChecklistTopics, reportTypeLabel } from '@/types/safety-audit';
 
 const OPENAI_KEY_STORAGE = 'safety_defect_vision_openai_key_v1';
 const GEMINI_KEY_STORAGE = 'safety_defect_vision_gemini_key_v1';
@@ -126,6 +128,111 @@ export const VISION_HAZARD_CATEGORIES: VisionHazardCategory[] = [
   },
 ];
 
+/** Education-institution hazards for local assist (MoE guiding checklist context). */
+export const EDUCATION_VISION_HAZARD_CATEGORIES: VisionHazardCategory[] = [
+  {
+    id: 'ed_playground',
+    label: 'מתקני משחק',
+    description: 'מתקן משחק פגום / בסיס רך חסר / ברגים בולטים / סיכון נפילה',
+    severity: 'high',
+    correctiveAction: 'להוציא את המתקן משימוש עד תיקון ובדיקה ע״י בודק מוסמך לפי ת״י 1498',
+    topicHints: ['משחק', 'מתקנ', 'חצר', 'נדנד', 'מגלש'],
+  },
+  {
+    id: 'ed_fence_gate',
+    label: 'גדר / שער',
+    description: 'גדר או שער פגומים / פתח לא מאובטח / אפשרות יציאה בלתי מבוקרת',
+    severity: 'high',
+    correctiveAction: 'לתקן/להשלים גידור ושערים ולמנוע גישה ויציאה בלתי מבוקרת של ילדים',
+    topicHints: ['גדר', 'שער', 'גידור', 'היקפ'],
+  },
+  {
+    id: 'ed_railings',
+    label: 'מעקות / מדרגות',
+    description: 'מעקה חסר/רופף במדרגות, מרפסת או מפלס גבוה',
+    severity: 'high',
+    correctiveAction: 'לתקן או להתקין מעקה תקני ולמנוע שימוש במפלס עד להשלמת התיקון',
+    topicHints: ['מעק', 'מדרג', 'גרם', 'מרפס'],
+  },
+  {
+    id: 'ed_glass',
+    label: 'זיגוג / חלונות',
+    description: 'זכוכית שבורה / חלון לא מאובטח / סכנת פגיעה מתלמידים',
+    severity: 'medium',
+    correctiveAction: 'לתקן/להחליף זיגוג ולהבטיח אבטחת חלונות לפי הנחיות משרד החינוך',
+    topicHints: ['חלון', 'זכוכ', 'זיגוג', 'זכוכית'],
+  },
+  {
+    id: 'ed_electrical',
+    label: 'חשמל במוסד',
+    description: 'לוח חשמל פתוח / כבלים חשופים / שקעים פגומים בסביבת ילדים',
+    severity: 'high',
+    correctiveAction: 'להפסיק שימוש, לגדר/לנעול לוחות ולבצע תיקון ע״י חשמלאי מוסמך עם אישור בתוקף',
+    topicHints: ['חשמל', 'לוח', 'שקע', 'כבל'],
+  },
+  {
+    id: 'ed_fire',
+    label: 'כיבוי אש',
+    description: 'מטף חסר/חסום/לא בתוקף או דרך מילוט חסומה',
+    severity: 'high',
+    correctiveAction: 'לוודא ציוד כיבוי בתוקף, גישה חופשית ודרכי מילוט פנויות בכל עת',
+    topicHints: ['אש', 'כיבוי', 'מטף', 'מילוט'],
+  },
+  {
+    id: 'ed_shelter',
+    label: 'מקלט / חירום',
+    description: 'מקלט לא תקין / ציוד חירום חסר / דרך גישה חסומה',
+    severity: 'medium',
+    correctiveAction: 'לפנות דרכי גישה למקלט ולהשלים ציוד ומוכנות לפי הנחיות פיקוד העורף/משרד החינוך',
+    topicHints: ['מקלט', 'חירום', 'מיגון'],
+  },
+  {
+    id: 'ed_yard',
+    label: 'חצר / משטחים',
+    description: 'בורות, מפגעי ריצוף, מכשולים או משטח חלק בחצר',
+    severity: 'medium',
+    correctiveAction: 'לתקן את המשטח/לגדר את המפגע ולמנוע גישת תלמידים עד להשלמת הטיפול',
+    topicHints: ['חצר', 'ריצוף', 'בור', 'משטח', 'מדרכה'],
+  },
+  {
+    id: 'ed_trees',
+    label: 'עצים / ענפים',
+    description: 'ענפים שבורים / עץ לא יציב מעל אזור פעילות תלמידים',
+    severity: 'medium',
+    correctiveAction: 'לגזום/לייצב ע״י אגרונום או גוזם מוסמך ולמנוע שהייה תחת העץ עד לטיפול',
+    topicHints: ['עץ', 'ענף', 'גיזום', 'צמח'],
+  },
+  {
+    id: 'ed_kitchen',
+    label: 'מטבח / חדר אוכל',
+    description: 'ליקוי בטיחות במטבח/חדר אוכל — גז, ציוד, החלקה או היגיינה מסוכנת',
+    severity: 'medium',
+    correctiveAction: 'לתקן את המפגע, לוודא אישורי גז/חשמל בתוקף ולמנוע שימוש עד להשלמה',
+    topicHints: ['מטבח', 'אוכל', 'גז', 'כיריים'],
+  },
+  {
+    id: 'ed_classroom',
+    label: 'כיתה / ריהוט',
+    description: 'ריהוט לא יציב / מדפים לא מאובטחים / עומס אחסון מסוכן בכיתה',
+    severity: 'medium',
+    correctiveAction: 'לייצב/לאבטח ריהוט ומדפים ולהסיר עומסים מסוכנים מעל ראשי תלמידים',
+    topicHints: ['כית', 'ריהוט', 'מדף', 'ארון', 'שולחן'],
+  },
+  {
+    id: 'ed_sports',
+    label: 'ספורט / אולם',
+    description: 'מתקן ספורט פגום / סל לא מאובטח / רצפה חלקה באולם',
+    severity: 'medium',
+    correctiveAction: 'להוציא מתקן פגום משימוש ולבצע בדיקה/תיקון לפי ת״י 5515',
+    topicHints: ['ספורט', 'אולם', 'סל', 'מגרש'],
+  },
+];
+
+export function getVisionHazardCategories(reportType?: ReportType): VisionHazardCategory[] {
+  if (reportType === 'education_institution') return EDUCATION_VISION_HAZARD_CATEGORIES;
+  return VISION_HAZARD_CATEGORIES;
+}
+
 /** Strip common copy/paste noise from API keys. */
 export function sanitizeVisionApiKey(raw: string | undefined | null): string {
   if (!raw) return '';
@@ -229,7 +336,10 @@ export async function blobToBase64(blob: Blob): Promise<string> {
 }
 
 function normalizeSeverity(value: unknown): DefectSeverity {
-  const text = String(value || '').toLowerCase();
+  const text = String(value || '').toLowerCase().trim();
+  if (text.includes('קדימות 0') || text === '0') return 'high';
+  if (text.includes('קדימות 1') || text.includes('priority 1')) return 'medium';
+  if (text.includes('קדימות 2') || text.includes('priority 2')) return 'low';
   if (text.includes('high') || text.includes('גבוה') || text === '3') return 'high';
   if (text.includes('low') || text.includes('נמוכ') || text === '1') return 'low';
   return 'medium';
@@ -262,11 +372,26 @@ function matchTopicKey(
   const key = String(suggestedKey || '').trim();
   if (key && topics.some((topic) => topic.key === key)) return key;
 
-  const haystack = `${hazardLabel} ${description}`.toLowerCase();
+  // Education section codes like "3.1" / "5.21" may be returned by the model
+  const codeMatch = key.match(/\d+\.\d+/);
+  if (codeMatch) {
+    const code = codeMatch[0];
+    const expectedKey = `ed_s_${code.replace(/\./g, '_')}`;
+    const byCode = topics.find((topic) =>
+      topic.key === expectedKey
+      || topic.title.startsWith(`${code} `)
+      || topic.title.startsWith(`${code} —`)
+      || topic.title.startsWith(`${code} -`),
+    );
+    if (byCode) return byCode.key;
+  }
+
+  const haystack = `${hazardLabel} ${description} ${key}`.toLowerCase();
   const scored = topics
     .map((topic) => {
       const title = topic.title.toLowerCase();
-      const words = title.split(/[\s,/–—-]+/).filter((word) => word.length >= 3);
+      const chapter = (topic.chapter || '').toLowerCase();
+      const words = `${title} ${chapter}`.split(/[\s,/–—.-]+/).filter((word) => word.length >= 3);
       const hits = words.filter((word) => haystack.includes(word)).length;
       return { key: topic.key, hits };
     })
@@ -274,6 +399,94 @@ function matchTopicKey(
     .sort((a, b) => b.hits - a.hits);
 
   return scored[0]?.key;
+}
+
+export type VisionAnalyzeContext = {
+  institutionKind?: EducationInstitutionKind | null;
+  preferredTopicKeys?: string[];
+};
+
+/** Build a compact topic list for the vision model (education has 400+ sections). */
+export function topicsForVisionPrompt(
+  reportType: ReportType,
+  context?: VisionAnalyzeContext,
+): ChecklistTopic[] {
+  const all = getChecklistTopics(reportType);
+  if (reportType !== 'education_institution') return all;
+
+  const preferred = new Set((context?.preferredTopicKeys ?? []).filter(Boolean));
+  const kindKeys = new Set(
+    educationSectionsForKind(context?.institutionKind).map((section) => section.key),
+  );
+
+  const preferredTopics = all.filter((topic) => preferred.has(topic.key));
+  const kindTopics = all.filter((topic) => kindKeys.has(topic.key) && !preferred.has(topic.key));
+  const rest = all.filter((topic) => !preferred.has(topic.key) && !kindKeys.has(topic.key));
+
+  // Prefer selected + kind-relevant sections; keep prompt under a usable size
+  return [...preferredTopics, ...kindTopics, ...rest].slice(0, 90);
+}
+
+/** Exported for tests — Hebrew MoE-aware prompt for education, site prompt otherwise. */
+export function buildVisionPrompt(
+  reportType: ReportType,
+  topics: ChecklistTopic[],
+  context?: VisionAnalyzeContext,
+): string {
+  const topicLines = topics
+    .slice(0, 90)
+    .map((topic) => `- ${topic.key}: ${topic.chapter ? `${topic.chapter} · ` : ''}${topic.title}`)
+    .join('\n');
+
+  if (reportType === 'education_institution') {
+    const kindLabel = context?.institutionKind
+      ? EDUCATION_KIND_LABELS[context.institutionKind]
+      : 'לא צוין';
+    return [
+      'אתה עורך מבדק בטיחות במוסד חינוך בישראל לפי הרשימה המנחה של משרד החינוך (ספטמבר 2025).',
+      'נתח את תמונת המוסד וזהה מפגע/ליקוי בטיחות עיקרי אחד בלבד (חצר, כיתה, מבנה, מתקנים, חשמל, כיבוי אש וכו׳).',
+      'זו הצעה מסייעת בלבד — לא קביעה סופית. אם התמונה לא ברורה ציין confidence נמוך.',
+      `סוג הדוח: ${reportTypeLabel(reportType)}`,
+      `סוג המוסד: ${kindLabel}`,
+      'דרג לפי סולם קדימויות משרד החינוך באמצעות השדה severity:',
+      '- high = קדימות 0 — מפגע חמור המחייב סגירה מיידית של המקום',
+      '- medium = קדימות 1 — מפגע המחייב הסרה מיידית',
+      '- low = קדימות 2 — ליקוי לטיפול בתכנית עבודה',
+      'בתיאור ציין בקצרה את מהות הממצא ומיקומו הנראה בתמונה.',
+      'בפעולה המתקנת כתוב המלצה מעשית לרשות/למוסד בעברית.',
+      'אם אפשר, קשר ל-checklistTopicKey מסעיפי המאגר המנחה למטה (מפתח מדויק או מספר סעיף).',
+      'החזר JSON בלבד במבנה הזה:',
+      '{',
+      '  "hazardLabel": "שם קצר של הליקוי בעברית",',
+      '  "description": "תיאור מקצועי קצר בעברית לטופס המבדק (מהות ומיקום)",',
+      '  "severity": "high|medium|low",',
+      '  "correctiveAction": "המלצה/פעולה מתקנת בעברית",',
+      '  "checklistTopicKey": "מפתח סעיף מהרשימה או ריק",',
+      '  "confidence": "high|medium|low",',
+      '  "rationale": "משפט קצר למה זו ההצעה"',
+      '}',
+      'סעיפי מאגר מנחה אפשריים:',
+      topicLines,
+    ].join('\n');
+  }
+
+  return [
+    'אתה ממונה בטיחות ישראלי מסייע. נתח את תמונת אתר העבודה וזהה ליקוי בטיחות עיקרי אחד בלבד.',
+    'זו הצעה מסייעת בלבד — לא קביעה סופית. אם התמונה לא ברורה ציין confidence נמוך.',
+    `סוג הדוח: ${reportTypeLabel(reportType)} (${reportType})`,
+    'החזר JSON בלבד במבנה הזה:',
+    '{',
+    '  "hazardLabel": "שם קצר של הליקוי בעברית",',
+    '  "description": "תיאור מקצועי קצר בעברית לטופס הביקורת",',
+    '  "severity": "high|medium|low",',
+    '  "correctiveAction": "המלצה/פעולה מתקנת בעברית",',
+    '  "checklistTopicKey": "מפתח נושא מהרשימה או ריק",',
+    '  "confidence": "high|medium|low",',
+    '  "rationale": "משפט קצר למה זו ההצעה"',
+    '}',
+    'נושאי צ׳קליסט אפשריים:',
+    topicLines,
+  ].join('\n');
 }
 
 function suggestionFromModelPayload(
@@ -302,37 +515,13 @@ function suggestionFromModelPayload(
   };
 }
 
-function buildVisionPrompt(reportType: ReportType, topics: ChecklistTopic[]): string {
-  const topicLines = topics
-    .slice(0, 60)
-    .map((topic) => `- ${topic.key}: ${topic.title}`)
-    .join('\n');
-
-  return [
-    'אתה ממונה בטיחות ישראלי מסייע. נתח את תמונת אתר העבודה וזהה ליקוי בטיחות עיקרי אחד בלבד.',
-    'זו הצעה מסייעת בלבד — לא קביעה סופית. אם התמונה לא ברורה ציין confidence נמוך.',
-    `סוג הדוח: ${reportType}`,
-    'החזר JSON בלבד במבנה הזה:',
-    '{',
-    '  "hazardLabel": "שם קצר של הליקוי בעברית",',
-    '  "description": "תיאור מקצועי קצר בעברית לטופס הביקורת",',
-    '  "severity": "high|medium|low",',
-    '  "correctiveAction": "המלצה/פעולה מתקנת בעברית",',
-    '  "checklistTopicKey": "מפתח נושא מהרשימה או ריק",',
-    '  "confidence": "high|medium|low",',
-    '  "rationale": "משפט קצר למה זו ההצעה"',
-    '}',
-    'נושאי צ׳קליסט אפשריים:',
-    topicLines,
-  ].join('\n');
-}
-
 async function analyzeWithOpenAi(
   base64: string,
   mimeType: string,
   apiKey: string,
   reportType: ReportType,
   topics: ChecklistTopic[],
+  context?: VisionAnalyzeContext,
 ): Promise<DefectVisionSuggestion> {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -348,7 +537,7 @@ async function analyzeWithOpenAi(
         {
           role: 'user',
           content: [
-            { type: 'text', text: buildVisionPrompt(reportType, topics) },
+            { type: 'text', text: buildVisionPrompt(reportType, topics, context) },
             {
               type: 'image_url',
               image_url: {
@@ -397,12 +586,13 @@ async function analyzeWithGemini(
   apiKey: string,
   reportType: ReportType,
   topics: ChecklistTopic[],
+  context?: VisionAnalyzeContext,
 ): Promise<DefectVisionSuggestion> {
   const body = {
     contents: [
       {
         parts: [
-          { text: buildVisionPrompt(reportType, topics) },
+          { text: buildVisionPrompt(reportType, topics, context) },
           { inline_data: { mime_type: mimeType || 'image/jpeg', data: base64 } },
         ],
       },
@@ -463,9 +653,15 @@ export async function analyzeDefectPhoto(options: {
   image: Blob;
   reportType?: ReportType;
   mimeType?: string;
+  institutionKind?: EducationInstitutionKind | null;
+  preferredTopicKeys?: string[];
 }): Promise<DefectVisionSuggestion> {
   const reportType = options.reportType ?? 'workplace';
-  const topics = getChecklistTopics(reportType);
+  const context: VisionAnalyzeContext = {
+    institutionKind: options.institutionKind,
+    preferredTopicKeys: options.preferredTopicKeys,
+  };
+  const topics = topicsForVisionPrompt(reportType, context);
   const mimeType = options.mimeType || options.image.type || 'image/jpeg';
   const base64 = await blobToBase64(options.image);
   const keys = getVisionApiKeys();
@@ -473,10 +669,10 @@ export async function analyzeDefectPhoto(options: {
   const openai = sanitizeVisionApiKey(keys.openai);
 
   if (gemini) {
-    return analyzeWithGemini(base64, mimeType, gemini, reportType, topics);
+    return analyzeWithGemini(base64, mimeType, gemini, reportType, topics, context);
   }
   if (openai) {
-    return analyzeWithOpenAi(base64, mimeType, openai, reportType, topics);
+    return analyzeWithOpenAi(base64, mimeType, openai, reportType, topics, context);
   }
 
   throw new Error('VISION_KEY_MISSING');

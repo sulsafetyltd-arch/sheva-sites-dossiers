@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Check, Loader2, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { ChecklistTopic, DefectSeverity } from '@/types/safety-audit';
+import type { ChecklistTopic, ReportType } from '@/types/safety-audit';
+import { defectSeverityLabel } from '@/types/safety-audit';
 import {
-  VISION_HAZARD_CATEGORIES,
   getVisionApiKeys,
+  getVisionHazardCategories,
   hasVisionModelConfigured,
   looksLikeGeminiApiKey,
   saveVisionApiKeys,
@@ -15,12 +16,6 @@ import {
   type DefectVisionSuggestion,
 } from '@/lib/safety-defect-vision';
 
-const severityLabel: Record<DefectSeverity, string> = {
-  high: 'גבוהה',
-  medium: 'בינונית',
-  low: 'נמוכה',
-};
-
 const confidenceLabel: Record<DefectVisionSuggestion['confidence'], string> = {
   high: 'גבוה',
   medium: 'בינוני',
@@ -29,6 +24,7 @@ const confidenceLabel: Record<DefectVisionSuggestion['confidence'], string> = {
 
 type Props = {
   topics: ChecklistTopic[];
+  reportType?: ReportType;
   suggestion?: DefectVisionSuggestion | null;
   analyzing?: boolean;
   error?: string | null;
@@ -40,6 +36,7 @@ type Props = {
 
 export default function DefectVisionAssist({
   topics,
+  reportType,
   suggestion,
   analyzing = false,
   error = null,
@@ -58,6 +55,8 @@ export default function DefectVisionAssist({
 
   const refreshConfigured = () => setConfigured(hasVisionModelConfigured());
   const showLocalAssist = !suggestion && (!configured || Boolean(error));
+  const isEducation = reportType === 'education_institution';
+  const hazardCategories = getVisionHazardCategories(reportType);
 
   useEffect(() => {
     if (error && /מפתח|הרשאה|Gemini|OpenAI/i.test(error)) {
@@ -86,7 +85,7 @@ export default function DefectVisionAssist({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium text-amber-950">
           <Sparkles className="h-4 w-4" />
-          זיהוי ליקוי מסייע מתמונה
+          {isEducation ? 'זיהוי וניתוח ממצא מתמונה (AI)' : 'זיהוי ליקוי מסייע מתמונה'}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -121,7 +120,9 @@ export default function DefectVisionAssist({
       </div>
 
       <p className="text-xs text-amber-900/80">
-        הצעה מסייעת בלבד — הממונה מאשר/עורך לפני שמירה. לא מחליף שיקול דעת מקצועי בשטח.
+        {isEducation
+          ? 'המודל מנתח לפי הרשימה המנחה של משרד החינוך ומציע תיאור, קדימות טיפול ופעולה מתקנת — הבודק מאשר/עורך לפני שמירה.'
+          : 'הצעה מסייעת בלבד — הממונה מאשר/עורך לפני שמירה. לא מחליף שיקול דעת מקצועי בשטח.'}
       </p>
 
       {showKeySetup && (
@@ -195,7 +196,7 @@ export default function DefectVisionAssist({
               : 'או בחרו מה נראה בתמונה (סיוע מקומי):'}
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {VISION_HAZARD_CATEGORIES.map((category) => (
+            {hazardCategories.map((category) => (
               <Button
                 key={category.id}
                 type="button"
@@ -227,7 +228,8 @@ export default function DefectVisionAssist({
           </div>
           <div className="text-sm">{suggestion.description}</div>
           <div className="text-xs text-slate-600">
-            חומרה מוצעת: <span className="font-medium">{severityLabel[suggestion.severity]}</span>
+            {isEducation ? 'קדימות מוצעת' : 'חומרה מוצעת'}:{' '}
+            <span className="font-medium">{defectSeverityLabel(suggestion.severity, reportType)}</span>
           </div>
           <div className="text-xs text-slate-700">
             <span className="font-medium">פעולה מתקנת: </span>

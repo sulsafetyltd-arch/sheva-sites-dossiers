@@ -27,6 +27,7 @@ import {
 import {
   analyzeDefectPhoto,
   hasVisionModelConfigured,
+  topicsForVisionPrompt,
   type DefectVisionSuggestion,
 } from '@/lib/safety-defect-vision';
 import { resizeImageToBlob } from '@/lib/storage-utils';
@@ -79,6 +80,16 @@ const SafetyAuditEditor = () => {
     () => getChecklistTopics(report?.reportType ?? 'workplace'),
     [report?.reportType]
   );
+  const visionTopics = useMemo(() => {
+    if (report?.reportType !== 'education_institution') return topics;
+    return topicsForVisionPrompt('education_institution', {
+      institutionKind: report.domainDetails?.institutionKind,
+      preferredTopicKeys: [
+        ...(report.domainDetails?.selectedSectionKeys ?? []),
+        ...defects.map((item) => item.checklistTopicKey).filter((key): key is string => Boolean(key)),
+      ],
+    });
+  }, [report?.reportType, report?.domainDetails?.institutionKind, report?.domainDetails?.selectedSectionKeys, defects, topics]);
   const isConstruction = report?.reportType === 'construction';
   const isInfrastructure = report?.reportType === 'infrastructure';
   const isRailway = report?.reportType === 'railway';
@@ -366,10 +377,16 @@ const SafetyAuditEditor = () => {
         patchVision(defectId, { analyzing: false, error: 'נא לצלם או להעלות תמונה לפני הניתוח' });
         return;
       }
+      const preferredTopicKeys = Array.from(new Set([
+        ...(report?.domainDetails?.selectedSectionKeys ?? []),
+        ...defects.map((item) => item.checklistTopicKey).filter((key): key is string => Boolean(key)),
+      ]));
       const suggestion = await analyzeDefectPhoto({
         image: blob,
         reportType: report?.reportType,
         mimeType: blob.type || 'image/jpeg',
+        institutionKind: report?.domainDetails?.institutionKind,
+        preferredTopicKeys,
       });
       patchVision(defectId, { suggestion, analyzing: false, error: null, imageBlob: blob });
     } catch (cause) {
@@ -402,6 +419,20 @@ const SafetyAuditEditor = () => {
     try {
       const updated = await updateDefect(defect.id, patch);
       setDefects((current) => current.map((item) => (item.id === defect.id ? updated : item)));
+      if (isEducation && patch.checklistTopicKey) {
+        setReport((current) => {
+          if (!current) return current;
+          const selected = new Set(current.domainDetails?.selectedSectionKeys ?? []);
+          selected.add(patch.checklistTopicKey!);
+          return {
+            ...current,
+            domainDetails: {
+              ...(current.domainDetails ?? {}),
+              selectedSectionKeys: Array.from(selected),
+            },
+          };
+        });
+      }
       patchVision(defect.id, { suggestion: null, error: null });
       setMessage('הצעת הזיהוי הוזנה לטופס — ניתן לערוך לפני שמירה סופית');
     } catch (cause) {
@@ -1138,9 +1169,10 @@ const SafetyAuditEditor = () => {
                     </div>
                   ))}
                 </div>
-                {((photosByDefect[d.id] ?? []).length > 0 || visionByDefect[d.id]?.imageBlob) && (
+                {((photosByDefect[d.id] ?? []).length > 0 || visionByDefect[d.id]?.imageBlob) ? (
                   <DefectVisionAssist
-                    topics={topics}
+                    topics={visionTopics}
+                    reportType={report.reportType}
                     suggestion={visionByDefect[d.id]?.suggestion}
                     analyzing={visionByDefect[d.id]?.analyzing}
                     error={visionByDefect[d.id]?.error}
@@ -1149,7 +1181,11 @@ const SafetyAuditEditor = () => {
                     onDismiss={() => patchVision(d.id, { suggestion: null, error: null })}
                     onLocalCategory={(suggestion) => patchVision(d.id, { suggestion, error: null })}
                   />
-                )}
+                ) : isEducation ? (
+                  <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-950">
+                    צלמו או העלו תמונת ממצא כדי להפעיל זיהוי וניתוח AI לפי הרשימה המנחה של משרד החינוך.
+                  </div>
+                ) : null}
               </div>
               <Button size="sm" variant="ghost" onClick={() => void removeDefect(d)}>
                 מחק ליקוי
