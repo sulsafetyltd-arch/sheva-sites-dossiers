@@ -439,9 +439,10 @@ const SafetyAuditPreview = () => {
               </section>
             )}
 
+            {!isEducation && (
             <section>
               <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
-                {isConstruction ? 'ממצאי הביקורת' : isInfrastructure ? 'רשימת בדיקה' : isRailway ? 'טבלת בדיקה — אתרי רכבת ישראל' : isBuildingSurvey ? 'א. אזורים ונושאים לבדיקת בטיחות המבנה' : isEducation ? 'רשימה מנחה — מבדק מוסדות חינוך (משרד החינוך)' : '3. רשימת בדיקה'}
+                {isConstruction ? 'ממצאי הביקורת' : isInfrastructure ? 'רשימת בדיקה' : isRailway ? 'טבלת בדיקה — אתרי רכבת ישראל' : isBuildingSurvey ? 'א. אזורים ונושאים לבדיקת בטיחות המבנה' : '3. רשימת בדיקה'}
               </h3>
 
               {isConstruction ? (
@@ -578,6 +579,7 @@ const SafetyAuditPreview = () => {
                 </div>
               )}
             </section>
+            )}
 
             {!isConstruction && (
               <section>
@@ -605,6 +607,7 @@ const SafetyAuditPreview = () => {
                       <tr className="bg-[#0f2744] text-white">
                         <th className="border border-slate-600 p-2 w-8">#</th>
                         <th className="border border-slate-600 p-2 text-right">תיאור הליקוי</th>
+                        {isEducation && <th className="border border-slate-600 p-2 text-right">סעיף מנחה</th>}
                         <th className="border border-slate-600 p-2">{isEducation ? 'קדימות' : 'חומרה'}</th>
                         <th className="border border-slate-600 p-2 text-right">פעולה מתקנת</th>
                         <th className="border border-slate-600 p-2">אחראי</th>
@@ -615,17 +618,27 @@ const SafetyAuditPreview = () => {
                     <tbody>
                       {defects.length === 0 && (
                         <tr>
-                          <td className="border border-slate-200 p-3 text-center text-slate-500" colSpan={7}>
+                          <td className="border border-slate-200 p-3 text-center text-slate-500" colSpan={isEducation ? 8 : 7}>
                             לא תועדו ליקויים
                           </td>
                         </tr>
                       )}
                       {defects.map((d, idx) => {
                         const rowPhotos = photosByDefect[d.id] ?? [];
+                        const guidingTopic = d.checklistTopicKey
+                          ? topics.find((topic) => topic.key === d.checklistTopicKey)
+                          : undefined;
                         return (
                           <tr key={d.id} className={`avoid-break ${idx % 2 ? 'bg-slate-50' : 'bg-white'}`}>
                             <td className="border border-slate-200 p-2 text-center align-top">{idx + 1}</td>
                             <td className="border border-slate-200 p-2 align-top">{d.description}</td>
+                            {isEducation && (
+                              <td className="border border-slate-200 p-2 align-top text-[9px]">
+                                {guidingTopic
+                                  ? `${guidingTopic.chapter ? `${guidingTopic.chapter} · ` : ''}${guidingTopic.title}`
+                                  : '—'}
+                              </td>
+                            )}
                             <td className="border border-slate-200 p-2 text-center align-top">
                               <span
                                 className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold ${

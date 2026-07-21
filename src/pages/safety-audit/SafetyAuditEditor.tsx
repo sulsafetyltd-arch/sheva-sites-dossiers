@@ -78,7 +78,8 @@ const SafetyAuditEditor = () => {
   const isBuildingSurvey = report?.reportType === 'building_survey';
   const isEducation = report?.reportType === 'education_institution';
   const isProjectReport = isConstruction || isInfrastructure || isRailway || isBuildingSurvey || isEducation;
-  const hasChapteredChecklist = isProjectReport;
+  /** Education uses a guiding-catalog picker, not a full checklist walkthrough. */
+  const hasChapteredChecklist = isProjectReport && !isEducation;
   const chapters = useMemo(
     () => Array.from(new Set(topics.map((topic) => topic.chapter || 'כל הבדיקות'))),
     [topics]
@@ -91,6 +92,30 @@ const SafetyAuditEditor = () => {
     const status = report?.checklist?.[topic.key]?.status;
     return status === 'ok' || status === 'not_ok' || (!isConstruction && status === 'na');
   }).length;
+
+  const [catalogQuery, setCatalogQuery] = useState('');
+  const [catalogChapter, setCatalogChapter] = useState<string>('all');
+  const catalogTopics = useMemo(() => {
+    if (!isEducation) return [];
+    const q = catalogQuery.trim().toLowerCase();
+    return topics.filter((topic) => {
+      if (catalogChapter !== 'all' && (topic.chapter || '') !== catalogChapter) return false;
+      if (!q) return true;
+      return `${topic.chapter || ''} ${topic.title}`.toLowerCase().includes(q);
+    });
+  }, [isEducation, topics, catalogQuery, catalogChapter]);
+
+  const editorSteps = useMemo(
+    () => (isEducation
+      ? [
+          { label: 'פרטי הדוח', icon: FileText },
+          { label: 'מאגר מנחה', icon: ClipboardCheck },
+          { label: 'ממצאים', icon: TriangleAlert },
+          { label: 'חתימות', icon: PenLine },
+        ]
+      : STEPS),
+    [isEducation],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -185,7 +210,7 @@ const SafetyAuditEditor = () => {
       const topic = topics.find((t) => t.key === topicKey);
       const d = await createDefect(id, {
         checklistTopicKey: topicKey,
-        description: description || (topic ? `ליקוי ב: ${topic.title}` : 'תיאור ליקוי חדש'),
+        description: description ?? (topic ? '' : 'תיאור ליקוי חדש'),
         severity: 'medium',
         responsible: topic?.defaultResponsible,
         correctiveAction: topic?.defaultFindings,
@@ -503,7 +528,7 @@ const SafetyAuditEditor = () => {
           style={{ top: 'env(safe-area-inset-top)' }}
         >
           <div className="grid grid-cols-4 gap-1">
-            {STEPS.map((item, index) => {
+            {editorSteps.map((item, index) => {
               const Icon = item.icon;
               return (
                 <button
@@ -526,7 +551,7 @@ const SafetyAuditEditor = () => {
             })}
           </div>
           <div className="h-1 bg-slate-200 rounded-full mt-2 overflow-hidden">
-            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${((step + 1) / editorSteps.length) * 100}%` }} />
           </div>
         </nav>
 
@@ -825,64 +850,142 @@ const SafetyAuditEditor = () => {
 
         {step === 1 && (
         <section className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : isRailway ? 'טבלת בדיקה — רכבת ישראל' : isBuildingSurvey ? 'סעיפי סקר בטיחות המבנה' : isEducation ? 'רשימה מנחה — מבדק מוסדות חינוך' : '3. רשימת בדיקה'}</h2>
-              <div className="text-xs text-slate-500">{completedChecks} מתוך {topics.length} בדיקות הושלמו</div>
-            </div>
-            <div className="text-sm font-medium text-emerald-700">{Math.round((completedChecks / topics.length) * 100)}%</div>
-          </div>
-          {hasChapteredChecklist && (
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-              {chapters.map((chapter) => (
+          {isEducation ? (
+            <>
+              <div>
+                <h2 className="text-lg font-semibold">מאגר הרשימה המנחה — משרד החינוך</h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  אין צורך לעבור על כל הסעיפים. חפשו ובחרו רק סעיפים רלוונטיים להוספת ממצא.
+                </p>
+              </div>
+              <Input
+                dir="rtl"
+                value={catalogQuery}
+                onChange={(event) => setCatalogQuery(event.target.value)}
+                placeholder="חיפוש בסעיפי הרשימה המנחה…"
+              />
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                 <Button
-                  key={chapter}
                   type="button"
                   size="sm"
-                  variant={currentChapter === chapter ? 'default' : 'outline'}
+                  variant={catalogChapter === 'all' ? 'default' : 'outline'}
                   className="shrink-0"
-                  onClick={() => setActiveChapter(chapter)}
+                  onClick={() => setCatalogChapter('all')}
                 >
-                  {chapter}
+                  הכל
                 </Button>
-              ))}
-            </div>
-          )}
-          {visibleTopics.map((t) => {
-            const idx = topics.findIndex((topic) => topic.key === t.key);
-            const current = report.checklist?.[t.key] ?? { status: 'na' as ChecklistStatus };
-            return (
-              <div key={t.key} className={`rounded-xl border bg-white p-3 space-y-2 shadow-sm ${current.status === 'not_ok' ? 'border-red-300' : ''}`}>
-                <div className="flex flex-wrap items-baseline gap-2">
-                  <span className="text-xs text-slate-400">{idx + 1}.</span>
-                  {t.chapter && <span className="text-xs rounded bg-slate-100 px-2 py-0.5 text-slate-600">{t.chapter}</span>}
-                  <div className="font-medium">{t.title}</div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant={current.status === 'ok' ? 'default' : 'secondary'} onClick={() => setChecklist(t.key, { status: 'ok' })}>
-                    תקין
+                {chapters.map((chapter) => (
+                  <Button
+                    key={chapter}
+                    type="button"
+                    size="sm"
+                    variant={catalogChapter === chapter ? 'default' : 'outline'}
+                    className="shrink-0"
+                    onClick={() => setCatalogChapter(chapter)}
+                  >
+                    {chapter}
                   </Button>
-                  <Button size="sm" variant={current.status === 'not_ok' ? 'destructive' : 'secondary'} onClick={() => void markNotOk(t.key)}>
-                    לא תקין
-                  </Button>
-                  {!isConstruction && (
-                    <Button size="sm" variant={current.status === 'na' ? 'default' : 'secondary'} onClick={() => setChecklist(t.key, { status: 'na' })}>
-                      לא רלוונטי
-                    </Button>
-                  )}
-                </div>
-                {isConstruction && current.status === 'not_ok' && (
-                  <>
-                    <Textarea dir="rtl" placeholder="ממצאים והמלצות לביצוע" value={current.findings ?? ''} onChange={(e) => setChecklist(t.key, { findings: e.target.value })} />
-                    <Input dir="rtl" placeholder="אחראי ליישום המלצה" value={current.responsible ?? ''} onChange={(e) => setChecklist(t.key, { responsible: e.target.value })} />
-                  </>
-                )}
-                {current.status === 'not_ok' && (
-                  <Textarea dir="rtl" placeholder="הערות נוספות (אופציונלי)" value={current.notes ?? ''} onChange={(e) => setChecklist(t.key, { notes: e.target.value })} />
+                ))}
+              </div>
+              <div className="text-xs text-slate-500">
+                {catalogTopics.length} סעיפים במאגר · {defects.length} ממצאים בדוח
+              </div>
+              <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+                {catalogTopics.map((topic) => {
+                  const linkedCount = defects.filter((d) => d.checklistTopicKey === topic.key).length;
+                  return (
+                    <div key={topic.key} className="rounded-xl border bg-white p-3 flex flex-wrap items-center justify-between gap-2 shadow-sm">
+                      <div className="min-w-0 flex-1">
+                        {topic.chapter && (
+                          <div className="text-xs text-slate-500 mb-0.5">{topic.chapter}</div>
+                        )}
+                        <div className="font-medium text-sm">{topic.title}</div>
+                        {linkedCount > 0 && (
+                          <div className="text-xs text-emerald-700 mt-1">{linkedCount} ממצאים מקושרים</div>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          await addDefect(topic.key, '');
+                          setStep(2);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                      >
+                        הוסף ממצא
+                      </Button>
+                    </div>
+                  );
+                })}
+                {catalogTopics.length === 0 && (
+                  <div className="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-slate-500">
+                    לא נמצאו סעיפים התואמים לחיפוש
+                  </div>
                 )}
               </div>
-            );
-          })}
+            </>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-semibold">{isConstruction ? 'ממצאי הביקורת' : isRailway ? 'טבלת בדיקה — רכבת ישראל' : isBuildingSurvey ? 'סעיפי סקר בטיחות המבנה' : '3. רשימת בדיקה'}</h2>
+                  <div className="text-xs text-slate-500">{completedChecks} מתוך {topics.length} בדיקות הושלמו</div>
+                </div>
+                <div className="text-sm font-medium text-emerald-700">{topics.length ? Math.round((completedChecks / topics.length) * 100) : 0}%</div>
+              </div>
+              {hasChapteredChecklist && (
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+                  {chapters.map((chapter) => (
+                    <Button
+                      key={chapter}
+                      type="button"
+                      size="sm"
+                      variant={currentChapter === chapter ? 'default' : 'outline'}
+                      className="shrink-0"
+                      onClick={() => setActiveChapter(chapter)}
+                    >
+                      {chapter}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              {visibleTopics.map((t) => {
+                const idx = topics.findIndex((topic) => topic.key === t.key);
+                const current = report.checklist?.[t.key] ?? { status: 'na' as ChecklistStatus };
+                return (
+                  <div key={t.key} className={`rounded-xl border bg-white p-3 space-y-2 shadow-sm ${current.status === 'not_ok' ? 'border-red-300' : ''}`}>
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-xs text-slate-400">{idx + 1}.</span>
+                      {t.chapter && <span className="text-xs rounded bg-slate-100 px-2 py-0.5 text-slate-600">{t.chapter}</span>}
+                      <div className="font-medium">{t.title}</div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant={current.status === 'ok' ? 'default' : 'secondary'} onClick={() => setChecklist(t.key, { status: 'ok' })}>
+                        תקין
+                      </Button>
+                      <Button size="sm" variant={current.status === 'not_ok' ? 'destructive' : 'secondary'} onClick={() => void markNotOk(t.key)}>
+                        לא תקין
+                      </Button>
+                      {!isConstruction && (
+                        <Button size="sm" variant={current.status === 'na' ? 'default' : 'secondary'} onClick={() => setChecklist(t.key, { status: 'na' })}>
+                          לא רלוונטי
+                        </Button>
+                      )}
+                    </div>
+                    {isConstruction && current.status === 'not_ok' && (
+                      <>
+                        <Textarea dir="rtl" placeholder="ממצאים והמלצות לביצוע" value={current.findings ?? ''} onChange={(e) => setChecklist(t.key, { findings: e.target.value })} />
+                        <Input dir="rtl" placeholder="אחראי ליישום המלצה" value={current.responsible ?? ''} onChange={(e) => setChecklist(t.key, { responsible: e.target.value })} />
+                      </>
+                    )}
+                    {current.status === 'not_ok' && (
+                      <Textarea dir="rtl" placeholder="הערות נוספות (אופציונלי)" value={current.notes ?? ''} onChange={(e) => setChecklist(t.key, { notes: e.target.value })} />
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          )}
         </section>
         )}
 
@@ -890,16 +993,54 @@ const SafetyAuditEditor = () => {
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold">{isConstruction ? 'ליקויים ותיעוד צילומי' : isRailway ? 'ריכוז ליקויים מביקור נוכחי' : isBuildingSurvey ? 'ממצאים והערות לסקר המבנה' : isEducation ? 'פירוט הממצאים לפי קדימות טיפול' : '4. ליקויים ופעולות מתקנות'}</h2>
-            <Button size="sm" onClick={() => void addDefect()}>
-              הוסף ליקוי
+            <Button
+              size="sm"
+              onClick={() => {
+                if (isEducation) {
+                  setStep(1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  return;
+                }
+                void addDefect();
+              }}
+            >
+              {isEducation ? 'בחר סעיף מהמאגר' : 'הוסף ליקוי'}
             </Button>
           </div>
+          {isEducation && defects.length === 0 && (
+            <div className="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-slate-500">
+              עדיין אין ממצאים. עברו למאגר המנחה ובחרו סעיף רלוונטי.
+            </div>
+          )}
           {defects.map((d, idx) => (
             <div key={d.id} className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
               <div className="text-sm text-slate-500">ליקוי #{idx + 1}</div>
+              {isEducation && (
+                <label className="block text-sm space-y-1">
+                  <span className="font-medium">סעיף מהרשימה המנחה</span>
+                  <select
+                    dir="rtl"
+                    value={d.checklistTopicKey || ''}
+                    onChange={(event) => {
+                      const topicKey = event.target.value || undefined;
+                      changeDefectLocal(d, 'checklistTopicKey', topicKey);
+                      void persistDefect(d, 'checklistTopicKey', topicKey);
+                    }}
+                    className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">בחר סעיף מהמאגר…</option>
+                    {topics.map((topic) => (
+                      <option key={topic.key} value={topic.key}>
+                        {(topic.chapter ? `${topic.chapter} · ` : '') + topic.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <Textarea
                 dir="rtl"
                 value={d.description}
+                placeholder={isEducation ? 'הממצא, מהותו ומיקומו' : undefined}
                 onChange={(e) => changeDefectLocal(d, 'description', e.target.value)}
                 onBlur={(e) => void persistDefect(d, 'description', e.target.value)}
               />
@@ -1054,7 +1195,7 @@ const SafetyAuditEditor = () => {
               <ChevronRight className="w-4 h-4" /> הקודם
             </Button>
           )}
-          {step < STEPS.length - 1 ? (
+          {step < editorSteps.length - 1 ? (
             <Button
               className="flex-1 sm:flex-none gap-1"
               onClick={async () => {
