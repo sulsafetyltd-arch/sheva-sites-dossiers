@@ -1225,16 +1225,36 @@ const SafetyAuditEditor = () => {
               </div>
               <div className="space-y-2">
                 <div className="text-sm font-medium">צילומי ליקוי</div>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  disabled={uploadingDefects.has(d.id)}
-                  onChange={(e) => {
-                    void onUploadPhoto(d.id, e.target.files?.[0]);
-                    e.currentTarget.value = '';
-                  }}
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <label className={`inline-flex items-center justify-center gap-2 min-h-11 rounded-md border bg-white px-3 text-sm font-medium cursor-pointer ${uploadingDefects.has(d.id) ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <Camera className="w-4 h-4" />
+                    צלם
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      disabled={uploadingDefects.has(d.id)}
+                      onChange={(e) => {
+                        void onUploadPhoto(d.id, e.target.files?.[0]);
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+                  <label className={`inline-flex items-center justify-center gap-2 min-h-11 rounded-md border bg-white px-3 text-sm font-medium cursor-pointer ${uploadingDefects.has(d.id) ? 'opacity-50 pointer-events-none' : ''}`}>
+                    העלה מהגלריה
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploadingDefects.has(d.id)}
+                      onChange={(e) => {
+                        void onUploadPhoto(d.id, e.target.files?.[0]);
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
                 {uploadingDefects.has(d.id) && <div className="text-xs text-slate-500">מעלה תמונה…</div>}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {(photosByDefect[d.id] ?? []).map((p) => (

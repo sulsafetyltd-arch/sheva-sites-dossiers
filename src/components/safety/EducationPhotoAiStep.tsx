@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Camera, Check, Loader2, Sparkles, Trash2, X } from 'lucide-react';
+import { Camera, Check, ImagePlus, Loader2, Sparkles, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { RailwayReportDetails, SafetyAuditDefect } from '@/types/safety-audit';
@@ -51,7 +51,8 @@ export default function EducationPhotoAiStep({
   onAccept,
   onSkipToCatalog,
 }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [drafts, setDrafts] = useState<EducationPhotoDraft[]>([]);
   const [configured, setConfigured] = useState(() => hasVisionModelConfigured());
   const [showKeySetup, setShowKeySetup] = useState(() => !hasVisionModelConfigured());
@@ -227,11 +228,23 @@ export default function EducationPhotoAiStep({
           </div>
         )}
 
+        {/* Camera-only input — capture forces the device camera on mobile */}
         <input
-          ref={inputRef}
+          ref={cameraInputRef}
           type="file"
           accept="image/*"
           capture="environment"
+          className="hidden"
+          onChange={(event) => {
+            void onPickFiles(event.target.files);
+            event.currentTarget.value = '';
+          }}
+        />
+        {/* Gallery input — no capture attribute so the photo library is available */}
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
           multiple
           className="hidden"
           onChange={(event) => {
@@ -240,16 +253,27 @@ export default function EducationPhotoAiStep({
           }}
         />
 
-        <Button
-          type="button"
-          className="w-full min-h-14 gap-2 text-base"
-          onClick={() => inputRef.current?.click()}
-        >
-          <Camera className="w-5 h-5" />
-          צלם / העלה תמונות ממצא
-        </Button>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            className="min-h-14 gap-2 text-base"
+            onClick={() => cameraInputRef.current?.click()}
+          >
+            <Camera className="w-5 h-5" />
+            צלם
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-14 gap-2 text-base"
+            onClick={() => galleryInputRef.current?.click()}
+          >
+            <ImagePlus className="w-5 h-5" />
+            מהגלריה
+          </Button>
+        </div>
         <p className="text-xs text-slate-500 text-center">
-          לאחר הצילום הניתוח מתחיל אוטומטית. אפשר לאשר כל הצעה כממצא בדוח.
+          לאחר בחירת תמונה הניתוח מתחיל אוטומטית. אפשר לאשר כל הצעה כממצא בדוח.
         </p>
       </div>
 
