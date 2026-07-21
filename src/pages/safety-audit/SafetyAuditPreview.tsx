@@ -3,6 +3,12 @@ import { Link, useParams } from 'react-router-dom';
 import { getReport, listDefects, listReportPhotos, getPublicUrl } from '@/lib/safety-audit-store';
 import type { SafetyAuditDefect, SafetyAuditReport } from '@/types/safety-audit';
 import {
+  EDUCATION_APPROVALS,
+  EDUCATION_KIND_LABELS,
+  educationApprovalByKey,
+  type EducationInstitutionKind,
+} from '@/data/education-moe-catalog';
+import {
   CONSTRUCTION_GENERAL_NOTES,
   EDUCATION_GENERAL_NOTES,
   defectSeverityLabel,
@@ -334,6 +340,14 @@ const SafetyAuditPreview = () => {
                 ) : isEducation ? (
                   <>
                     <MetaRow label="שם המוסד" value={siteTitle} />
+                    <MetaRow
+                      label="סוג המוסד"
+                      value={
+                        railwayDetails.institutionKind
+                          ? EDUCATION_KIND_LABELS[railwayDetails.institutionKind as EducationInstitutionKind]
+                          : '—'
+                      }
+                    />
                     <MetaRow label="הישוב / הבעלות" value={railwayDetails.ownership || '—'} />
                     <MetaRow label="סמל המוסד" value={railwayDetails.institutionSymbol || '—'} />
                     <MetaRow label="כתובת" value={railwayDetails.buildingAddress || '—'} />
@@ -579,6 +593,48 @@ const SafetyAuditPreview = () => {
                 </div>
               )}
             </section>
+            )}
+
+            {isEducation && (
+              <section>
+                <h3 className="text-base font-bold text-[#0f2744] border-r-4 border-[#c4a35a] pr-3 mb-3">
+                  פרק 1 — אישורים ובדיקות תקופתיות שנבדקו
+                </h3>
+                {(railwayDetails.selectedApprovalKeys?.length ?? 0) === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+                    לא נבחרו אישורים רלוונטיים למוסד זה
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-slate-300 overflow-hidden">
+                    <table className="w-full border-collapse text-[10px] leading-[1.35]">
+                      <thead>
+                        <tr className="bg-[#0f2744] text-white">
+                          <th className="border border-slate-600 p-2 w-10">#</th>
+                          <th className="border border-slate-600 p-2 text-right">אישור / בדיקה</th>
+                          <th className="border border-slate-600 p-2 text-right">בודק</th>
+                          <th className="border border-slate-600 p-2">סטטוס</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(railwayDetails.selectedApprovalKeys ?? []).map((key, index) => {
+                          const item = educationApprovalByKey(key) ?? EDUCATION_APPROVALS.find((a) => a.key === key);
+                          const status = railwayDetails.approvalStatuses?.[key]?.status;
+                          const statusLabel =
+                            status === 'presented' ? 'הוצג' : status === 'missing' ? 'לא הוצג' : status === 'na' ? 'לא רלוונטי' : '—';
+                          return (
+                            <tr key={key} className={index % 2 ? 'bg-slate-50' : 'bg-white'}>
+                              <td className="border border-slate-200 p-2 text-center">{item?.code || index + 1}</td>
+                              <td className="border border-slate-200 p-2">{item?.title || key}</td>
+                              <td className="border border-slate-200 p-2">{item?.inspector || '—'}</td>
+                              <td className="border border-slate-200 p-2 text-center font-semibold">{statusLabel}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
             )}
 
             {!isConstruction && (

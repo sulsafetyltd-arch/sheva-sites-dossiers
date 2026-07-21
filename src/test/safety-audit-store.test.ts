@@ -124,10 +124,13 @@ describe('safety report database mapping', () => {
       date: '2026-07-21',
       status: 'draft',
       domain_details: {
+        institutionKind: 'kindergarten',
         ownership: 'מועצה אזורית שדות נגב',
         institutionSymbol: '707240',
         studentsCount: '28',
         principalName: 'חגית כהן',
+        selectedApprovalKeys: ['ed_a_01', 'ed_a_07', 'ed_a_12'],
+        selectedSectionKeys: ['ed_s_3_1'],
       },
       created_at: '2026-07-21T00:00:00Z',
       updated_at: '2026-07-21T00:00:00Z',
@@ -135,7 +138,9 @@ describe('safety report database mapping', () => {
 
     expect(report.reportType).toBe('education_institution');
     expect(reportTypeLabel(report.reportType)).toBe('מבדק בטיחות במוסדות חינוך');
-    expect(getChecklistTopics(report.reportType)).toHaveLength(40);
+    expect(getChecklistTopics(report.reportType).length).toBeGreaterThan(100);
     expect(report.domainDetails?.institutionSymbol).toBe('707240');
+    expect(report.domainDetails?.institutionKind).toBe('kindergarten');
+    expect(report.domainDetails?.selectedApprovalKeys).toEqual(['ed_a_01', 'ed_a_07', 'ed_a_12']);
   });
 });

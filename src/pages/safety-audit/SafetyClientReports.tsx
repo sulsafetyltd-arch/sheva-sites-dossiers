@@ -196,7 +196,7 @@ export default function SafetyClientReports() {
                           : type === 'building_survey'
                             ? 'סקר מבנה שנתי'
                             : type === 'education_institution'
-                              ? 'מאגר רשימה מנחה — בחירת סעיפים'
+                              ? 'גן / בית ספר / פנימייה — בחירת אישורים וסעיפים'
                         : '10 בדיקות עבודה'}
                   </div>
                 </button>

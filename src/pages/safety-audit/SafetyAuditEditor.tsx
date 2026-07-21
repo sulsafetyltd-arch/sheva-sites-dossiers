@@ -31,12 +31,19 @@ import {
 } from '@/lib/safety-defect-vision';
 import { resizeImageToBlob } from '@/lib/storage-utils';
 import DefectVisionAssist from '@/components/safety/DefectVisionAssist';
+import EducationCatalogPicker from '@/components/safety/EducationCatalogPicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SignaturePad from '@/components/dossier/SignaturePad';
 import { Check, ChevronLeft, ChevronRight, ClipboardCheck, FileText, PenLine, Trash2, TriangleAlert } from 'lucide-react';
+import {
+  EDUCATION_KIND_DEFAULT_APPROVALS,
+  EDUCATION_KIND_LABELS,
+  educationSectionByKey,
+  type EducationInstitutionKind,
+} from '@/data/education-moe-catalog';
 
 type DefectVisionState = {
   suggestion?: DefectVisionSuggestion | null;
@@ -93,29 +100,70 @@ const SafetyAuditEditor = () => {
     return status === 'ok' || status === 'not_ok' || (!isConstruction && status === 'na');
   }).length;
 
-  const [catalogQuery, setCatalogQuery] = useState('');
-  const [catalogChapter, setCatalogChapter] = useState<string>('all');
-  const catalogTopics = useMemo(() => {
-    if (!isEducation) return [];
-    const q = catalogQuery.trim().toLowerCase();
-    return topics.filter((topic) => {
-      if (catalogChapter !== 'all' && (topic.chapter || '') !== catalogChapter) return false;
-      if (!q) return true;
-      return `${topic.chapter || ''} ${topic.title}`.toLowerCase().includes(q);
-    });
-  }, [isEducation, topics, catalogQuery, catalogChapter]);
-
   const editorSteps = useMemo(
     () => (isEducation
       ? [
           { label: 'פרטי הדוח', icon: FileText },
-          { label: 'מאגר מנחה', icon: ClipboardCheck },
+          { label: 'אישורים וסעיפים', icon: ClipboardCheck },
           { label: 'ממצאים', icon: TriangleAlert },
           { label: 'חתימות', icon: PenLine },
         ]
       : STEPS),
     [isEducation],
   );
+
+  const applyInstitutionKind = (kind: EducationInstitutionKind) => {
+    if (!report) return;
+    const defaults = EDUCATION_KIND_DEFAULT_APPROVALS[kind] ?? [];
+    const prevStatuses = report.domainDetails?.approvalStatuses ?? {};
+    setReport({
+      ...report,
+      domainDetails: {
+        ...(report.domainDetails ?? {}),
+        institutionKind: kind,
+        selectedApprovalKeys: defaults,
+        approvalStatuses: Object.fromEntries(
+          defaults.map((key) => [key, prevStatuses[key] ?? { status: 'presented' as const }]),
+        ),
+      },
+    });
+  };
+
+  const addEducationFindings = async (sectionKeys: string[]) => {
+    if (!id) return;
+    const existing = new Set(defects.map((d) => d.checklistTopicKey).filter(Boolean));
+    const toAdd = sectionKeys.filter((key) => !existing.has(key));
+    if (toAdd.length === 0) {
+      setMessage('כל הסעיפים שנבחרו כבר קיימים כממצאים');
+      return;
+    }
+    const created: SafetyAuditDefect[] = [];
+    for (let index = 0; index < toAdd.length; index += 1) {
+      const key = toAdd[index];
+      const topic = topics.find((item) => item.key === key);
+      const d = await createDefect(id, {
+        checklistTopicKey: key,
+        description: '',
+        severity: 'medium',
+        responsible: topic?.defaultResponsible,
+        correctiveAction: topic?.defaultFindings,
+        sortOrder: defects.length + index,
+      });
+      created.push(d);
+    }
+    setDefects((prev) => {
+      const ids = new Set(prev.map((item) => item.id));
+      return [...prev, ...created.filter((item) => !ids.has(item.id))];
+    });
+    setPhotosByDefect((prev) => {
+      const next = { ...prev };
+      for (const item of created) next[item.id] = next[item.id] ?? [];
+      return next;
+    });
+    setMessage(`נוספו ${created.length} ממצאים מהסעיפים שנבחרו`);
+    setStep(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -720,6 +768,30 @@ const SafetyAuditEditor = () => {
           )}
           {isEducation && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="md:col-span-2 text-sm space-y-1">
+                <span className="font-medium">סוג המוסד</span>
+                <select
+                  dir="rtl"
+                  value={railwayDetails.institutionKind || ''}
+                  onChange={(event) => {
+                    const value = event.target.value as EducationInstitutionKind | '';
+                    if (!value) {
+                      setRailwayDetails({ institutionKind: undefined });
+                      return;
+                    }
+                    applyInstitutionKind(value);
+                  }}
+                  className="flex h-11 w-full rounded-md border border-input bg-white px-3"
+                >
+                  <option value="">בחרו סוג מוסד…</option>
+                  {(Object.keys(EDUCATION_KIND_LABELS) as EducationInstitutionKind[]).map((kind) => (
+                    <option key={kind} value={kind}>{EDUCATION_KIND_LABELS[kind]}</option>
+                  ))}
+                </select>
+                <span className="block text-xs text-slate-500">
+                  בחירת הסוג מסננת סעיפים רלוונטיים ומסמנת אישורי פרק 1 מומלצים — ניתן לשנות בהמשך.
+                </span>
+              </label>
               <Input
                 className="md:col-span-2"
                 value={report.projectName || report.siteName || ''}
@@ -851,79 +923,21 @@ const SafetyAuditEditor = () => {
         {step === 1 && (
         <section className="space-y-3">
           {isEducation ? (
-            <>
-              <div>
-                <h2 className="text-lg font-semibold">מאגר הרשימה המנחה — משרד החינוך</h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  אין צורך לעבור על כל הסעיפים. חפשו ובחרו רק סעיפים רלוונטיים להוספת ממצא.
+            !railwayDetails.institutionKind ? (
+              <div className="rounded-xl border border-dashed bg-white p-6 text-center space-y-3">
+                <p className="text-sm text-slate-600">
+                  לפני בחירת אישורים וסעיפים יש לבחור סוג מוסד בפרטי הדוח (גן ילדים / בית ספר / פנימייה / כפר נוער).
                 </p>
+                <Button type="button" onClick={() => setStep(0)}>חזרה לפרטי הדוח</Button>
               </div>
-              <Input
-                dir="rtl"
-                value={catalogQuery}
-                onChange={(event) => setCatalogQuery(event.target.value)}
-                placeholder="חיפוש בסעיפי הרשימה המנחה…"
+            ) : (
+              <EducationCatalogPicker
+                details={railwayDetails}
+                defects={defects}
+                onDetailsChange={setRailwayDetails}
+                onAddFindings={addEducationFindings}
               />
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={catalogChapter === 'all' ? 'default' : 'outline'}
-                  className="shrink-0"
-                  onClick={() => setCatalogChapter('all')}
-                >
-                  הכל
-                </Button>
-                {chapters.map((chapter) => (
-                  <Button
-                    key={chapter}
-                    type="button"
-                    size="sm"
-                    variant={catalogChapter === chapter ? 'default' : 'outline'}
-                    className="shrink-0"
-                    onClick={() => setCatalogChapter(chapter)}
-                  >
-                    {chapter}
-                  </Button>
-                ))}
-              </div>
-              <div className="text-xs text-slate-500">
-                {catalogTopics.length} סעיפים במאגר · {defects.length} ממצאים בדוח
-              </div>
-              <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
-                {catalogTopics.map((topic) => {
-                  const linkedCount = defects.filter((d) => d.checklistTopicKey === topic.key).length;
-                  return (
-                    <div key={topic.key} className="rounded-xl border bg-white p-3 flex flex-wrap items-center justify-between gap-2 shadow-sm">
-                      <div className="min-w-0 flex-1">
-                        {topic.chapter && (
-                          <div className="text-xs text-slate-500 mb-0.5">{topic.chapter}</div>
-                        )}
-                        <div className="font-medium text-sm">{topic.title}</div>
-                        {linkedCount > 0 && (
-                          <div className="text-xs text-emerald-700 mt-1">{linkedCount} ממצאים מקושרים</div>
-                        )}
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={async () => {
-                          await addDefect(topic.key, '');
-                          setStep(2);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                      >
-                        הוסף ממצא
-                      </Button>
-                    </div>
-                  );
-                })}
-                {catalogTopics.length === 0 && (
-                  <div className="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-slate-500">
-                    לא נמצאו סעיפים התואמים לחיפוש
-                  </div>
-                )}
-              </div>
-            </>
+            )
           ) : (
             <>
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1004,38 +1018,34 @@ const SafetyAuditEditor = () => {
                 void addDefect();
               }}
             >
-              {isEducation ? 'בחר סעיף מהמאגר' : 'הוסף ליקוי'}
+              {isEducation ? 'בחירת סעיפים נוספים' : 'הוסף ליקוי'}
             </Button>
           </div>
           {isEducation && defects.length === 0 && (
             <div className="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-slate-500">
-              עדיין אין ממצאים. עברו למאגר המנחה ובחרו סעיף רלוונטי.
+              עדיין אין ממצאים. עברו לאישורים וסעיפים ובחרו סעיפים ספציפיים מתוך הפרקים הרלוונטיים.
             </div>
           )}
           {defects.map((d, idx) => (
             <div key={d.id} className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
               <div className="text-sm text-slate-500">ליקוי #{idx + 1}</div>
               {isEducation && (
-                <label className="block text-sm space-y-1">
-                  <span className="font-medium">סעיף מהרשימה המנחה</span>
-                  <select
-                    dir="rtl"
-                    value={d.checklistTopicKey || ''}
-                    onChange={(event) => {
-                      const topicKey = event.target.value || undefined;
-                      changeDefectLocal(d, 'checklistTopicKey', topicKey);
-                      void persistDefect(d, 'checklistTopicKey', topicKey);
-                    }}
-                    className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">בחר סעיף מהמאגר…</option>
-                    {topics.map((topic) => (
-                      <option key={topic.key} value={topic.key}>
-                        {(topic.chapter ? `${topic.chapter} · ` : '') + topic.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="rounded-lg bg-rose-50 border border-rose-100 px-3 py-2 text-sm">
+                  {(() => {
+                    const section = educationSectionByKey(d.checklistTopicKey);
+                    if (!section) return <span className="text-slate-500">לא מקושר לסעיף מהמאגר</span>;
+                    return (
+                      <>
+                        <div className="text-xs text-rose-800/80">
+                          פרק {section.chapter} — {section.chapterTitle}
+                        </div>
+                        <div className="font-medium text-rose-950">
+                          {section.sectionCode} — {section.title}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
               )}
               <Textarea
                 dir="rtl"
@@ -1199,6 +1209,10 @@ const SafetyAuditEditor = () => {
             <Button
               className="flex-1 sm:flex-none gap-1"
               onClick={async () => {
+                if (isEducation && step === 0 && !railwayDetails.institutionKind) {
+                  setError('יש לבחור סוג מוסד (גן ילדים / בית ספר / פנימייה / כפר נוער)');
+                  return;
+                }
                 const saved = await saveBasics();
                 if (!saved) return;
                 setStep((value) => value + 1);

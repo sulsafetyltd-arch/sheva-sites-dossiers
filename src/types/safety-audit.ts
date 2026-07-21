@@ -1,3 +1,7 @@
+import {
+  EDUCATION_SECTIONS,
+} from '@/data/education-moe-catalog';
+
 export type RiskLevel = 'low' | 'medium' | 'high';
 export type ReportStatus = 'draft' | 'final';
 export type ChecklistStatus = 'ok' | 'not_ok' | 'na';
@@ -111,6 +115,14 @@ export interface RailwayReportDetails {
   inspectorName?: string;
   institutionParticipants?: string;
   authorityParticipants?: string;
+  /** גן ילדים / בית ספר / פנימייה / כפר נוער */
+  institutionKind?: 'kindergarten' | 'school' | 'boarding' | 'youth_village' | 'other';
+  /** Selected chapter-1 approval keys from the MoE pool */
+  selectedApprovalKeys?: string[];
+  /** Status notes per selected approval */
+  approvalStatuses?: Record<string, { status?: 'presented' | 'missing' | 'na'; notes?: string }>;
+  /** Selected MoE section keys the auditor chose to examine */
+  selectedSectionKeys?: string[];
 }
 
 export interface SafetyAuditDefect {
@@ -460,51 +472,15 @@ export const BUILDING_SURVEY_CHECKLIST_TOPICS: ChecklistTopic[] = [
 ];
 
 /**
- * Ministry of Education guiding checklist (Sept 2025) — chapter-level topics
- * for kindergartens, schools and boarding institutions. Mark N/A when irrelevant.
+ * Ministry of Education guiding checklist — section-level catalog.
+ * Auditors pick relevant sections; they do not walk the full list.
  */
-export const EDUCATION_INSTITUTION_CHECKLIST_TOPICS: ChecklistTopic[] = [
-  { key: 'ed_01', chapter: 'אישורים ובדיקות תקופתיות', title: 'פרק 1 — ריכוז בדיקות בטיחות ואישורים נדרשים' },
-  { key: 'ed_02', chapter: 'סביבה וחצר', title: 'פרק 2 — הסביבה החיצונית' },
-  { key: 'ed_03', chapter: 'סביבה וחצר', title: 'פרק 3 — חצר המוסד' },
-  { key: 'ed_04', chapter: 'סביבה וחצר', title: 'פרק 4 — הערכות למצבי חירום' },
-  { key: 'ed_05', chapter: 'מבנה וכיתות', title: 'פרק 5 — אלמנטים וחומרים במבנה' },
-  { key: 'ed_06', chapter: 'מבנה וכיתות', title: 'פרק 6 — המקלט' },
-  { key: 'ed_07', chapter: 'מבנה וכיתות', title: 'פרק 7 — תכולת וארגון הכיתות' },
-  { key: 'ed_08', chapter: 'מבנה וכיתות', title: 'פרק 8 — התקנת מבנים יבילים' },
-  { key: 'ed_09', chapter: 'חשמל ואנרגיה', title: 'פרק 9 — מערכות חשמל' },
-  { key: 'ed_10', chapter: 'חשמל ואנרגיה', title: 'פרק 10 — ציוד ומערכות אנרגיה' },
-  { key: 'ed_11', chapter: 'מתקנים ייעודיים', title: 'פרק 11 — אולמות ספורט' },
-  { key: 'ed_12', chapter: 'מתקנים ייעודיים', title: 'פרק 12 — מעבדות למדעי הכימיה' },
-  { key: 'ed_13', chapter: 'מתקנים ייעודיים', title: 'פרק 13 — חדרי מלאכה' },
-  { key: 'ed_14', chapter: 'מתקנים ייעודיים', title: 'פרק 14 — הצבת מוצגים' },
-  { key: 'ed_15', chapter: 'מתקנים ייעודיים', title: 'פרק 15 — מטבח' },
-  { key: 'ed_16', chapter: 'מתקנים ייעודיים', title: 'פרק 16 — חדר אוכל' },
-  { key: 'ed_17', chapter: 'נוי וחקלאות', title: 'פרק 17 — הנוי' },
-  { key: 'ed_18', chapter: 'נוי וחקלאות', title: 'פרק 18 — טרקטורים ומכונות חקלאיות' },
-  { key: 'ed_19', chapter: 'נוי וחקלאות', title: 'פרק 19 — מכונות חקלאיות ייחודיות' },
-  { key: 'ed_20', chapter: 'נוי וחקלאות', title: 'פרק 20 — התקני בטיחות בטרקטורים' },
-  { key: 'ed_21', chapter: 'נוי וחקלאות', title: 'פרק 21 — ציוד וכלים נגררים' },
-  { key: 'ed_22', chapter: 'נוי וחקלאות', title: 'פרק 22 — סככת המכונות החקלאיות' },
-  { key: 'ed_23', chapter: 'נוי וחקלאות', title: 'פרק 23 — החממה' },
-  { key: 'ed_24', chapter: 'נוי וחקלאות', title: 'פרק 24 — הרפת והדיר' },
-  { key: 'ed_25', chapter: 'נוי וחקלאות', title: 'פרק 25 — חדרי חליבה' },
-  { key: 'ed_26', chapter: 'נוי וחקלאות', title: 'פרק 26 — סככת רביצה' },
-  { key: 'ed_27', chapter: 'נוי וחקלאות', title: 'פרק 27 — בורות זבל ונוזלים' },
-  { key: 'ed_28', chapter: 'נוי וחקלאות', title: 'פרק 28 — מרכזי מזון ומכלי תערובת' },
-  { key: 'ed_29', chapter: 'נוי וחקלאות', title: 'פרק 29 — המטע והפרדס' },
-  { key: 'ed_30', chapter: 'נוי וחקלאות', title: 'פרק 30 — חומרי הדברה' },
-  { key: 'ed_31', chapter: 'נוי וחקלאות', title: 'פרק 31 — מפעלים לאספקת מים' },
-  { key: 'ed_32', chapter: 'נוי וחקלאות', title: 'פרק 32 — ברכות חמצון' },
-  { key: 'ed_33', chapter: 'סדנאות ומלאכה', title: 'פרק 33 — המוסך' },
-  { key: 'ed_34', chapter: 'סדנאות ומלאכה', title: 'פרק 34 — המסגרייה' },
-  { key: 'ed_35', chapter: 'סדנאות ומלאכה', title: 'פרק 35 — הנגרייה' },
-  { key: 'ed_36', chapter: 'סדנאות ומלאכה', title: 'פרק 36 — דוד הקיטור' },
-  { key: 'ed_37', chapter: 'פינות חי', title: 'פרק 37 — פינות חי ובתי גידול בתוך מבנה' },
-  { key: 'ed_38', chapter: 'פינות חי', title: 'פרק 38 — בתי גידול מחוץ למבנה וספארי' },
-  { key: 'ed_39', chapter: 'פינות חי', title: 'פרק 39 — פינות חי (כללי)' },
-  { key: 'ed_40', chapter: 'פינות חי', title: 'פרק 40 — חדר/כיתה עם בעלי חיים טורפים' },
-];
+export const EDUCATION_INSTITUTION_CHECKLIST_TOPICS: ChecklistTopic[] = EDUCATION_SECTIONS.map((section) => ({
+  key: section.key,
+  chapter: `פרק ${section.chapter} — ${section.chapterTitle}`,
+  title: `${section.sectionCode} — ${section.title}`,
+  defaultFindings: section.specification,
+}));
 
 export const EDUCATION_GENERAL_NOTES: string[] = [
   'הממצאים אותרו מתוך השוואת המצב הקיים עם סטנדרטים ברשימות המנחות לעריכת מבדק של משרד החינוך.',
