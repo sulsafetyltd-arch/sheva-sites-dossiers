@@ -11,10 +11,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="סול בטיחות" />
-    <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260728c" data-brand-slot="apple-touch" />
-    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png?v=20260728c" data-brand-slot="favicon-32" />
-    <link rel="icon" type="image/png" sizes="48x48" href="./favicon-48.png?v=20260728c" data-brand-slot="favicon-48" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./pwa-192.png?v=20260728c" data-brand-slot="favicon-192" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260728d" data-brand-slot="apple-touch" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png?v=20260728d" data-brand-slot="favicon-32" />
+    <link rel="icon" type="image/png" sizes="48x48" href="./favicon-48.png?v=20260728d" data-brand-slot="favicon-48" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./pwa-192.png?v=20260728d" data-brand-slot="favicon-192" />
     <link rel="icon" type="image/svg+xml" href="./safety-app-icon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -36,10 +36,10 @@
           var appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
           if (appleTitle) appleTitle.setAttribute('content', 'תיק שטח');
           var map = {
-            'apple-touch': './dossiers-apple-touch-icon.png?v=20260728c',
-            'favicon-32': './dossiers-favicon-32.png?v=20260728c',
-            'favicon-48': './dossiers-favicon-48.png?v=20260728c',
-            'favicon-192': './dossiers-pwa-192.png?v=20260728c'
+            'apple-touch': './dossiers-apple-touch-icon.png?v=20260728d',
+            'favicon-32': './dossiers-favicon-32.png?v=20260728d',
+            'favicon-48': './dossiers-favicon-48.png?v=20260728d',
+            'favicon-192': './dossiers-pwa-192.png?v=20260728d'
           };
           Object.keys(map).forEach(function (slot) {
             var el = document.querySelector('link[data-brand-slot="' + slot + '"]');
@@ -52,7 +52,7 @@
       // One-shot PWA recovery after oversized precache broke iOS installs.
       // Bump SOL_PWA_BUILD whenever clients may be stuck on a stale shell.
       (function () {
-        var BUILD = '2026-07-28-solo-icon-classic-paths';
+        var BUILD = '2026-07-28-solo-logo-reship';
         var KEY = 'sol-pwa-build';
         var FLAG = 'sol-pwa-reloaded-' + BUILD;
         try {
