@@ -6,10 +6,11 @@ const DOSSIERS = {
   description: 'ניהול תיקי שטח לבטיחות אש',
   themeColor: '#0f2744',
   appleTitle: 'תיק שטח',
-  appleTouch: 'apple-touch-icon.png',
-  favicon32: 'favicon-32.png',
-  favicon48: 'favicon-48.png',
-  favicon192: 'pwa-192.png',
+  // Dedicated dossiers assets — classic /apple-touch-icon.png & /pwa-*.png are SOLO for /safety iOS installs
+  appleTouch: 'dossiers-apple-touch-icon.png',
+  favicon32: 'dossiers-favicon-32.png',
+  favicon48: 'dossiers-favicon-48.png',
+  favicon192: 'dossiers-pwa-192.png',
   manifest: null as string | null, // VitePWA injects the safety manifest; dossiers uses static file
 };
 
@@ -18,10 +19,11 @@ const SAFETY = {
   description: 'הכנת דוחות ביקורת בטיחות עם צילום וזיהוי ליקויים',
   themeColor: '#000000',
   appleTitle: 'סול בטיחות',
-  appleTouch: 'safety-apple-touch-icon.png',
-  favicon32: 'safety-favicon-32.png',
-  favicon48: 'safety-favicon-48.png',
-  favicon192: 'safety-pwa-192.png',
+  // Prefer classic paths (also duplicated as safety-*) so iOS root fallbacks get SOLO
+  appleTouch: 'apple-touch-icon.png',
+  favicon32: 'favicon-32.png',
+  favicon48: 'favicon-48.png',
+  favicon192: 'pwa-192.png',
   manifest: null as string | null, // primary VitePWA manifest already targets /safety
 };
 

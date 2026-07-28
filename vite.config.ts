@@ -34,6 +34,11 @@ export default defineConfig(({ mode }) => {
         "safety-pwa-512.png",
         "safety-favicon-32.png",
         "safety-favicon-48.png",
+        "dossiers-apple-touch-icon.png",
+        "dossiers-pwa-192.png",
+        "dossiers-pwa-512.png",
+        "dossiers-favicon-32.png",
+        "dossiers-favicon-48.png",
         "manifest-dossiers.webmanifest",
       ],
       manifest: {
@@ -52,25 +57,26 @@ export default defineConfig(({ mode }) => {
         categories: ["business", "productivity", "utilities"],
         icons: [
           {
-            src: `${base}safety-pwa-192.png`,
+            // Classic paths so Safari / cached manifests still resolve SOLO after deploy
+            src: `${base}pwa-192.png`,
             sizes: "192x192",
             type: "image/png",
             purpose: "any",
           },
           {
-            src: `${base}safety-pwa-512.png`,
+            src: `${base}pwa-512.png`,
             sizes: "512x512",
             type: "image/png",
             purpose: "any",
           },
           {
-            src: `${base}safety-pwa-512.png`,
+            src: `${base}pwa-512.png`,
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
           },
           {
-            src: `${base}safety-apple-touch-icon.png`,
+            src: `${base}apple-touch-icon.png`,
             sizes: "180x180",
             type: "image/png",
             purpose: "any",

@@ -99,7 +99,7 @@ export default function PwaInstallCard() {
                 סול בטיחות — גישה מהירה ממסך הבית לדוחות ביקורת עם צילום.
               </div>
             </div>
-            <img src={`${import.meta.env.BASE_URL}safety-pwa-192.png`} alt="" className="w-12 h-12 rounded-xl" />
+            <img src={`${import.meta.env.BASE_URL}pwa-192.png`} alt="" className="w-12 h-12 rounded-xl" />
           </div>
           <Button
             type="button"

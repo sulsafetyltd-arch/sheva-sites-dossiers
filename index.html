@@ -3,41 +3,43 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>תיק שטח כיבוי אש</title>
-    <meta name="description" content="ניהול תיקי שטח לבטיחות אש" />
-    <meta name="theme-color" content="#0f2744" />
+    <!-- Defaults are SOLO (/safety). Dossiers (/) swap via early script + AppBrandingSwitcher. -->
+    <title>סול בטיחות — דוחות מצולמים</title>
+    <meta name="description" content="הכנת דוחות ביקורת בטיחות עם צילום וזיהוי ליקויים" />
+    <meta name="theme-color" content="#000000" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="תיק שטח" />
-    <link rel="apple-touch-icon" href="./apple-touch-icon.png" data-brand-slot="apple-touch" />
-    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" data-brand-slot="favicon-32" />
-    <link rel="icon" type="image/png" sizes="48x48" href="./favicon-48.png" data-brand-slot="favicon-48" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./pwa-192.png" data-brand-slot="favicon-192" />
+    <meta name="apple-mobile-web-app-title" content="סול בטיחות" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260728c" data-brand-slot="apple-touch" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png?v=20260728c" data-brand-slot="favicon-32" />
+    <link rel="icon" type="image/png" sizes="48x48" href="./favicon-48.png?v=20260728c" data-brand-slot="favicon-48" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./pwa-192.png?v=20260728c" data-brand-slot="favicon-192" />
     <link rel="icon" type="image/svg+xml" href="./safety-app-icon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <script>
-      // Apply SOLO / safety branding before React loads when opening /safety
-      // so iOS "Add to Home Screen" picks the correct icon for photo reports.
+      // Apply dossiers branding before React when NOT on /safety.
+      // Defaults above are SOLO so iOS "Add to Home Screen" from /safety gets the new icon
+      // even if JS is skipped for icon discovery (Safari often uses apple-touch-icon link / root file).
       (function () {
         try {
           var path = location.pathname || '';
           var isSafety = /(?:^|\/)safety(?:\/|$)/.test(path);
-          if (!isSafety) return;
-          document.title = 'סול בטיחות — דוחות מצולמים';
+          if (isSafety) return;
+          document.title = 'תיק שטח כיבוי אש';
           var desc = document.querySelector('meta[name="description"]');
-          if (desc) desc.setAttribute('content', 'הכנת דוחות ביקורת בטיחות עם צילום וזיהוי ליקויים');
+          if (desc) desc.setAttribute('content', 'ניהול תיקי שטח לבטיחות אש');
           var theme = document.querySelector('meta[name="theme-color"]');
-          if (theme) theme.setAttribute('content', '#000000');
+          if (theme) theme.setAttribute('content', '#0f2744');
           var appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-          if (appleTitle) appleTitle.setAttribute('content', 'סול בטיחות');
+          if (appleTitle) appleTitle.setAttribute('content', 'תיק שטח');
           var map = {
-            'apple-touch': './safety-apple-touch-icon.png?v=20260728b',
-            'favicon-32': './safety-favicon-32.png?v=20260728b',
-            'favicon-48': './safety-favicon-48.png?v=20260728b',
-            'favicon-192': './safety-pwa-192.png?v=20260728b'
+            'apple-touch': './dossiers-apple-touch-icon.png?v=20260728c',
+            'favicon-32': './dossiers-favicon-32.png?v=20260728c',
+            'favicon-48': './dossiers-favicon-48.png?v=20260728c',
+            'favicon-192': './dossiers-pwa-192.png?v=20260728c'
           };
           Object.keys(map).forEach(function (slot) {
             var el = document.querySelector('link[data-brand-slot="' + slot + '"]');
@@ -50,7 +52,7 @@
       // One-shot PWA recovery after oversized precache broke iOS installs.
       // Bump SOL_PWA_BUILD whenever clients may be stuck on a stale shell.
       (function () {
-        var BUILD = '2026-07-28-safety-icon-live';
+        var BUILD = '2026-07-28-solo-icon-classic-paths';
         var KEY = 'sol-pwa-build';
         var FLAG = 'sol-pwa-reloaded-' + BUILD;
         try {
