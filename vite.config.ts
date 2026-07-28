@@ -23,8 +23,12 @@ export default defineConfig(({ mode }) => {
       registerType: "autoUpdate",
       includeAssets: [
         "favicon.ico",
+        "favicon-32.png",
+        "favicon-48.png",
         "safety-app-icon.svg",
         "apple-touch-icon.png",
+        "pwa-192.png",
+        "pwa-512.png",
       ],
       manifest: {
         id: `${base}safety`,
@@ -37,14 +41,15 @@ export default defineConfig(({ mode }) => {
         scope: base,
         display: "standalone",
         orientation: "portrait-primary",
-        background_color: "#f8fafc",
-        theme_color: "#0f2744",
+        background_color: "#000000",
+        theme_color: "#000000",
         categories: ["business", "productivity", "utilities"],
         icons: [
           {
             src: `${base}pwa-192.png`,
             sizes: "192x192",
             type: "image/png",
+            purpose: "any",
           },
           {
             src: `${base}pwa-512.png`,
@@ -57,6 +62,12 @@ export default defineConfig(({ mode }) => {
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
+          },
+          {
+            src: `${base}apple-touch-icon.png`,
+            sizes: "180x180",
+            type: "image/png",
+            purpose: "any",
           },
         ],
       },
