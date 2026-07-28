@@ -34,10 +34,10 @@
           var appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
           if (appleTitle) appleTitle.setAttribute('content', 'סול בטיחות');
           var map = {
-            'apple-touch': './safety-apple-touch-icon.png',
-            'favicon-32': './safety-favicon-32.png',
-            'favicon-48': './safety-favicon-48.png',
-            'favicon-192': './safety-pwa-192.png'
+            'apple-touch': './safety-apple-touch-icon.png?v=20260728b',
+            'favicon-32': './safety-favicon-32.png?v=20260728b',
+            'favicon-48': './safety-favicon-48.png?v=20260728b',
+            'favicon-192': './safety-pwa-192.png?v=20260728b'
           };
           Object.keys(map).forEach(function (slot) {
             var el = document.querySelector('link[data-brand-slot="' + slot + '"]');
@@ -50,7 +50,7 @@
       // One-shot PWA recovery after oversized precache broke iOS installs.
       // Bump SOL_PWA_BUILD whenever clients may be stuck on a stale shell.
       (function () {
-        var BUILD = '2026-07-28-safety-icon-split';
+        var BUILD = '2026-07-28-safety-icon-live';
         var KEY = 'sol-pwa-build';
         var FLAG = 'sol-pwa-reloaded-' + BUILD;
         try {

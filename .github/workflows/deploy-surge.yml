@@ -1,0 +1,37 @@
+name: Deploy to Surge (solbtihutlive)
+
+on:
+  push:
+    branches:
+      - main
+      - cursor/safety-audit-module-71ae
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to Surge
+        env:
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+        run: |
+          if [ -z "$SURGE_TOKEN" ]; then
+            echo "SURGE_TOKEN secret is missing — cannot update solbtihutlive.surge.sh"
+            exit 1
+          fi
+          npx --yes surge ./dist solbtihutlive.surge.sh --token "$SURGE_TOKEN"
