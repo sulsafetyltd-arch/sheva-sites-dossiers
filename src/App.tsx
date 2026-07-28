@@ -24,6 +24,7 @@ import SafetyInductionSign from "./pages/safety-induction/SafetyInductionSign.ts
 import RootEntry from "./components/safety/RootEntry.tsx";
 import RequireSafetyAuth from "./components/safety/RequireSafetyAuth.tsx";
 import RequireSafetyAdmin from "./components/safety/RequireSafetyAdmin.tsx";
+import AppBrandingSwitcher from "./components/AppBrandingSwitcher.tsx";
 import { SafetyAuthProvider } from "./contexts/SafetyAuthContext.tsx";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <SafetyAuthProvider>
+          <AppBrandingSwitcher />
           <Routes>
             <Route path="/" element={<RootEntry />} />
             <Route path="/editor/:id" element={<RequireSafetyAuth><DossierEditor /></RequireSafetyAuth>} />

@@ -20,7 +20,16 @@ test('employee registration form validates required details', async ({ page }) =
 });
 
 test('PWA manifest icons are available', async ({ request }) => {
-  for (const path of ['/manifest.webmanifest', '/pwa-192.png', '/pwa-512.png', '/apple-touch-icon.png']) {
+  for (const path of [
+    '/manifest.webmanifest',
+    '/manifest-dossiers.webmanifest',
+    '/pwa-192.png',
+    '/pwa-512.png',
+    '/apple-touch-icon.png',
+    '/safety-pwa-192.png',
+    '/safety-pwa-512.png',
+    '/safety-apple-touch-icon.png',
+  ]) {
     const response = await request.get(path);
     expect(response.ok(), `${path} should return successfully`).toBeTruthy();
   }

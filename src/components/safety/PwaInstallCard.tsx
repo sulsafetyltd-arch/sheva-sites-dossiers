@@ -94,12 +94,12 @@ export default function PwaInstallCard() {
         <div className="rounded-xl bg-[#0f2744] text-white p-4 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="font-semibold">התקן את סול בטיחות</div>
+              <div className="font-semibold">התקן את אפליקציית הדוחות המצולמים</div>
               <div className="text-sm text-slate-300 mt-1">
-                גישה מהירה ממסך הבית ועדכונים אוטומטיים.
+                סול בטיחות — גישה מהירה ממסך הבית לדוחות ביקורת עם צילום.
               </div>
             </div>
-            <img src={`${import.meta.env.BASE_URL}pwa-192.png`} alt="" className="w-12 h-12 rounded-xl" />
+            <img src={`${import.meta.env.BASE_URL}safety-pwa-192.png`} alt="" className="w-12 h-12 rounded-xl" />
           </div>
           <Button
             type="button"
