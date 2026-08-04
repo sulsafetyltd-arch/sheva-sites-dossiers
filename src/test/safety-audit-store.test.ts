@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { mapSafetyReportRow } from '@/lib/safety-audit-store';
+import { mapSafetyDefectRow, mapSafetyReportRow } from '@/lib/safety-audit-store';
 import {
   CORRECTIVE_ACTION_SUGGESTIONS,
+  defectLifecycleLabel,
   getChecklistTopics,
+  isReportLocked,
+  reportStatusLabel,
   reportTypeLabel,
 } from '@/types/safety-audit';
 
@@ -142,5 +145,62 @@ describe('safety report database mapping', () => {
     expect(report.domainDetails?.institutionSymbol).toBe('707240');
     expect(report.domainDetails?.institutionKind).toBe('kindergarten');
     expect(report.domainDetails?.selectedApprovalKeys).toEqual(['ed_a_01', 'ed_a_07', 'ed_a_12']);
+  });
+
+  it('maps finalize metadata and treats final reports as locked', () => {
+    const report = mapSafetyReportRow({
+      id: 'report-final',
+      client_id: 'client-1',
+      report_type: 'workplace',
+      date: '2026-08-04',
+      status: 'final',
+      finalized_at: '2026-08-04T12:00:00Z',
+      finalized_by: 'ישראל ישראלי',
+      final_pdf_path: 'client-1/report-final/final.pdf',
+      final_snapshot: {
+        version: 1,
+        capturedAt: '2026-08-04T12:00:00Z',
+        report: { id: 'report-final' },
+        defects: [],
+        photos: [],
+      },
+      created_at: '2026-08-04T00:00:00Z',
+      updated_at: '2026-08-04T12:00:00Z',
+    });
+
+    expect(report.status).toBe('final');
+    expect(isReportLocked(report)).toBe(true);
+    expect(reportStatusLabel(report.status)).toBe('סופי / נעול');
+    expect(report.finalizedBy).toBe('ישראל ישראלי');
+    expect(report.finalPdfPath).toContain('final.pdf');
+    expect(report.finalSnapshot?.version).toBe(1);
+  });
+
+  it('maps defect lifecycle and after-photo kind with safe defaults', () => {
+    const openDefect = mapSafetyDefectRow({
+      id: 'd1',
+      report_id: 'r1',
+      description: 'מפגע',
+      severity: 'high',
+      created_at: '2026-08-04T00:00:00Z',
+    });
+    expect(openDefect.status).toBe('open');
+    expect(defectLifecycleLabel(openDefect.status)).toBe('פתוח');
+
+    const verified = mapSafetyDefectRow({
+      id: 'd2',
+      report_id: 'r1',
+      description: 'תוקן',
+      severity: 'medium',
+      status: 'verified',
+      fixed_at: '2026-08-04T10:00:00Z',
+      verified_at: '2026-08-04T11:00:00Z',
+      verified_by: 'מבקר',
+      resolution_notes: 'טופל',
+      created_at: '2026-08-04T00:00:00Z',
+    });
+    expect(verified.status).toBe('verified');
+    expect(verified.verifiedBy).toBe('מבקר');
+    expect(defectLifecycleLabel(verified.status)).toBe('אומת');
   });
 });

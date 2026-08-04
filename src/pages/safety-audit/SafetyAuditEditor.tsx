@@ -14,6 +14,8 @@ import {
 } from '@/lib/safety-audit-store';
 import type {
   ChecklistStatus,
+  DefectLifecycleStatus,
+  DefectPhotoKind,
   SafetyAuditDefect,
   SafetyAuditDefectPhoto,
   SafetyAuditReport,
@@ -23,7 +25,11 @@ import {
   getChecklistTopics,
   reportTypeLabel,
   defectSeverityLabel,
+  defectLifecycleLabel,
+  isReportLocked,
+  reportStatusLabel,
 } from '@/types/safety-audit';
+import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
 import {
   analyzeDefectPhoto,
   hasVisionModelConfigured,
@@ -64,6 +70,7 @@ const STEPS = [
 const SafetyAuditEditor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { profile } = useSafetyAuth();
   const [report, setReport] = useState<SafetyAuditReport | null>(null);
   const [defects, setDefects] = useState<SafetyAuditDefect[]>([]);
   const [photosByDefect, setPhotosByDefect] = useState<Record<string, SafetyAuditDefectPhoto[]>>({});
@@ -260,6 +267,10 @@ const SafetyAuditEditor = () => {
 
   const saveBasics = async (): Promise<boolean> => {
     if (!report || !id) return false;
+    if (isReportLocked(report)) {
+      setError('הדוח נעול — לא ניתן לשמור שינויים');
+      return false;
+    }
     setSaving(true);
     setMessage(null);
     try {
@@ -376,6 +387,22 @@ const SafetyAuditEditor = () => {
     }
   };
 
+  const setDefectLifecycle = async (defect: SafetyAuditDefect, status: DefectLifecycleStatus) => {
+    const patch: Partial<SafetyAuditDefect> = { status };
+    if (status === 'verified') {
+      patch.verifiedBy = profile?.fullName || profile?.email || 'מבקר';
+    }
+    changeDefectLocal(defect, 'status', status);
+    try {
+      const updated = await updateDefect(defect.id, patch);
+      setDefects((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+      setError(null);
+      setMessage(`סטטוס ליקוי עודכן ל«${defectLifecycleLabel(status)}»`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'עדכון סטטוס ליקוי נכשל');
+    }
+  };
+
   const addCorrectiveAction = (defect: SafetyAuditDefect, action: string) => {
     if (!action) return;
     const currentActions = (defect.correctiveAction || '')
@@ -483,25 +510,31 @@ const SafetyAuditEditor = () => {
     }
   };
 
-  const onUploadPhoto = async (defectId: string, file?: File | null) => {
+  const onUploadPhoto = async (
+    defectId: string,
+    file?: File | null,
+    photoKind: DefectPhotoKind = 'before',
+  ) => {
     if (!file || uploadingDefects.has(defectId)) return;
     setUploadingDefects((current) => new Set(current).add(defectId));
     try {
       const analysisBlob = await resizeImageToBlob(file, 1280, 0.75);
-      const photo = await addDefectPhoto(defectId, file);
+      const photo = await addDefectPhoto(defectId, file, undefined, undefined, photoKind);
       setPhotosByDefect((prev) => ({
         ...prev,
         [defectId]: [...(prev[defectId] ?? []), photo],
       }));
-      patchVision(defectId, {
-        imageBlob: analysisBlob,
-        suggestion: null,
-        error: null,
-      });
-      setError(null);
-      if (hasVisionModelConfigured()) {
-        void runVisionAnalysis(defectId, analysisBlob);
+      if (photoKind === 'before') {
+        patchVision(defectId, {
+          imageBlob: analysisBlob,
+          suggestion: null,
+          error: null,
+        });
+        if (hasVisionModelConfigured()) {
+          void runVisionAnalysis(defectId, analysisBlob);
+        }
       }
+      setError(null);
     } catch (cause) {
       setError(`העלאת התמונה נכשלה: ${cause instanceof Error ? cause.message : 'שגיאה לא ידועה'}`);
     } finally {
@@ -585,13 +618,18 @@ const SafetyAuditEditor = () => {
   if (loading) return <div className="p-4" dir="rtl">טוען…</div>;
   if (error && !report) return <div className="p-4 text-red-600" dir="rtl">{error}</div>;
   if (!report) return <div className="p-4" dir="rtl">לא נמצא דוח</div>;
+  const locked = isReportLocked(report);
   const railwayDetails = report.domainDetails ?? {};
   const setRailwayDetails = (patch: Partial<NonNullable<SafetyAuditReport['domainDetails']>>) => {
+    if (locked) return;
     setReport((current) => current
       ? { ...current, domainDetails: { ...(current.domainDetails ?? {}), ...patch } }
       : current);
     setError(null);
   };
+  const openDefects = defects.filter((d) => (d.status ?? 'open') === 'open').length;
+  const fixedDefects = defects.filter((d) => d.status === 'fixed').length;
+  const verifiedDefects = defects.filter((d) => d.status === 'verified').length;
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
@@ -622,6 +660,11 @@ const SafetyAuditEditor = () => {
               >
                 {reportTypeLabel(report.reportType)}
               </span>
+              <span className={`text-xs rounded-full px-2 py-0.5 ${
+                locked ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'
+              }`}>
+                {reportStatusLabel(report.status)}
+              </span>
               <h1 className="text-2xl font-bold truncate">{report.siteName || report.projectName || 'ללא שם'}</h1>
             </div>
             <div className="text-sm text-slate-500">{report.reportNumber}</div>
@@ -632,7 +675,7 @@ const SafetyAuditEditor = () => {
               variant="secondary"
               className="min-h-12 w-full touch-manipulation"
               onClick={() => void saveBasics()}
-              disabled={saving}
+              disabled={saving || locked}
             >
               {saving ? 'שומר…' : 'שמירה'}
             </Button>
@@ -641,6 +684,18 @@ const SafetyAuditEditor = () => {
             </Button>
           </div>
         </div>
+
+        {locked && (
+          <div className="rounded-xl border border-slate-800 bg-slate-900 text-white p-4 text-sm space-y-1">
+            <div className="font-semibold">הדוח נעול (גרסה סופית)</div>
+            <div>
+              ננעל
+              {report.finalizedAt ? ` ב־${new Date(report.finalizedAt).toLocaleString('he-IL')}` : ''}
+              {report.finalizedBy ? ` ע״י ${report.finalizedBy}` : ''}.
+              ניתן לצפות ולייצא PDF; מנהל יכול לפתוח מחדש מתצוגת הדוח.
+            </div>
+          </div>
+        )}
 
         {message && <div className="rounded-lg bg-emerald-50 text-emerald-800 p-3 text-sm">{message}</div>}
         {error && <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</div>}
@@ -1105,7 +1160,7 @@ const SafetyAuditEditor = () => {
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold">{isConstruction ? 'ליקויים ותיעוד צילומי' : isRailway ? 'ריכוז ליקויים מביקור נוכחי' : isBuildingSurvey ? 'ממצאים והערות לסקר המבנה' : isEducation ? 'פירוט הממצאים לפי קדימות טיפול' : '4. ליקויים ופעולות מתקנות'}</h2>
             <div className="flex flex-wrap gap-2">
-              {isEducation && (
+              {isEducation && !locked && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -1117,33 +1172,57 @@ const SafetyAuditEditor = () => {
                   צילום AI
                 </Button>
               )}
-              <Button
-                size="sm"
-                onClick={() => {
-                  if (isEducation) {
-                    goToStepId('catalog');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    return;
-                  }
-                  void addDefect();
-                }}
-              >
-                {isEducation ? 'בחירה מהמאגר' : 'הוסף ליקוי'}
-              </Button>
+              {!locked && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (isEducation) {
+                      goToStepId('catalog');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                      return;
+                    }
+                    void addDefect();
+                  }}
+                >
+                  {isEducation ? 'בחירה מהמאגר' : 'הוסף ליקוי'}
+                </Button>
+              )}
             </div>
           </div>
+          {defects.length > 0 && (
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full bg-amber-100 text-amber-900 px-2 py-1">פתוחים: {openDefects}</span>
+              <span className="rounded-full bg-sky-100 text-sky-900 px-2 py-1">תוקנו: {fixedDefects}</span>
+              <span className="rounded-full bg-emerald-100 text-emerald-900 px-2 py-1">אומתו: {verifiedDefects}</span>
+            </div>
+          )}
           {isEducation && defects.length === 0 && (
             <div className="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-slate-500 space-y-3">
               <p>עדיין אין ממצאים. צלמו תמונה לזיהוי AI, או בחרו סעיפים מהמאגר המנחה.</p>
               <div className="flex flex-wrap justify-center gap-2">
-                <Button type="button" size="sm" onClick={() => goToStepId('photo_ai')}>צילום וזיהוי AI</Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => goToStepId('catalog')}>מאגר מנחה</Button>
+                <Button type="button" size="sm" onClick={() => goToStepId('photo_ai')} disabled={locked}>צילום וזיהוי AI</Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => goToStepId('catalog')} disabled={locked}>מאגר מנחה</Button>
               </div>
             </div>
           )}
-          {defects.map((d, idx) => (
+          {defects.map((d, idx) => {
+            const lifecycle = d.status ?? 'open';
+            const beforePhotos = (photosByDefect[d.id] ?? []).filter((p) => (p.photoKind ?? 'before') !== 'after');
+            const afterPhotos = (photosByDefect[d.id] ?? []).filter((p) => p.photoKind === 'after');
+            return (
             <div key={d.id} className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
-              <div className="text-sm text-slate-500">ליקוי #{idx + 1}</div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm text-slate-500">ליקוי #{idx + 1}</div>
+                <span className={`text-xs rounded-full px-2 py-0.5 font-medium ${
+                  lifecycle === 'verified'
+                    ? 'bg-emerald-100 text-emerald-900'
+                    : lifecycle === 'fixed'
+                      ? 'bg-sky-100 text-sky-900'
+                      : 'bg-amber-100 text-amber-900'
+                }`}>
+                  {defectLifecycleLabel(lifecycle)}
+                </span>
+              </div>
               {isEducation && (
                 <div className="rounded-lg bg-rose-50 border border-rose-100 px-3 py-2 text-sm">
                   {(() => {
@@ -1166,12 +1245,14 @@ const SafetyAuditEditor = () => {
                 dir="rtl"
                 value={d.description}
                 placeholder={isEducation ? 'הממצא, מהותו ומיקומו' : undefined}
+                disabled={locked}
                 onChange={(e) => changeDefectLocal(d, 'description', e.target.value)}
                 onBlur={(e) => void persistDefect(d, 'description', e.target.value)}
               />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <Select
                   value={d.severity}
+                  disabled={locked}
                   onValueChange={(value) => {
                     changeDefectLocal(d, 'severity', value as SafetyAuditDefect['severity']);
                     void persistDefect(d, 'severity', value as SafetyAuditDefect['severity']);
@@ -1186,10 +1267,25 @@ const SafetyAuditEditor = () => {
                     <SelectItem value="low">{defectSeverityLabel('low', report.reportType)}</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select
+                  value={lifecycle}
+                  disabled={locked}
+                  onValueChange={(value) => void setDefectLifecycle(d, value as DefectLifecycleStatus)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="סטטוס טיפול" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">{defectLifecycleLabel('open')}</SelectItem>
+                    <SelectItem value="fixed">{defectLifecycleLabel('fixed')}</SelectItem>
+                    <SelectItem value="verified">{defectLifecycleLabel('verified')}</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Input
                   dir="rtl"
                   type="date"
                   value={d.dueDate || ''}
+                  disabled={locked}
                   onChange={(e) => changeDefectLocal(d, 'dueDate', e.target.value)}
                   onBlur={(e) => void persistDefect(d, 'dueDate', e.target.value)}
                 />
@@ -1198,6 +1294,7 @@ const SafetyAuditEditor = () => {
                   <select
                     dir="rtl"
                     value=""
+                    disabled={locked}
                     onChange={(event) => addCorrectiveAction(d, event.target.value)}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     aria-label="בחירת פעולה מתקנת מוצעת"
@@ -1211,6 +1308,7 @@ const SafetyAuditEditor = () => {
                     dir="rtl"
                     placeholder="ניתן לבחור פעולות מהרשימה ולערוך או להוסיף טקסט חופשי"
                     value={d.correctiveAction || ''}
+                    disabled={locked}
                     onChange={(event) => changeDefectLocal(d, 'correctiveAction', event.target.value)}
                     onBlur={(event) => void persistDefect(d, 'correctiveAction', event.target.value)}
                   />
@@ -1219,61 +1317,145 @@ const SafetyAuditEditor = () => {
                   dir="rtl"
                   placeholder="אחראי לביצוע"
                   value={d.responsible || ''}
+                  disabled={locked}
                   onChange={(e) => changeDefectLocal(d, 'responsible', e.target.value)}
                   onBlur={(e) => void persistDefect(d, 'responsible', e.target.value)}
                 />
+                <Textarea
+                  dir="rtl"
+                  placeholder="הערות סגירה / תיקון (אופציונלי)"
+                  value={d.resolutionNotes || ''}
+                  disabled={locked}
+                  onChange={(e) => changeDefectLocal(d, 'resolutionNotes', e.target.value)}
+                  onBlur={(e) => void persistDefect(d, 'resolutionNotes', e.target.value)}
+                />
               </div>
-              <div className="space-y-2">
-                <div className="text-sm font-medium">צילומי ליקוי</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className={`inline-flex items-center justify-center gap-2 min-h-11 rounded-md border bg-white px-3 text-sm font-medium cursor-pointer ${uploadingDefects.has(d.id) ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <Camera className="w-4 h-4" />
-                    צלם
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      disabled={uploadingDefects.has(d.id)}
-                      onChange={(e) => {
-                        void onUploadPhoto(d.id, e.target.files?.[0]);
-                        e.currentTarget.value = '';
-                      }}
-                    />
-                  </label>
-                  <label className={`inline-flex items-center justify-center gap-2 min-h-11 rounded-md border bg-white px-3 text-sm font-medium cursor-pointer ${uploadingDefects.has(d.id) ? 'opacity-50 pointer-events-none' : ''}`}>
-                    העלה מהגלריה
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      disabled={uploadingDefects.has(d.id)}
-                      onChange={(e) => {
-                        void onUploadPhoto(d.id, e.target.files?.[0]);
-                        e.currentTarget.value = '';
-                      }}
-                    />
-                  </label>
+              {(d.fixedAt || d.verifiedAt) && (
+                <div className="text-xs text-slate-500 space-y-0.5">
+                  {d.fixedAt && <div>תוקן: {new Date(d.fixedAt).toLocaleString('he-IL')}</div>}
+                  {d.verifiedAt && (
+                    <div>
+                      אומת: {new Date(d.verifiedAt).toLocaleString('he-IL')}
+                      {d.verifiedBy ? ` ע״י ${d.verifiedBy}` : ''}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">צילום לפני (ממצא)</div>
+                  {!locked && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className={`inline-flex items-center justify-center gap-2 min-h-11 rounded-md border bg-white px-3 text-sm font-medium cursor-pointer ${uploadingDefects.has(d.id) ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <Camera className="w-4 h-4" />
+                        צלם
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          disabled={uploadingDefects.has(d.id)}
+                          onChange={(e) => {
+                            void onUploadPhoto(d.id, e.target.files?.[0], 'before');
+                            e.currentTarget.value = '';
+                          }}
+                        />
+                      </label>
+                      <label className={`inline-flex items-center justify-center gap-2 min-h-11 rounded-md border bg-white px-3 text-sm font-medium cursor-pointer ${uploadingDefects.has(d.id) ? 'opacity-50 pointer-events-none' : ''}`}>
+                        העלה מהגלריה
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingDefects.has(d.id)}
+                          onChange={(e) => {
+                            void onUploadPhoto(d.id, e.target.files?.[0], 'before');
+                            e.currentTarget.value = '';
+                          }}
+                        />
+                      </label>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {beforePhotos.map((p) => (
+                      <div key={p.id} className="relative">
+                        <img src={getPublicUrl(p.storagePath)} alt={d.description} className="h-28 w-full object-cover rounded-lg border" />
+                        {!locked && (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="destructive"
+                            className="absolute top-1 left-1 h-7 w-7"
+                            aria-label="מחק תמונה"
+                            onClick={() => void removePhoto(p)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2 rounded-lg border border-emerald-100 bg-emerald-50/40 p-3">
+                  <div className="text-sm font-medium text-emerald-950">צילום אחרי (הוכחת תיקון)</div>
+                  {!locked && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className={`inline-flex items-center justify-center gap-2 min-h-11 rounded-md border bg-white px-3 text-sm font-medium cursor-pointer ${uploadingDefects.has(d.id) ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <Camera className="w-4 h-4" />
+                        צלם אחרי
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          disabled={uploadingDefects.has(d.id)}
+                          onChange={(e) => {
+                            void onUploadPhoto(d.id, e.target.files?.[0], 'after');
+                            e.currentTarget.value = '';
+                          }}
+                        />
+                      </label>
+                      <label className={`inline-flex items-center justify-center gap-2 min-h-11 rounded-md border bg-white px-3 text-sm font-medium cursor-pointer ${uploadingDefects.has(d.id) ? 'opacity-50 pointer-events-none' : ''}`}>
+                        העלה אחרי
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingDefects.has(d.id)}
+                          onChange={(e) => {
+                            void onUploadPhoto(d.id, e.target.files?.[0], 'after');
+                            e.currentTarget.value = '';
+                          }}
+                        />
+                      </label>
+                    </div>
+                  )}
+                  {afterPhotos.length === 0 ? (
+                    <div className="text-xs text-emerald-900/70">אין עדיין תיעוד תיקון</div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {afterPhotos.map((p) => (
+                        <div key={p.id} className="relative">
+                          <img src={getPublicUrl(p.storagePath)} alt={`אחרי — ${d.description}`} className="h-28 w-full object-cover rounded-lg border border-emerald-200" />
+                          {!locked && (
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="destructive"
+                              className="absolute top-1 left-1 h-7 w-7"
+                              aria-label="מחק תמונה"
+                              onClick={() => void removePhoto(p)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {uploadingDefects.has(d.id) && <div className="text-xs text-slate-500">מעלה תמונה…</div>}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {(photosByDefect[d.id] ?? []).map((p) => (
-                    <div key={p.id} className="relative">
-                      <img src={getPublicUrl(p.storagePath)} alt={d.description} className="h-28 w-full object-cover rounded-lg border" />
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="destructive"
-                        className="absolute top-1 left-1 h-7 w-7"
-                        aria-label="מחק תמונה"
-                        onClick={() => void removePhoto(p)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                {((photosByDefect[d.id] ?? []).length > 0 || visionByDefect[d.id]?.imageBlob) ? (
+                {(beforePhotos.length > 0 || visionByDefect[d.id]?.imageBlob) ? (
                   <DefectVisionAssist
                     topics={visionTopics}
                     reportType={report.reportType}
@@ -1285,17 +1467,20 @@ const SafetyAuditEditor = () => {
                     onDismiss={() => patchVision(d.id, { suggestion: null, error: null })}
                     onLocalCategory={(suggestion) => patchVision(d.id, { suggestion, error: null })}
                   />
-                ) : isEducation ? (
+                ) : isEducation && !locked ? (
                   <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-950">
                     צלמו או העלו תמונת ממצא כדי להפעיל זיהוי וניתוח AI לפי הרשימה המנחה של משרד החינוך.
                   </div>
                 ) : null}
               </div>
-              <Button size="sm" variant="ghost" onClick={() => void removeDefect(d)}>
-                מחק ליקוי
-              </Button>
+              {!locked && (
+                <Button size="sm" variant="ghost" onClick={() => void removeDefect(d)}>
+                  מחק ליקוי
+                </Button>
+              )}
             </div>
-          ))}
+            );
+          })}
         </section>
         )}
 
@@ -1305,23 +1490,38 @@ const SafetyAuditEditor = () => {
             <PenLine className="w-5 h-5" />
             חתימות דיגיטליות
           </h2>
+          {locked && (
+            <div className="text-sm text-slate-600">הדוח נעול — החתימות מוצגות לקריאה בלבד.</div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <div className="font-medium">חתימת מנהל עבודה</div>
-              <Input dir="rtl" placeholder="שם מנהל העבודה" value={report.siteManager || ''} onChange={(e) => setReport({ ...report, siteManager: e.target.value })} />
-              <SignaturePad value={report.siteManagerSignatureUrl} onChange={(url) => void onSiteManagerSign(url)} width={340} height={140} />
+              <Input dir="rtl" placeholder="שם מנהל העבודה" value={report.siteManager || ''} disabled={locked} onChange={(e) => setReport({ ...report, siteManager: e.target.value })} />
+              {!locked ? (
+                <SignaturePad value={report.siteManagerSignatureUrl} onChange={(url) => void onSiteManagerSign(url)} width={340} height={140} />
+              ) : report.siteManagerSignatureUrl ? (
+                <img src={report.siteManagerSignatureUrl} alt="חתימת מנהל" className="h-24 border rounded bg-white object-contain" />
+              ) : (
+                <div className="text-sm text-slate-400">אין חתימה</div>
+              )}
               {report.siteManagerSignedAt && (
                 <div className="text-xs text-slate-500">נחתם: {new Date(report.siteManagerSignedAt).toLocaleString('he-IL')}</div>
               )}
             </div>
             <div className="space-y-2">
               <div className="font-medium">חתימת ממונה בטיחות</div>
-              <Input dir="rtl" placeholder="שם ממונה הבטיחות" value={report.auditor || ''} onChange={(e) => setReport({ ...report, auditor: e.target.value })} />
+              <Input dir="rtl" placeholder="שם ממונה הבטיחות" value={report.auditor || ''} disabled={locked} onChange={(e) => setReport({ ...report, auditor: e.target.value })} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <Input dir="rtl" placeholder="תפקיד" value={report.auditorRole || ''} onChange={(e) => setReport({ ...report, auditorRole: e.target.value })} />
-                <Input dir="ltr" className="text-right" placeholder="טלפון" value={report.auditorPhone || ''} onChange={(e) => setReport({ ...report, auditorPhone: e.target.value })} />
+                <Input dir="rtl" placeholder="תפקיד" value={report.auditorRole || ''} disabled={locked} onChange={(e) => setReport({ ...report, auditorRole: e.target.value })} />
+                <Input dir="ltr" className="text-right" placeholder="טלפון" value={report.auditorPhone || ''} disabled={locked} onChange={(e) => setReport({ ...report, auditorPhone: e.target.value })} />
               </div>
-              <SignaturePad value={report.auditorSignatureUrl} onChange={(url) => void onAuditorSign(url)} width={340} height={140} />
+              {!locked ? (
+                <SignaturePad value={report.auditorSignatureUrl} onChange={(url) => void onAuditorSign(url)} width={340} height={140} />
+              ) : report.auditorSignatureUrl ? (
+                <img src={report.auditorSignatureUrl} alt="חתימת ממונה" className="h-24 border rounded bg-white object-contain" />
+              ) : (
+                <div className="text-sm text-slate-400">אין חתימה</div>
+              )}
               {report.auditorStampUrl && (
                 <div className="rounded-lg border bg-white p-2">
                   <div className="text-xs text-slate-500 mb-1">חותמת מהפרופיל</div>

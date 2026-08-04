@@ -8,7 +8,7 @@ import {
   updateClient,
 } from '@/lib/safety-audit-store';
 import type { ReportType, SafetyAuditClient, SafetyAuditReport } from '@/types/safety-audit';
-import { reportTypeLabel } from '@/types/safety-audit';
+import { isReportLocked, reportStatusLabel, reportTypeLabel } from '@/types/safety-audit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
@@ -255,10 +255,16 @@ export default function SafetyClientReports() {
                       }`}>
                         {reportTypeLabel(report.reportType)}
                       </span>
+                      <span className={`text-xs rounded-full px-2 py-0.5 ${
+                        isReportLocked(report) ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {reportStatusLabel(report.status)}
+                      </span>
                       <span className="font-medium">{report.siteName || report.projectName}</span>
                     </div>
                     <div className="text-sm text-slate-500 mt-1">
                       {report.reportNumber} · {report.auditDate || report.date}
+                      {report.finalizedAt ? ` · ננעל ${new Date(report.finalizedAt).toLocaleDateString('he-IL')}` : ''}
                     </div>
                   </div>
                   {isAdmin && (
@@ -268,7 +274,11 @@ export default function SafetyClientReports() {
                   )}
                 </div>
                 <div className="flex gap-2 mt-3">
-                  <Button asChild size="sm"><Link to={`/safety/editor/${report.id}`}>עריכה</Link></Button>
+                  <Button asChild size="sm" variant={isReportLocked(report) ? 'outline' : 'default'}>
+                    <Link to={`/safety/editor/${report.id}`}>
+                      {isReportLocked(report) ? 'צפייה' : 'עריכה'}
+                    </Link>
+                  </Button>
                   <Button asChild size="sm" variant="secondary"><Link to={`/safety/preview/${report.id}`}>תצוגה / PDF</Link></Button>
                 </div>
               </div>

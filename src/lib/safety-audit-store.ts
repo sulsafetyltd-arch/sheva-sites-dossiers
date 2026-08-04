@@ -3,11 +3,15 @@ import { resizeImageToBlob } from '@/lib/storage-utils';
 import type {
   ReportType,
   ChecklistItemState,
+  DefectLifecycleStatus,
+  DefectPhotoKind,
   SafetyAuditClient,
   SafetyAuditDefect,
   SafetyAuditDefectPhoto,
+  SafetyAuditFinalSnapshot,
   SafetyAuditReport,
 } from '@/types/safety-audit';
+import { isReportLocked } from '@/types/safety-audit';
 
 export interface SafetyAuditBackup {
   version: number;
@@ -103,6 +107,13 @@ export function mapSafetyReportRow(row: DatabaseRow): SafetyAuditReport {
     auditorStampUrl: optionalString(row.auditor_stamp_url),
     siteManagerSignedAt: optionalString(row.site_manager_signed_at),
     auditorSignedAt: optionalString(row.auditor_signed_at),
+    finalizedAt: optionalString(row.finalized_at),
+    finalizedBy: optionalString(row.finalized_by),
+    finalizedByUserId: optionalString(row.finalized_by_user_id),
+    finalSnapshot: row.final_snapshot && typeof row.final_snapshot === 'object'
+      ? row.final_snapshot as SafetyAuditFinalSnapshot
+      : undefined,
+    finalPdfPath: optionalString(row.final_pdf_path),
     checklist: (row.checklist as Record<string, ChecklistItemState> | null) ?? {},
     domainDetails: row.domain_details && typeof row.domain_details === 'object'
       ? row.domain_details as SafetyAuditReport['domainDetails']
@@ -112,7 +123,16 @@ export function mapSafetyReportRow(row: DatabaseRow): SafetyAuditReport {
   };
 }
 
-function mapDefect(row: DatabaseRow): SafetyAuditDefect {
+function mapDefectStatus(value: unknown): DefectLifecycleStatus {
+  if (value === 'fixed' || value === 'verified') return value;
+  return 'open';
+}
+
+function mapPhotoKind(value: unknown): DefectPhotoKind {
+  return value === 'after' ? 'after' : 'before';
+}
+
+export function mapSafetyDefectRow(row: DatabaseRow): SafetyAuditDefect {
   return {
     id: String(row.id),
     reportId: String(row.report_id),
@@ -122,9 +142,18 @@ function mapDefect(row: DatabaseRow): SafetyAuditDefect {
     correctiveAction: optionalString(row.corrective_action),
     responsible: optionalString(row.responsible),
     dueDate: optionalString(row.due_date),
+    status: mapDefectStatus(row.status),
+    fixedAt: optionalString(row.fixed_at),
+    verifiedAt: optionalString(row.verified_at),
+    verifiedBy: optionalString(row.verified_by),
+    resolutionNotes: optionalString(row.resolution_notes),
     sortOrder: typeof row.sort_order === 'number' ? row.sort_order : 0,
     createdAt: String(row.created_at),
   };
+}
+
+function mapDefect(row: DatabaseRow): SafetyAuditDefect {
+  return mapSafetyDefectRow(row);
 }
 
 function mapPhoto(row: DatabaseRow): SafetyAuditDefectPhoto {
@@ -134,8 +163,17 @@ function mapPhoto(row: DatabaseRow): SafetyAuditDefectPhoto {
     storagePath: String(row.storage_path),
     caption: optionalString(row.caption),
     takenAt: optionalString(row.taken_at),
+    photoKind: mapPhotoKind(row.photo_kind),
     createdAt: String(row.created_at),
   };
+}
+
+async function assertReportEditable(reportId: string): Promise<void> {
+  const report = await getReport(reportId);
+  if (!report) throw new Error('הדוח לא נמצא');
+  if (isReportLocked(report)) {
+    throw new Error('הדוח נעול ולא ניתן לערוך אותו. מנהל יכול לפתוח מחדש.');
+  }
 }
 
 async function cacheSignedUrls(paths: string[]): Promise<void> {
@@ -380,6 +418,11 @@ const reportColumnMap: Record<keyof SafetyAuditReport, string> = {
   auditorStampUrl: 'auditor_stamp_url',
   siteManagerSignedAt: 'site_manager_signed_at',
   auditorSignedAt: 'auditor_signed_at',
+  finalizedAt: 'finalized_at',
+  finalizedBy: 'finalized_by',
+  finalizedByUserId: 'finalized_by_user_id',
+  finalSnapshot: 'final_snapshot',
+  finalPdfPath: 'final_pdf_path',
   checklist: 'checklist',
   domainDetails: 'domain_details',
   createdAt: 'created_at',
@@ -390,6 +433,13 @@ export async function updateReport(
   id: string,
   partial: Partial<SafetyAuditReport>,
 ): Promise<SafetyAuditReport> {
+  const lockingOnly =
+    Object.keys(partial).length > 0
+    && Object.keys(partial).every((key) =>
+      ['status', 'finalizedAt', 'finalizedBy', 'finalizedByUserId', 'finalSnapshot', 'finalPdfPath'].includes(key));
+  if (!lockingOnly) {
+    await assertReportEditable(id);
+  }
   const payload: Record<string, unknown> = { updated_at: nowIso() };
   for (const [key, value] of Object.entries(partial)) {
     if (
@@ -435,8 +485,11 @@ export async function listDefects(reportId: string): Promise<SafetyAuditDefect[]
 
 export async function createDefect(
   reportId: string,
-  payload: Omit<SafetyAuditDefect, 'id' | 'reportId' | 'createdAt'>,
+  payload: Omit<SafetyAuditDefect, 'id' | 'reportId' | 'createdAt' | 'status'> & {
+    status?: DefectLifecycleStatus;
+  },
 ): Promise<SafetyAuditDefect> {
+  await assertReportEditable(reportId);
   const { data, error } = await supabase.rpc('create_safety_defect', {
     p_report_id: reportId,
     p_checklist_topic_key: payload.checklistTopicKey ?? null,
@@ -448,13 +501,25 @@ export async function createDefect(
     p_sort_order: payload.sortOrder ?? 0,
   });
   throwIfError(error);
-  return mapDefect(data);
+  const created = mapDefect(data);
+  if (payload.status && payload.status !== 'open') {
+    return updateDefect(created.id, { status: payload.status });
+  }
+  return created;
 }
 
 export async function updateDefect(
   id: string,
   partial: Partial<SafetyAuditDefect>,
 ): Promise<SafetyAuditDefect> {
+  const { data: existing, error: existingError } = await supabase
+    .from('safety_audit_defects')
+    .select('report_id,status')
+    .eq('id', id)
+    .single();
+  throwIfError(existingError);
+  await assertReportEditable(String(existing.report_id));
+
   const map: Record<string, string> = {
     checklistTopicKey: 'checklist_topic_key',
     description: 'description',
@@ -462,12 +527,38 @@ export async function updateDefect(
     correctiveAction: 'corrective_action',
     responsible: 'responsible',
     dueDate: 'due_date',
+    status: 'status',
+    fixedAt: 'fixed_at',
+    verifiedAt: 'verified_at',
+    verifiedBy: 'verified_by',
+    resolutionNotes: 'resolution_notes',
     sortOrder: 'sort_order',
   };
-  const payload: Record<string, unknown> = {};
+  const payload: Record<string, unknown> = { updated_at: nowIso() };
   for (const [key, value] of Object.entries(partial)) {
     if (map[key]) payload[map[key]] = value ?? null;
   }
+
+  // Auto-stamp lifecycle transitions when status changes without explicit timestamps.
+  if (partial.status === 'fixed' && partial.fixedAt === undefined) {
+    payload.fixed_at = nowIso();
+    if (partial.verifiedAt === undefined) payload.verified_at = null;
+    if (partial.verifiedBy === undefined) payload.verified_by = null;
+  }
+  if (partial.status === 'verified') {
+    if (partial.verifiedAt === undefined) payload.verified_at = nowIso();
+    if (partial.fixedAt === undefined && !existing.status) {
+      payload.fixed_at = nowIso();
+    } else if (partial.fixedAt === undefined && existing.status === 'open') {
+      payload.fixed_at = nowIso();
+    }
+  }
+  if (partial.status === 'open') {
+    if (partial.fixedAt === undefined) payload.fixed_at = null;
+    if (partial.verifiedAt === undefined) payload.verified_at = null;
+    if (partial.verifiedBy === undefined) payload.verified_by = null;
+  }
+
   const { data, error } = await supabase
     .from('safety_audit_defects')
     .update(payload)
@@ -479,6 +570,14 @@ export async function updateDefect(
 }
 
 export async function deleteDefect(id: string): Promise<void> {
+  const { data: existing, error: existingError } = await supabase
+    .from('safety_audit_defects')
+    .select('report_id')
+    .eq('id', id)
+    .single();
+  throwIfError(existingError);
+  await assertReportEditable(String(existing.report_id));
+
   const { data: photos, error: photoError } = await supabase
     .from('safety_audit_defect_photos')
     .select('storage_path')
@@ -540,6 +639,7 @@ export async function addDefectPhoto(
   file: File,
   caption?: string,
   takenAt?: string,
+  photoKind: DefectPhotoKind = 'before',
 ): Promise<SafetyAuditDefectPhoto> {
   const { data: defect, error: defectError } = await supabase
     .from('safety_audit_defects')
@@ -547,6 +647,7 @@ export async function addDefectPhoto(
     .eq('id', defectId)
     .single();
   throwIfError(defectError);
+  await assertReportEditable(String(defect.report_id));
   const { data: report, error: reportError } = await supabase
     .from('safety_audit_reports')
     .select('client_id')
@@ -568,6 +669,7 @@ export async function addDefectPhoto(
       storage_path: path,
       caption: caption?.trim() || null,
       taken_at: takenAt ?? nowIso(),
+      photo_kind: photoKind,
     })
     .select()
     .single();
@@ -580,6 +682,14 @@ export async function addDefectPhoto(
 }
 
 export async function deleteDefectPhoto(photo: SafetyAuditDefectPhoto): Promise<void> {
+  const { data: defect, error: defectError } = await supabase
+    .from('safety_audit_defects')
+    .select('report_id')
+    .eq('id', photo.defectId)
+    .single();
+  throwIfError(defectError);
+  await assertReportEditable(String(defect.report_id));
+
   const { error: storageError } = await supabase.storage
     .from(AUDIT_BUCKET)
     .remove([photo.storagePath]);
@@ -590,6 +700,160 @@ export async function deleteDefectPhoto(photo: SafetyAuditDefectPhoto): Promise<
     .eq('id', photo.id);
   throwIfError(error);
   signedUrlCache.delete(photo.storagePath);
+}
+
+export async function finalizeReport(
+  reportId: string,
+  options?: { pdfBlob?: Blob },
+): Promise<SafetyAuditReport> {
+  const report = await getReport(reportId);
+  if (!report) throw new Error('הדוח לא נמצא');
+  if (isReportLocked(report)) throw new Error('הדוח כבר נעול');
+  if (!report.auditorSignatureUrl) {
+    throw new Error('יש לחתום כממונה בטיחות לפני נעילת הדוח');
+  }
+
+  const [defects, photos] = await Promise.all([
+    listDefects(reportId),
+    listReportPhotos(reportId),
+  ]);
+
+  let finalPdfPath: string | null = null;
+  if (options?.pdfBlob) {
+    finalPdfPath = `${report.clientId}/${reportId}/final.pdf`;
+    const { error: uploadError } = await supabase.storage
+      .from(AUDIT_BUCKET)
+      .upload(finalPdfPath, options.pdfBlob, {
+        contentType: 'application/pdf',
+        upsert: true,
+      });
+    throwIfError(uploadError);
+  }
+
+  const snapshot: SafetyAuditFinalSnapshot = {
+    version: 1,
+    capturedAt: nowIso(),
+    report: {
+      ...report,
+      status: 'final',
+      // Avoid nesting previous snapshots inside the frozen copy.
+      finalSnapshot: undefined,
+      finalPdfPath: finalPdfPath ?? report.finalPdfPath,
+    },
+    defects,
+    photos: photos.map((photo) => ({
+      id: photo.id,
+      defectId: photo.defectId,
+      storagePath: photo.storagePath,
+      caption: photo.caption,
+      takenAt: photo.takenAt,
+      photoKind: photo.photoKind,
+      createdAt: photo.createdAt,
+      defectDescription: photo.defectDescription,
+      severity: photo.severity,
+      checklistTopicKey: photo.checklistTopicKey,
+    })),
+  };
+
+  const { data, error } = await supabase.rpc('finalize_safety_report', {
+    p_report_id: reportId,
+    p_snapshot: snapshot,
+    p_final_pdf_path: finalPdfPath,
+  });
+
+  if (error) {
+    // Fallback when migration RPC is not yet applied.
+    if (error.code === '42883' || /finalize_safety_report/i.test(error.message)) {
+      const { data: authData } = await supabase.auth.getUser();
+      const { data: profile } = authData.user
+        ? await supabase.from('profiles').select('full_name').eq('id', authData.user.id).maybeSingle()
+        : { data: null };
+      return updateReport(reportId, {
+        status: 'final',
+        finalizedAt: nowIso(),
+        finalizedBy: optionalString(profile?.full_name) || authData.user?.email || 'משתמש',
+        finalizedByUserId: authData.user?.id,
+        finalSnapshot: snapshot,
+        finalPdfPath: finalPdfPath ?? undefined,
+      });
+    }
+    throwIfError(error);
+  }
+  return mapSafetyReportRow(data);
+}
+
+export async function reopenReport(reportId: string): Promise<SafetyAuditReport> {
+  const { data, error } = await supabase.rpc('reopen_safety_report', {
+    p_report_id: reportId,
+  });
+  if (error) {
+    if (error.code === '42883' || /reopen_safety_report/i.test(error.message)) {
+      return updateReport(reportId, {
+        status: 'draft',
+        finalizedAt: undefined,
+        finalizedBy: undefined,
+        finalizedByUserId: undefined,
+      });
+    }
+    throwIfError(error);
+  }
+  return mapSafetyReportRow(data);
+}
+
+/** Prefer immutable snapshot content when the report is finalized. */
+export async function loadReportView(reportId: string): Promise<{
+  report: SafetyAuditReport;
+  defects: SafetyAuditDefect[];
+  photos: Array<SafetyAuditDefectPhoto & {
+    defectDescription: string;
+    severity: string;
+    checklistTopicKey?: string;
+  }>;
+  fromSnapshot: boolean;
+}> {
+  const report = await getReport(reportId);
+  if (!report) throw new Error('הדוח לא נמצא');
+
+  if (isReportLocked(report) && report.finalSnapshot?.version === 1) {
+    const snapshot = report.finalSnapshot;
+    const photos = snapshot.photos.map((photo) => ({
+      ...photo,
+      photoKind: photo.photoKind ?? 'before',
+      defectDescription: photo.defectDescription ?? '',
+      severity: photo.severity ?? 'medium',
+      checklistTopicKey: photo.checklistTopicKey,
+    }));
+    await cacheSignedUrls(photos.map((photo) => photo.storagePath));
+    return {
+      report: {
+        ...snapshot.report,
+        status: 'final',
+        finalizedAt: report.finalizedAt,
+        finalizedBy: report.finalizedBy,
+        finalizedByUserId: report.finalizedByUserId,
+        finalSnapshot: report.finalSnapshot,
+        finalPdfPath: report.finalPdfPath,
+      },
+      defects: snapshot.defects.map((defect) => ({
+        ...defect,
+        status: defect.status ?? 'open',
+      })),
+      photos,
+      fromSnapshot: true,
+    };
+  }
+
+  const [defects, photos] = await Promise.all([
+    listDefects(reportId),
+    listReportPhotos(reportId),
+  ]);
+  return { report, defects, photos, fromSnapshot: false };
+}
+
+export async function getFinalPdfSignedUrl(report: SafetyAuditReport): Promise<string | null> {
+  if (!report.finalPdfPath) return null;
+  await cacheSignedUrls([report.finalPdfPath]);
+  return getPublicUrl(report.finalPdfPath);
 }
 
 export function getPublicUrl(storagePath: string): string {

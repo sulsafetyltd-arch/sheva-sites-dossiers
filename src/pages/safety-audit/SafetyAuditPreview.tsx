@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { getReport, listDefects, listReportPhotos, getPublicUrl } from '@/lib/safety-audit-store';
+import {
+  finalizeReport,
+  getFinalPdfSignedUrl,
+  getPublicUrl,
+  loadReportView,
+  reopenReport,
+} from '@/lib/safety-audit-store';
 import type { SafetyAuditDefect, SafetyAuditReport } from '@/types/safety-audit';
 import {
   EDUCATION_APPROVALS,
@@ -11,13 +17,17 @@ import {
 import {
   CONSTRUCTION_GENERAL_NOTES,
   EDUCATION_GENERAL_NOTES,
+  defectLifecycleLabel,
   defectSeverityLabel,
   getChecklistTopics,
+  isReportLocked,
+  reportStatusLabel,
   reportTypeLabel,
 } from '@/types/safety-audit';
+import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
 import { Button } from '@/components/ui/button';
 import { createPdfBlob, downloadPdfBlob, exportToPdf } from '@/lib/pdf-export';
-import { Download, Mail, MessageCircle, Share2, X } from 'lucide-react';
+import { Download, Lock, LockOpen, Mail, MessageCircle, Share2, X } from 'lucide-react';
 
 const riskLabel: Record<string, string> = {
   low: 'נמוך',
@@ -33,6 +43,7 @@ type ReportPhoto = {
   severity: string;
   checklistTopicKey?: string;
   defectId: string;
+  photoKind?: 'before' | 'after';
 };
 
 const PhotoThumb = ({ src, alt }: { src: string; alt: string }) => (
@@ -45,31 +56,46 @@ const PhotoThumb = ({ src, alt }: { src: string; alt: string }) => (
 
 const SafetyAuditPreview = () => {
   const { id } = useParams();
+  const { isAdmin } = useSafetyAuth();
   const [report, setReport] = useState<SafetyAuditReport | null>(null);
   const [defects, setDefects] = useState<SafetyAuditDefect[]>([]);
   const [photos, setPhotos] = useState<ReportPhoto[]>([]);
+  const [fromSnapshot, setFromSnapshot] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareFallback, setShareFallback] = useState(false);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [locking, setLocking] = useState(false);
+  const [finalPdfUrl, setFinalPdfUrl] = useState<string | null>(null);
+
+  const reload = async () => {
+    if (!id) throw new Error('מזהה הדוח חסר');
+    const view = await loadReportView(id);
+    setReport(view.report);
+    setDefects(view.defects);
+    setPhotos(view.photos);
+    setFromSnapshot(view.fromSnapshot);
+    setLoadError(null);
+    const pdfUrl = await getFinalPdfSignedUrl(view.report);
+    setFinalPdfUrl(pdfUrl);
+  };
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         if (!id) throw new Error('מזהה הדוח חסר');
-        const [nextReport, nextDefects, nextPhotos] = await Promise.all([
-          getReport(id),
-          listDefects(id),
-          listReportPhotos(id),
-        ]);
+        const view = await loadReportView(id);
         if (cancelled) return;
-        setReport(nextReport);
-        setDefects(nextDefects);
-        setPhotos(nextPhotos);
-        setLoadError(nextReport ? null : 'הדוח לא נמצא או שאין לך הרשאה לצפות בו');
+        setReport(view.report);
+        setDefects(view.defects);
+        setPhotos(view.photos);
+        setFromSnapshot(view.fromSnapshot);
+        setLoadError(null);
+        const pdfUrl = await getFinalPdfSignedUrl(view.report);
+        if (!cancelled) setFinalPdfUrl(pdfUrl);
       } catch (cause) {
         if (!cancelled) {
           setLoadError(cause instanceof Error ? cause.message : 'טעינת הדוח נכשלה');
@@ -165,6 +191,42 @@ const SafetyAuditPreview = () => {
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`${shareText()}\n\nיש לצרף להודעה את קובץ ה-PDF שהורד.`)}`;
   };
 
+  const onFinalize = async () => {
+    if (!report || !id) return;
+    if (!window.confirm('לנעול את הדוח כגרסה סופית? לאחר הנעילה לא ניתן יהיה לערוך אותו (מנהל יוכל לפתוח מחדש).')) {
+      return;
+    }
+    setLocking(true);
+    setShareMessage(null);
+    try {
+      const blob = await getPdf();
+      const saved = await finalizeReport(id, { pdfBlob: blob });
+      setReport(saved);
+      await reload();
+      setShareMessage('הדוח ננעל ונשמרה גרסת PDF קבועה');
+    } catch (cause) {
+      setShareMessage(cause instanceof Error ? cause.message : 'נעילת הדוח נכשלה');
+    } finally {
+      setLocking(false);
+    }
+  };
+
+  const onReopen = async () => {
+    if (!report || !id) return;
+    if (!window.confirm('לפתוח מחדש את הדוח לעריכה?')) return;
+    setLocking(true);
+    setShareMessage(null);
+    try {
+      await reopenReport(id);
+      await reload();
+      setShareMessage('הדוח נפתח מחדש לעריכה');
+    } catch (cause) {
+      setShareMessage(cause instanceof Error ? cause.message : 'פתיחה מחדש נכשלה');
+    } finally {
+      setLocking(false);
+    }
+  };
+
   if (loading) return <div className="p-4" dir="rtl">טוען…</div>;
   if (loadError || !report) {
     return (
@@ -175,6 +237,7 @@ const SafetyAuditPreview = () => {
     );
   }
 
+  const locked = isReportLocked(report);
   const isConstruction = report.reportType === 'construction';
   const isInfrastructure = report.reportType === 'infrastructure';
   const isRailway = report.reportType === 'railway';
@@ -184,6 +247,9 @@ const SafetyAuditPreview = () => {
   const railwayDetails = report.domainDetails ?? {};
   const topics = getChecklistTopics(report.reportType);
   const siteTitle = report.projectName || report.siteName || '—';
+  const openCount = defects.filter((d) => (d.status ?? 'open') === 'open').length;
+  const fixedCount = defects.filter((d) => d.status === 'fixed').length;
+  const verifiedCount = defects.filter((d) => d.status === 'verified').length;
 
   const reportHeading = isEducation
     ? 'הבטחת תנאים בטיחותיים במוסדות חינוך'
@@ -203,11 +269,43 @@ const SafetyAuditPreview = () => {
         <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
           <div className="space-y-1">
             <Link to={`/safety/editor/${report.id}`} className="text-sm underline text-slate-600">
-              ← חזרה לעריכה
+              ← {locked ? 'צפייה בעורך (נעול)' : 'חזרה לעריכה'}
             </Link>
             <h1 className="text-xl font-bold text-slate-800">תצוגה לשליחה ללקוח</h1>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className={`rounded-full px-2 py-0.5 ${locked ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border'}`}>
+                {reportStatusLabel(report.status)}
+              </span>
+              {fromSnapshot && <span className="rounded-full bg-amber-100 text-amber-900 px-2 py-0.5">מוצג מגרסה נעולה</span>}
+              {report.finalizedAt && (
+                <span className="text-slate-500">
+                  ננעל {new Date(report.finalizedAt).toLocaleString('he-IL')}
+                  {report.finalizedBy ? ` ע״י ${report.finalizedBy}` : ''}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            {!locked && (
+              <Button onClick={() => void onFinalize()} disabled={locking || exporting || sharing} className="gap-1">
+                <Lock className="w-4 h-4" />
+                {locking ? 'נועל…' : 'נעל וסיים דוח'}
+              </Button>
+            )}
+            {locked && isAdmin && (
+              <Button variant="outline" onClick={() => void onReopen()} disabled={locking} className="gap-1">
+                <LockOpen className="w-4 h-4" />
+                פתח מחדש
+              </Button>
+            )}
+            {finalPdfUrl && (
+              <Button asChild variant="outline" className="gap-1">
+                <a href={finalPdfUrl} target="_blank" rel="noreferrer">
+                  <Download className="w-4 h-4" />
+                  PDF נעול
+                </a>
+              </Button>
+            )}
             <Button variant="outline" onClick={onExport} disabled={exporting || sharing} className="gap-1">
               <Download className="w-4 h-4" />
               {exporting ? 'מייצא…' : 'הורד PDF'}
@@ -648,16 +746,24 @@ const SafetyAuditPreview = () => {
                         ? 'פירוט הממצאים לפי קדימות טיפול'
                     : '4. ליקויים, מפגעים ופעולות מתקנות'}
                 </h3>
+                {defects.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-2 text-[10px]">
+                    <span className="rounded-full bg-amber-100 text-amber-900 px-2 py-0.5">פתוחים: {openCount}</span>
+                    <span className="rounded-full bg-sky-100 text-sky-900 px-2 py-0.5">תוקנו: {fixedCount}</span>
+                    <span className="rounded-full bg-emerald-100 text-emerald-900 px-2 py-0.5">אומתו: {verifiedCount}</span>
+                  </div>
+                )}
                 <div className="rounded-lg border border-slate-300 overflow-hidden">
                   <table className="w-full table-fixed border-collapse text-[10px] leading-[1.35]">
                     <colgroup>
                       <col style={{ width: '4%' }} />
-                      <col style={{ width: '20%' }} />
-                      <col style={{ width: '9%' }} />
-                      <col style={{ width: '27%' }} />
-                      <col style={{ width: '11%' }} />
-                      <col style={{ width: '11%' }} />
                       <col style={{ width: '18%' }} />
+                      <col style={{ width: '8%' }} />
+                      <col style={{ width: '8%' }} />
+                      <col style={{ width: '22%' }} />
+                      <col style={{ width: '10%' }} />
+                      <col style={{ width: '10%' }} />
+                      <col style={{ width: '20%' }} />
                     </colgroup>
                     <thead>
                       <tr className="bg-[#0f2744] text-white">
@@ -665,6 +771,7 @@ const SafetyAuditPreview = () => {
                         <th className="border border-slate-600 p-2 text-right">תיאור הליקוי</th>
                         {isEducation && <th className="border border-slate-600 p-2 text-right">סעיף מנחה</th>}
                         <th className="border border-slate-600 p-2">{isEducation ? 'קדימות' : 'חומרה'}</th>
+                        <th className="border border-slate-600 p-2">סטטוס</th>
                         <th className="border border-slate-600 p-2 text-right">פעולה מתקנת</th>
                         <th className="border border-slate-600 p-2">אחראי</th>
                         <th className="border border-slate-600 p-2">יעד</th>
@@ -674,16 +781,19 @@ const SafetyAuditPreview = () => {
                     <tbody>
                       {defects.length === 0 && (
                         <tr>
-                          <td className="border border-slate-200 p-3 text-center text-slate-500" colSpan={isEducation ? 8 : 7}>
+                          <td className="border border-slate-200 p-3 text-center text-slate-500" colSpan={isEducation ? 9 : 8}>
                             לא תועדו ליקויים
                           </td>
                         </tr>
                       )}
                       {defects.map((d, idx) => {
                         const rowPhotos = photosByDefect[d.id] ?? [];
+                        const beforePhotos = rowPhotos.filter((p) => (p.photoKind ?? 'before') !== 'after');
+                        const afterPhotos = rowPhotos.filter((p) => p.photoKind === 'after');
                         const guidingTopic = d.checklistTopicKey
                           ? topics.find((topic) => topic.key === d.checklistTopicKey)
                           : undefined;
+                        const lifecycle = d.status ?? 'open';
                         return (
                           <tr key={d.id} className={`avoid-break ${idx % 2 ? 'bg-slate-50' : 'bg-white'}`}>
                             <td className="border border-slate-200 p-2 text-center align-top">{idx + 1}</td>
@@ -708,6 +818,17 @@ const SafetyAuditPreview = () => {
                                 {defectSeverityLabel(d.severity, report.reportType)}
                               </span>
                             </td>
+                            <td className="border border-slate-200 p-2 text-center align-top">
+                              <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold ${
+                                lifecycle === 'verified'
+                                  ? 'bg-emerald-100 text-emerald-900'
+                                  : lifecycle === 'fixed'
+                                    ? 'bg-sky-100 text-sky-900'
+                                    : 'bg-amber-100 text-amber-900'
+                              }`}>
+                                {defectLifecycleLabel(lifecycle)}
+                              </span>
+                            </td>
                             <td className="border border-slate-200 p-2 align-top">{d.correctiveAction || '—'}</td>
                             <td className="border border-slate-200 p-2 align-top">{d.responsible || '—'}</td>
                             <td className="border border-slate-200 p-2 align-top whitespace-nowrap">{d.dueDate || '—'}</td>
@@ -716,10 +837,18 @@ const SafetyAuditPreview = () => {
                                 <span className="text-slate-400">—</span>
                               ) : (
                                 <div className="flex flex-col gap-1">
-                                  {rowPhotos.slice(0, 1).map((p) => (
+                                  {(beforePhotos[0] ? [beforePhotos[0]] : rowPhotos.slice(0, 1)).map((p) => (
                                     <PhotoThumb key={p.id} src={getPublicUrl(p.storagePath)} alt={d.description} />
                                   ))}
-                                  {rowPhotos.length > 1 && <span className="text-[9px] text-slate-500 text-center">+{rowPhotos.length - 1}</span>}
+                                  {afterPhotos[0] && (
+                                    <div>
+                                      <div className="text-[8px] text-emerald-800 text-center mb-0.5">אחרי</div>
+                                      <PhotoThumb src={getPublicUrl(afterPhotos[0].storagePath)} alt={`אחרי — ${d.description}`} />
+                                    </div>
+                                  )}
+                                  {rowPhotos.length > (afterPhotos[0] ? 2 : 1) && (
+                                    <span className="text-[9px] text-slate-500 text-center">+{rowPhotos.length - (afterPhotos[0] ? 2 : 1)}</span>
+                                  )}
                                 </div>
                               )}
                             </td>

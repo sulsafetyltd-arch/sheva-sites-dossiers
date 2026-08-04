@@ -6,6 +6,9 @@ export type RiskLevel = 'low' | 'medium' | 'high';
 export type ReportStatus = 'draft' | 'final';
 export type ChecklistStatus = 'ok' | 'not_ok' | 'na';
 export type DefectSeverity = 'high' | 'medium' | 'low';
+/** Lifecycle of a finding after the audit visit. */
+export type DefectLifecycleStatus = 'open' | 'fixed' | 'verified';
+export type DefectPhotoKind = 'before' | 'after';
 export type ReportType =
   | 'workplace'
   | 'construction'
@@ -68,10 +71,30 @@ export interface SafetyAuditReport {
   auditorStampUrl?: string;
   siteManagerSignedAt?: string;
   auditorSignedAt?: string;
+  /** Set when the report is formally finalized/locked. */
+  finalizedAt?: string;
+  finalizedBy?: string;
+  finalizedByUserId?: string;
+  /** Immutable copy of report + defects + photos at finalize time. */
+  finalSnapshot?: SafetyAuditFinalSnapshot;
+  /** Storage path of the PDF generated at finalize time. */
+  finalPdfPath?: string;
   checklist?: Record<string, ChecklistItemState>;
   domainDetails?: RailwayReportDetails;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SafetyAuditFinalSnapshot {
+  version: 1;
+  capturedAt: string;
+  report: SafetyAuditReport;
+  defects: SafetyAuditDefect[];
+  photos: Array<SafetyAuditDefectPhoto & {
+    defectDescription?: string;
+    severity?: string;
+    checklistTopicKey?: string;
+  }>;
 }
 
 export interface RailwayTourParticipant {
@@ -134,6 +157,12 @@ export interface SafetyAuditDefect {
   correctiveAction?: string;
   responsible?: string;
   dueDate?: string; // ISO date
+  /** open → fixed → verified */
+  status: DefectLifecycleStatus;
+  fixedAt?: string;
+  verifiedAt?: string;
+  verifiedBy?: string;
+  resolutionNotes?: string;
   sortOrder?: number;
   createdAt: string;
 }
@@ -144,6 +173,8 @@ export interface SafetyAuditDefectPhoto {
   storagePath: string;
   caption?: string;
   takenAt?: string; // ISO
+  /** before = audit finding; after = proof of repair */
+  photoKind: DefectPhotoKind;
   createdAt: string;
 }
 
@@ -510,6 +541,20 @@ export function reportTypeLabel(type: ReportType): string {
   if (type === 'building_survey') return 'סקר בטיחות למבנה';
   if (type === 'education_institution') return 'מבדק בטיחות במוסדות חינוך';
   return 'אתר עבודה';
+}
+
+export function defectLifecycleLabel(status: DefectLifecycleStatus): string {
+  if (status === 'verified') return 'אומת';
+  if (status === 'fixed') return 'תוקן';
+  return 'פתוח';
+}
+
+export function reportStatusLabel(status: ReportStatus): string {
+  return status === 'final' ? 'סופי / נעול' : 'טיוטה';
+}
+
+export function isReportLocked(report: Pick<SafetyAuditReport, 'status'>): boolean {
+  return report.status === 'final';
 }
 
 /** Defect severity labels — MoE priority scale for education audits. */
