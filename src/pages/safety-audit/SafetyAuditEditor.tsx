@@ -391,6 +391,8 @@ const SafetyAuditEditor = () => {
     const patch: Partial<SafetyAuditDefect> = { status };
     if (status === 'verified') {
       patch.verifiedBy = profile?.fullName || profile?.email || 'מבקר';
+      // Verifying implies the defect was fixed; stamp it when jumping open→verified.
+      if (!defect.fixedAt) patch.fixedAt = new Date().toISOString();
     }
     changeDefectLocal(defect, 'status', status);
     try {

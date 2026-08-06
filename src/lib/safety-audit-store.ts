@@ -168,13 +168,10 @@ function mapPhoto(row: DatabaseRow): SafetyAuditDefectPhoto {
   };
 }
 
-async function assertReportEditable(reportId: string): Promise<void> {
-  const report = await getReport(reportId);
-  if (!report) throw new Error('הדוח לא נמצא');
-  if (isReportLocked(report)) {
-    throw new Error('הדוח נעול ולא ניתן לערוך אותו. מנהל יכול לפתוח מחדש.');
-  }
-}
+// Locked-report enforcement lives in DB triggers (see
+// 202608040001_defect_lifecycle_and_report_lock.sql), which raise Hebrew
+// errors surfaced to the UI. No client-side pre-check to avoid extra
+// roundtrips on every field save.
 
 async function cacheSignedUrls(paths: string[]): Promise<void> {
   const now = Date.now();
@@ -433,13 +430,6 @@ export async function updateReport(
   id: string,
   partial: Partial<SafetyAuditReport>,
 ): Promise<SafetyAuditReport> {
-  const lockingOnly =
-    Object.keys(partial).length > 0
-    && Object.keys(partial).every((key) =>
-      ['status', 'finalizedAt', 'finalizedBy', 'finalizedByUserId', 'finalSnapshot', 'finalPdfPath'].includes(key));
-  if (!lockingOnly) {
-    await assertReportEditable(id);
-  }
   const payload: Record<string, unknown> = { updated_at: nowIso() };
   for (const [key, value] of Object.entries(partial)) {
     if (
@@ -489,7 +479,6 @@ export async function createDefect(
     status?: DefectLifecycleStatus;
   },
 ): Promise<SafetyAuditDefect> {
-  await assertReportEditable(reportId);
   const { data, error } = await supabase.rpc('create_safety_defect', {
     p_report_id: reportId,
     p_checklist_topic_key: payload.checklistTopicKey ?? null,
@@ -512,14 +501,6 @@ export async function updateDefect(
   id: string,
   partial: Partial<SafetyAuditDefect>,
 ): Promise<SafetyAuditDefect> {
-  const { data: existing, error: existingError } = await supabase
-    .from('safety_audit_defects')
-    .select('report_id,status')
-    .eq('id', id)
-    .single();
-  throwIfError(existingError);
-  await assertReportEditable(String(existing.report_id));
-
   const map: Record<string, string> = {
     checklistTopicKey: 'checklist_topic_key',
     description: 'description',
@@ -545,13 +526,8 @@ export async function updateDefect(
     if (partial.verifiedAt === undefined) payload.verified_at = null;
     if (partial.verifiedBy === undefined) payload.verified_by = null;
   }
-  if (partial.status === 'verified') {
-    if (partial.verifiedAt === undefined) payload.verified_at = nowIso();
-    if (partial.fixedAt === undefined && !existing.status) {
-      payload.fixed_at = nowIso();
-    } else if (partial.fixedAt === undefined && existing.status === 'open') {
-      payload.fixed_at = nowIso();
-    }
+  if (partial.status === 'verified' && partial.verifiedAt === undefined) {
+    payload.verified_at = nowIso();
   }
   if (partial.status === 'open') {
     if (partial.fixedAt === undefined) payload.fixed_at = null;
@@ -570,14 +546,6 @@ export async function updateDefect(
 }
 
 export async function deleteDefect(id: string): Promise<void> {
-  const { data: existing, error: existingError } = await supabase
-    .from('safety_audit_defects')
-    .select('report_id')
-    .eq('id', id)
-    .single();
-  throwIfError(existingError);
-  await assertReportEditable(String(existing.report_id));
-
   const { data: photos, error: photoError } = await supabase
     .from('safety_audit_defect_photos')
     .select('storage_path')
@@ -647,7 +615,6 @@ export async function addDefectPhoto(
     .eq('id', defectId)
     .single();
   throwIfError(defectError);
-  await assertReportEditable(String(defect.report_id));
   const { data: report, error: reportError } = await supabase
     .from('safety_audit_reports')
     .select('client_id')
@@ -682,23 +649,17 @@ export async function addDefectPhoto(
 }
 
 export async function deleteDefectPhoto(photo: SafetyAuditDefectPhoto): Promise<void> {
-  const { data: defect, error: defectError } = await supabase
-    .from('safety_audit_defects')
-    .select('report_id')
-    .eq('id', photo.defectId)
-    .single();
-  throwIfError(defectError);
-  await assertReportEditable(String(defect.report_id));
-
-  const { error: storageError } = await supabase.storage
-    .from(AUDIT_BUCKET)
-    .remove([photo.storagePath]);
-  throwIfError(storageError);
+  // Delete DB row first so the locked-report trigger can block before any
+  // storage object is removed.
   const { error } = await supabase
     .from('safety_audit_defect_photos')
     .delete()
     .eq('id', photo.id);
   throwIfError(error);
+  const { error: storageError } = await supabase.storage
+    .from(AUDIT_BUCKET)
+    .remove([photo.storagePath]);
+  throwIfError(storageError);
   signedUrlCache.delete(photo.storagePath);
 }
 
