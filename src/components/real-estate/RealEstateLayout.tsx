@@ -16,8 +16,10 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { NewDealDialog } from '@/components/real-estate/NewDealDialog';
+import { GlobalSearch } from '@/components/real-estate/GlobalSearch';
 import { getAllDeals } from '@/lib/real-estate-store';
 import { alertCount } from '@/lib/real-estate-utils';
+import { getCloudSettings, isCloudConfigured, syncNow } from '@/lib/cloud-sync';
 
 const nav = [
   { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
@@ -64,6 +66,12 @@ const RealEstateLayout = () => {
   useEffect(() => {
     setAlerts(alertCount(getAllDeals()));
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (isCloudConfigured() && getCloudSettings().autoSync) {
+      syncNow().catch(() => undefined);
+    }
+  }, []);
 
   const title = TITLES.find((t) => t.test(location.pathname))?.title ?? 'סולו נדלן';
   const hideNewDeal = /^\/deals\/[^/]+$/.test(location.pathname);
@@ -148,6 +156,7 @@ const RealEstateLayout = () => {
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{title}</h1>
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
+                <GlobalSearch />
                 <button
                   onClick={() => navigate('/alerts')}
                   className="hidden sm:inline-flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground hover:text-foreground"

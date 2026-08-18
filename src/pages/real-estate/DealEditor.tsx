@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, FileStack, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowRight, Calculator, FileStack, Paperclip, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/select';
 import { addTimeline, getDeal, saveDeal } from '@/lib/real-estate-store';
 import { REPRESENTED_SIDE_LABEL, representedSide } from '@/lib/document-audience';
+import { deleteFile, getFile, openStoredFile, putFile, type StoredFile } from '@/lib/file-store';
+import { calcPurchaseTax } from '@/lib/purchase-tax';
 import { newId } from '@/data/real-estate-checklists';
 import { Field, ProgressBar } from '@/components/real-estate/Field';
 import {
@@ -389,6 +391,7 @@ const DealEditor = () => {
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-3">
+          <PurchaseTaxCard consideration={deal.consideration} />
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               שולם {formatMoney(deal.payments.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0))} מתוך {formatMoney(deal.payments.reduce((s, p) => s + p.amount, 0))}
@@ -655,6 +658,9 @@ const DealEditor = () => {
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
               </div>
+              <div className="md:col-span-5">
+                <AttachmentRow dealId={deal.id} docId={doc.id} />
+              </div>
             </div>
           ))}
         </TabsContent>
@@ -774,6 +780,111 @@ function TaskRow({
       <Field label="הערות" className="md:col-span-6">
         <Input value={task.notes} onChange={(e) => patch({ notes: e.target.value })} />
       </Field>
+    </div>
+  );
+}
+
+function AttachmentRow({ dealId, docId }: { dealId: string; docId: string }) {
+  const [file, setFile] = useState<StoredFile | undefined>();
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getFile(dealId, docId).then((f) => {
+      if (alive) setFile(f);
+    }).catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [dealId, docId]);
+
+  const inputId = `attach-${docId}`;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm border-t pt-2 mt-1">
+      <Paperclip className="w-4 h-4 text-muted-foreground" />
+      {file ? (
+        <>
+          <button className="text-primary underline underline-offset-2" onClick={() => openStoredFile(file)}>
+            {file.name}
+          </button>
+          <span className="text-xs text-muted-foreground">({Math.max(1, Math.round(file.size / 1024))}KB)</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive"
+            onClick={async () => {
+              await deleteFile(dealId, docId);
+              setFile(undefined);
+              toast.success('הקובץ הוסר');
+            }}
+          >
+            הסרה
+          </Button>
+        </>
+      ) : (
+        <>
+          <span className="text-muted-foreground">אין קובץ מצורף</span>
+          <input
+            id={inputId}
+            type="file"
+            accept="application/pdf,image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const selected = e.target.files?.[0];
+              e.target.value = '';
+              if (!selected) return;
+              setLoading(true);
+              try {
+                const saved = await putFile(dealId, docId, selected);
+                setFile(saved);
+                toast.success('הקובץ הסרוק צורף למסמך');
+              } catch {
+                toast.error('שמירת הקובץ נכשלה');
+              } finally {
+                setLoading(false);
+              }
+            }}
+          />
+          <Button variant="outline" size="sm" disabled={loading} onClick={() => document.getElementById(inputId)?.click()}>
+            {loading ? 'שומר…' : 'צירוף סריקה (PDF / תמונה)'}
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PurchaseTaxCard({ consideration }: { consideration: number }) {
+  const [singleHome, setSingleHome] = useState(true);
+  const result = useMemo(() => calcPurchaseTax(consideration, singleHome), [consideration, singleHome]);
+
+  if (!consideration) return null;
+
+  return (
+    <div className="re-card p-4 space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-medium flex items-center gap-2">
+          <Calculator className="w-4 h-4" />
+          מחשבון מס רכישה
+        </p>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" className="rounded border" checked={singleHome} onChange={(e) => setSingleHome(e.target.checked)} />
+          דירה יחידה
+        </label>
+      </div>
+      <p className="text-sm">
+        על תמורה של {formatMoney(consideration)} — מס רכישה משוער:{' '}
+        <strong className="tabular-nums">{formatMoney(result.total)}</strong>
+      </p>
+      <div className="text-xs text-muted-foreground space-y-0.5">
+        {result.rows.map((row) => (
+          <p key={`${row.from}-${row.rate}`} className="tabular-nums">
+            {formatMoney(row.from)} — {row.to != null ? formatMoney(Math.min(row.to, consideration)) : formatMoney(consideration)} · {(row.rate * 100).toLocaleString('he-IL')}% = {formatMoney(row.tax)}
+          </p>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">מדרגות 2025–2026 (רשות המסים). אומדן בלבד — אינו תחליף לשומה.</p>
     </div>
   );
 }

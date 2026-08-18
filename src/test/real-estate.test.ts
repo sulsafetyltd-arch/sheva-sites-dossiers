@@ -282,4 +282,103 @@ describe('legal document pack', () => {
     expect(bothPack.length).toBeGreaterThan(buyerPack.length);
     expect(bothPack.length).toBeGreaterThan(sellerPack.length);
   });
+
+  it('builds a rental pack for rental deals and hides rental docs from sale deals', async () => {
+    const { buildDocContext } = await import('@/lib/legal-doc-context');
+    const { buildDocumentPack } = await import('@/data/legal-document-pack');
+    const deal = sampleDeal({
+      type: 'rental',
+      clientSide: 'both',
+      parties: [
+        { id: 't1', role: 'tenant', name: 'שוכר בדיקה', idNumber: '1', phone: '', email: '', address: '', notes: '' },
+        { id: 'l1', role: 'landlord', name: 'משכיר בדיקה', idNumber: '2', phone: '', email: '', address: '', notes: '' },
+      ],
+    });
+    const office = {
+      attorneyName: 'עו"ד בדיקה',
+      license: '1',
+      officeAddress: 'א',
+      officeCity: 'ב',
+      secondAttorneyName: '',
+    };
+    const rentalPack = buildDocumentPack(buildDocContext(deal, office), 'both', 'rental');
+    expect(rentalPack.some((d) => d.id === 'rental-agreement')).toBe(true);
+    expect(rentalPack.some((d) => d.id === 'rental-note')).toBe(true);
+    expect(rentalPack.some((d) => d.id === 'sale-agreement')).toBe(false);
+    expect(rentalPack.some((d) => d.id === 'deed')).toBe(false);
+    expect(rentalPack.find((d) => d.id === 'rental-agreement')!.html).toContain('שוכר בדיקה');
+    expect(rentalPack.find((d) => d.id === 'rental-agreement')!.html).toContain('משכיר בדיקה');
+
+    const salePack = buildDocumentPack(buildDocContext(sampleDeal(), office), 'both', 'purchase');
+    expect(salePack.some((d) => d.id === 'rental-agreement')).toBe(false);
+    expect(salePack.some((d) => d.id === 'sale-agreement')).toBe(true);
+  });
+
+  it('adds the office logo to document headers when set', async () => {
+    const { buildDocContext } = await import('@/lib/legal-doc-context');
+    const { buildDocumentPack } = await import('@/data/legal-document-pack');
+    const ctx = buildDocContext(sampleDeal(), {
+      attorneyName: 'עו"ד בדיקה',
+      license: '1',
+      officeAddress: 'א',
+      officeCity: 'ב',
+      secondAttorneyName: '',
+      logoDataUrl: 'data:image/png;base64,AAAA',
+    });
+    const pack = buildDocumentPack(ctx);
+    expect(pack.find((d) => d.id === 'fees')!.html).toContain('office-logo');
+    expect(pack.find((d) => d.id === 'fees')!.html).toContain('data:image/png;base64,AAAA');
+  });
+});
+
+describe('purchase tax calculator', () => {
+  it('computes zero tax under the single-home exemption bracket', async () => {
+    const { calcPurchaseTax } = await import('@/lib/purchase-tax');
+    expect(calcPurchaseTax(1_500_000, true).total).toBe(0);
+  });
+
+  it('computes bracketed tax for a single home', async () => {
+    const { calcPurchaseTax } = await import('@/lib/purchase-tax');
+    const result = calcPurchaseTax(3_000_000, true);
+    const expected = Math.round((2_347_040 - 1_978_745) * 0.035) + Math.round((3_000_000 - 2_347_040) * 0.05);
+    expect(result.total).toBe(expected);
+    expect(result.rows.length).toBe(3);
+  });
+
+  it('computes 8% flat start for an additional home', async () => {
+    const { calcPurchaseTax } = await import('@/lib/purchase-tax');
+    expect(calcPurchaseTax(2_000_000, false).total).toBe(160_000);
+  });
+});
+
+describe('reminders and backup', () => {
+  it('builds a valid ICS calendar with alarms', async () => {
+    const { buildIcs, whatsappReminderLink } = await import('@/lib/ics');
+    const deal = sampleDeal({
+      tasks: [{ id: 't1', title: 'נסח טאבו', dueDate: '2026-02-10', done: false, priority: 'high', notes: '' }],
+    });
+    const items = collectCalendarItems([deal]);
+    const ics = buildIcs(items);
+    expect(ics).toContain('BEGIN:VCALENDAR');
+    expect(ics).toContain('DTSTART;VALUE=DATE:20260210');
+    expect(ics).toContain('BEGIN:VALARM');
+    expect(whatsappReminderLink('050-1234567', 'שלום')).toBe(
+      `https://wa.me/972501234567?text=${encodeURIComponent('שלום')}`,
+    );
+  });
+
+  it('exports and restores a backup file', async () => {
+    const { buildBackup, restoreBackup } = await import('@/lib/backup');
+    createDeal({ title: 'תיק לגיבוי', type: 'purchase' });
+    const backup = buildBackup();
+    expect(backup.app).toBe('solo-nadlan');
+    expect(backup.deals.length).toBe(1);
+
+    emptyStore();
+    expect(getAllDeals().some((d) => d.title === 'תיק לגיבוי')).toBe(false);
+    const file = new File([JSON.stringify(backup)], 'backup.json', { type: 'application/json' });
+    const result = await restoreBackup(file);
+    expect(result.deals).toBe(1);
+    expect(getAllDeals().some((d) => d.title === 'תיק לגיבוי')).toBe(true);
+  });
 });

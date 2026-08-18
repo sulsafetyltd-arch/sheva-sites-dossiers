@@ -1,14 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { Cloud, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/real-estate/Field';
 import { getAllDeals } from '@/lib/real-estate-store';
 import { getOfficeProfile, saveOfficeProfile, type OfficeProfile } from '@/lib/office-profile';
+import { SETUP_SQL, getCloudSettings, saveCloudSettings, syncNow, type CloudSettings } from '@/lib/cloud-sync';
+import { downloadBackup, restoreBackup } from '@/lib/backup';
+import { formatDateHe } from '@/lib/real-estate-utils';
+
+const MAX_LOGO_BYTES = 500 * 1024;
 
 const UsersPage = () => {
   const [deals, setDeals] = useState(() => getAllDeals());
   const [office, setOffice] = useState<OfficeProfile>(() => getOfficeProfile());
+  const [cloud, setCloud] = useState<CloudSettings>(() => getCloudSettings());
+  const [syncing, setSyncing] = useState(false);
+  const [showSql, setShowSql] = useState(false);
+  const restoreRef = useRef<HTMLInputElement>(null);
+  const logoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setDeals(getAllDeals());
@@ -23,6 +34,37 @@ const UsersPage = () => {
       total: deals.filter((d) => d.responsibleAttorney === name).length,
     }));
   }, [deals]);
+
+  const handleLogoUpload = (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > MAX_LOGO_BYTES) {
+      toast.error('הלוגו גדול מדי — עד 500KB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const next = { ...office, logoDataUrl: String(reader.result ?? '') };
+      setOffice(next);
+      saveOfficeProfile(next);
+      toast.success('הלוגו נשמר ויופיע בראש כל מסמך');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSync = async () => {
+    saveCloudSettings(cloud);
+    setSyncing(true);
+    try {
+      const result = await syncNow();
+      setCloud(getCloudSettings());
+      setDeals(getAllDeals());
+      toast.success(`סונכרן: ${result.pulled} נמשכו · ${result.pushed} הועלו · ${result.total} תיקים`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'שגיאת סנכרון');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -48,14 +90,140 @@ const UsersPage = () => {
             <Input value={office.secondAttorneyName} onChange={(e) => setOffice({ ...office, secondAttorneyName: e.target.value })} />
           </Field>
         </div>
-        <Button
-          onClick={() => {
-            saveOfficeProfile(office);
-            toast.success('פרטי המשרד נשמרו');
-          }}
-        >
-          שמירת פרטי משרד
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={() => {
+              saveOfficeProfile(office);
+              toast.success('פרטי המשרד נשמרו');
+            }}
+          >
+            שמירת פרטי משרד
+          </Button>
+          <input
+            ref={logoRef}
+            type="file"
+            accept="image/png,image/jpeg,image/svg+xml,image/webp"
+            className="hidden"
+            onChange={(e) => handleLogoUpload(e.target.files?.[0])}
+          />
+          <Button variant="outline" className="gap-2" onClick={() => logoRef.current?.click()}>
+            <Upload className="w-4 h-4" />
+            {office.logoDataUrl ? 'החלפת לוגו' : 'העלאת לוגו למסמכים'}
+          </Button>
+          {office.logoDataUrl && (
+            <>
+              <img src={office.logoDataUrl} alt="לוגו המשרד" className="h-10 rounded border bg-white p-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const next = { ...office, logoDataUrl: '' };
+                  setOffice(next);
+                  saveOfficeProfile(next);
+                  toast.success('הלוגו הוסר');
+                }}
+              >
+                הסרת לוגו
+              </Button>
+            </>
+          )}
+        </div>
+      </section>
+
+      <section className="re-card p-5 space-y-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="font-semibold flex items-center gap-2">
+              <Cloud className="w-4 h-4" />
+              גיבוי וסנכרון ענן (Supabase)
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              חיבור חינמי שמסנכרן את התיקים בין המחשב במשרד, הבית והנייד.
+              {cloud.lastSyncAt ? ` סונכרן לאחרונה: ${formatDateHe(cloud.lastSyncAt.slice(0, 10))}` : ''}
+            </p>
+          </div>
+          <Button onClick={handleSync} disabled={syncing || !cloud.url.trim() || !cloud.anonKey.trim()}>
+            {syncing ? 'מסנכרן…' : 'סנכרן עכשיו'}
+          </Button>
+        </div>
+        <div className="grid md:grid-cols-2 gap-3">
+          <Field label="Supabase URL">
+            <Input dir="ltr" placeholder="https://xxxx.supabase.co" value={cloud.url} onChange={(e) => setCloud({ ...cloud, url: e.target.value })} />
+          </Field>
+          <Field label="Anon Key">
+            <Input dir="ltr" type="password" placeholder="eyJhbGciOi..." value={cloud.anonKey} onChange={(e) => setCloud({ ...cloud, anonKey: e.target.value })} />
+          </Field>
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="rounded border"
+            checked={cloud.autoSync}
+            onChange={(e) => setCloud({ ...cloud, autoSync: e.target.checked })}
+          />
+          סנכרון אוטומטי בכניסה למערכת
+        </label>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              saveCloudSettings(cloud);
+              toast.success('הגדרות הענן נשמרו');
+            }}
+          >
+            שמירת הגדרות
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setShowSql((v) => !v)}>
+            {showSql ? 'הסתר הוראות התקנה' : 'הוראות התקנה (פעם אחת)'}
+          </Button>
+        </div>
+        {showSql && (
+          <div className="text-sm space-y-2 bg-muted/40 rounded-lg p-4">
+            <p>1. פתחו פרויקט חינמי ב-<a className="text-primary underline" href="https://supabase.com" target="_blank" rel="noreferrer">supabase.com</a>.</p>
+            <p>2. בתפריט SQL Editor הריצו את הפקודה הבאה (יצירת טבלאות):</p>
+            <pre dir="ltr" className="text-xs bg-background border rounded p-3 overflow-x-auto whitespace-pre-wrap">{SETUP_SQL}</pre>
+            <p>3. העתיקו מ-Settings → API את ה-URL ואת ה-anon key לשדות למעלה ולחצו «סנכרן עכשיו».</p>
+            <p className="text-muted-foreground">הערה: ההגדרה הזו פתוחה לכל מי שמחזיק במפתח — שמרו עליו כמו על סיסמה.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="re-card p-5 space-y-3">
+        <div>
+          <h2 className="font-semibold">גיבוי מקומי לקובץ</h2>
+          <p className="text-sm text-muted-foreground">ייצוא כל התיקים, פרטי המשרד והעריכות לקובץ JSON — ושחזור ממנו במחשב אחר</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => downloadBackup()}>
+            <Download className="w-4 h-4" />
+            ייצוא גיבוי
+          </Button>
+          <input
+            ref={restoreRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              try {
+                const { deals: count } = await restoreBackup(file);
+                setDeals(getAllDeals());
+                setOffice(getOfficeProfile());
+                toast.success(`שוחזרו ${count} תיקים מהגיבוי`);
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : 'קובץ גיבוי לא תקין');
+              }
+            }}
+          />
+          <Button variant="outline" className="gap-2" onClick={() => restoreRef.current?.click()}>
+            <Upload className="w-4 h-4" />
+            שחזור מגיבוי
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">שימו לב: שחזור מחליף את כל התיקים הקיימים בדפדפן זה.</p>
       </section>
 
       <section className="re-card overflow-hidden">

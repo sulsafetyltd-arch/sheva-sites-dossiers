@@ -46,6 +46,7 @@ export interface DocContext {
   clientSide: ClientSide;
   clientNames: string;
   clientIds: string;
+  logo: string;
 }
 
 function named(parties: Party[]): string {
@@ -141,6 +142,7 @@ export function buildDocContext(deal: Deal, office: OfficeProfile): DocContext {
         : deal.clientSide === 'both'
           ? [ids(buyers), ids(sellers)].filter((n) => n !== '________').join(' / ') || '________'
           : ids(buyers),
+    logo: office.logoDataUrl?.trim() ?? '',
   };
 }
 

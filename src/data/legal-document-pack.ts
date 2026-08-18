@@ -7,6 +7,8 @@ export interface LegalDocument {
   title: string;
   group: string;
   audience: DocAudience;
+  /** True for documents that belong only to rental deals. */
+  rentalOnly?: boolean;
   html: string;
 }
 
@@ -37,6 +39,7 @@ function sigBlock(ctx: DocContext): string {
 function header(ctx: DocContext, title: string): string {
   return `
     <div class="legal-head">
+      ${ctx.logo ? `<img class="office-logo" src="${ctx.logo}" alt="לוגו המשרד" />` : ''}
       <p class="office">משרד ${ctx.attorney} · רישיון ${ctx.license} · ${ctx.officeAddress}</p>
       <p class="file">תיק ${ctx.fileNumber}</p>
       <h1>${title}</h1>
@@ -685,6 +688,81 @@ function combinationConsideration(ctx: DocContext): string {
     ${sigBlock(ctx)}`;
 }
 
+function rentalAgreement(ctx: DocContext): string {
+  return `
+    ${header(ctx, 'הסכם שכירות בלתי מוגנת')}
+    <p class="center">שנערך ונחתם ב${ctx.officeCity} ביום ${ctx.contractDate}</p>
+    <p><strong>בין:</strong> ${ctx.sellerNames}, ת.ז. ${ctx.sellerIds}, מרחוב ${ctx.sellerAddresses} (להלן: "<strong>המשכיר</strong>")</p>
+    <p><strong>לבין:</strong> ${ctx.buyerNames}, ת.ז. ${ctx.buyerIds}, מרחוב ${ctx.buyerAddresses} (להלן: "<strong>השוכר</strong>")</p>
+    <p><strong>הואיל</strong> והמשכיר הוא בעל הזכויות ב${ctx.propertyType} ברחוב ${ctx.propertyAddress}, ${ctx.propertyCity} (גוש ${ctx.block} חלקה ${ctx.parcel} תת-חלקה ${ctx.subParcel}), ${ctx.rooms} חדרים בקומה ${ctx.floor} (להלן: "<strong>המושכר</strong>");</p>
+    <p><strong>והואיל</strong> והשוכר מעוניין לשכור את המושכר למטרת מגורים בלבד, והצדדים מצהירים כי חוק הגנת הדייר [נוסח משולב], התשל״ב–1972, לא יחול על שכירות זו;</p>
+    <h2>1. תקופת השכירות</h2>
+    <p>מיום ${ctx.contractDateShort} ועד יום ${ctx.closingDate}. אופציה להארכה: ________ חודשים, בהודעה מראש של ____ ימים.</p>
+    <h2>2. דמי השכירות</h2>
+    <p>דמי שכירות חודשיים בסך ${ctx.consideration}, שישולמו מראש בכל 1 לחודש, באמצעות ________.</p>
+    ${ctx.paymentsHtml}
+    <h2>3. התחייבויות השוכר</h2>
+    <p>3.1. להשתמש במושכר למגורים בלבד ולא להעבירו או להשכירו בשכירות משנה ללא הסכמה בכתב.</p>
+    <p>3.2. לשלם חשבונות חשמל, מים, גז, ארנונה וועד בית בתקופת השכירות.</p>
+    <p>3.3. לשמור על המושכר, ולהחזירו בתום התקופה במצב כפי שקיבלו, למעט בלאי סביר.</p>
+    <h2>4. התחייבויות המשכיר</h2>
+    <p>4.1. למסור את המושכר פנוי וראוי למגורים במועד תחילת השכירות.</p>
+    <p>4.2. לתקן על חשבונו ליקויים מבניים שאינם נובעים משימוש השוכר, תוך זמן סביר.</p>
+    <h2>5. בטחונות</h2>
+    <p>שטר חוב / ערבות בנקאית בסך ________ ₪, וערב/ים כמפורט בכתב הערבות המצורף.</p>
+    <h2>6. הפרות</h2>
+    <p>איחור העולה על 7 ימים בתשלום דמי השכירות ייחשב הפרה יסודית. פינוי באיחור יחייב את השוכר בדמי שימוש מוסכמים של פי 2 מדמי השכירות היומיים לכל יום איחור.</p>
+    <p>ולראיה באו הצדדים על החתום:</p>
+    <div class="sig-row">
+      <div><div class="sig-line"></div><p><strong>המשכיר:</strong> ${ctx.sellerNames}</p></div>
+      <div><div class="sig-line"></div><p><strong>השוכר:</strong> ${ctx.buyerNames}</p></div>
+    </div>`;
+}
+
+function rentalPromissoryNote(ctx: DocContext): string {
+  return `
+    ${header(ctx, 'שטר חוב — בטוחה לשכירות')}
+    <p class="center">שטר חוב מס׳ ________</p>
+    <p>אני הח״מ ${ctx.buyerNames}, ת.ז. ${ctx.buyerIds}, מתחייב/ת לשלם לפקודת ${ctx.sellerNames}, ת.ז. ${ctx.sellerIds}, סך של ________ ₪ (במילים: ________), בתוספת הפרשי הצמדה למדד המחירים לצרכן.</p>
+    <p>שטר זה נמסר כבטוחה לקיום התחייבויות עושה השטר לפי הסכם השכירות מיום ${ctx.contractDateShort} לגבי הנכס ${ctx.propertyAddress}, ${ctx.propertyCity}, ואין למלאו או לסחרו אלא בהתקיים הפרה שלא תוקנה לאחר התראה בכתב של 7 ימים.</p>
+    <p>מקום השיפוט: ${ctx.officeCity}. עושה השטר פטור מהצגה לפירעון ומהודעת אי-כיבוד.</p>
+    <div class="sig-row">
+      <div><div class="sig-line"></div><p>עושה השטר: ${ctx.buyerNames}</p></div>
+    </div>
+    <h2>ערבות אוואל</h2>
+    <p>אנו הח״מ ערבים בערבות אוואל לפירעון שטר זה:</p>
+    <p>שם: ________ &nbsp; ת.ז.: ________ &nbsp; כתובת: ________ &nbsp; חתימה: ________</p>
+    <p>שם: ________ &nbsp; ת.ז.: ________ &nbsp; כתובת: ________ &nbsp; חתימה: ________</p>`;
+}
+
+function rentalGuarantee(ctx: DocContext): string {
+  return `
+    ${header(ctx, 'כתב ערבות אישית — שכירות')}
+    <p>אני/אנו הח״מ ________, ת.ז. ________, מרחוב ________, ערב/ים בזה כלפי ${ctx.sellerNames} (המשכיר) לקיום מלוא התחייבויות ${ctx.buyerNames} (השוכר) לפי הסכם השכירות מיום ${ctx.contractDateShort} לגבי ${ctx.propertyAddress}, ${ctx.propertyCity}.</p>
+    <p>1. הערבות כוללת דמי שכירות, חשבונות, נזקים ודמי שימוש בפינוי באיחור, עד לסך ________ ₪.</p>
+    <p>2. הערבות תעמוד בתוקף עד להחזרת המושכר והסדרת כל החובות, כולל תקופת אופציה אם מומשה.</p>
+    <p>3. המשכיר רשאי לפנות לערב לאחר דרישה בכתב מהשוכר שלא נענתה תוך 7 ימים.</p>
+    <p>נחתם ב${ctx.officeCity} ביום ${ctx.contractDate}.</p>
+    <div class="sig-row">
+      <div><div class="sig-line"></div><p>הערב/ים</p></div>
+      <div><div class="sig-line"></div><p>המשכיר: ${ctx.sellerNames}</p></div>
+    </div>`;
+}
+
+function rentalDelivery(ctx: DocContext): string {
+  return `
+    ${header(ctx, 'פרוטוקול מסירת מושכר')}
+    <p>ביום ${ctx.contractDateShort} נמסר המושכר ${ctx.propertyAddress}, ${ctx.propertyCity} מהמשכיר ${ctx.sellerNames} לידי השוכר ${ctx.buyerNames}.</p>
+    <p>מצב המושכר: ☐ תקין &nbsp; ☐ ליקויים: ________</p>
+    <p>מוני חשמל: ________ &nbsp; מים: ________ &nbsp; גז: ________</p>
+    <p>מפתחות שנמסרו: ____ סטים. שלט חניה / מחסן: ________</p>
+    <p>תכולה שנשארת במושכר: ${ctx.propertyDescription}</p>
+    <div class="sig-row">
+      <div><div class="sig-line"></div><p>המשכיר</p></div>
+      <div><div class="sig-line"></div><p>השוכר</p></div>
+    </div>`;
+}
+
 function saleLawGuarantee(ctx: DocContext): string {
   return `
     ${header(ctx, 'נספח ערבות חוק מכר')}
@@ -732,6 +810,10 @@ export const DOCUMENT_PACK_TITLES = [
   'הסכם קומבינציה',
   'נספח תמורות — עסקת קומבינציה',
   'נספח ערבות חוק מכר',
+  'הסכם שכירות בלתי מוגנת',
+  'שטר חוב — בטוחה לשכירות',
+  'כתב ערבות אישית — שכירות',
+  'פרוטוקול מסירת מושכר',
 ] as const;
 
 function allDocuments(ctx: DocContext): LegalDocument[] {
@@ -774,11 +856,24 @@ function allDocuments(ctx: DocContext): LegalDocument[] {
     { id: 'combination', title: 'הסכם קומבינציה', group: 'קומבינציה', audience: 'both', html: combinationAgreement(ctx) },
     { id: 'combination-app', title: 'נספח תמורות — עסקת קומבינציה', group: 'קומבינציה', audience: 'both', html: combinationConsideration(ctx) },
     { id: 'sale-law-guar', title: 'נספח ערבות חוק מכר', group: 'קומבינציה', audience: 'both', html: saleLawGuarantee(ctx) },
+    { id: 'rental-agreement', title: 'הסכם שכירות בלתי מוגנת', group: 'שכירות', audience: 'both', rentalOnly: true, html: rentalAgreement(ctx) },
+    { id: 'rental-note', title: 'שטר חוב — בטוחה לשכירות', group: 'שכירות', audience: 'both', rentalOnly: true, html: rentalPromissoryNote(ctx) },
+    { id: 'rental-guarantee', title: 'כתב ערבות אישית — שכירות', group: 'שכירות', audience: 'both', rentalOnly: true, html: rentalGuarantee(ctx) },
+    { id: 'rental-delivery', title: 'פרוטוקול מסירת מושכר', group: 'שכירות', audience: 'both', rentalOnly: true, html: rentalDelivery(ctx) },
   ];
 }
 
-export function buildDocumentPack(ctx: DocContext, represented?: RepresentedSide): LegalDocument[] {
-  const pack = allDocuments(ctx);
+/** Sale-family documents that remain useful for rental files as well. */
+const RENTAL_SHARED_IDS = new Set(['poa-notary', 'fees', 'letter', 'corporate']);
+
+export function buildDocumentPack(
+  ctx: DocContext,
+  represented?: RepresentedSide,
+  dealType?: string,
+): LegalDocument[] {
+  let pack = allDocuments(ctx);
+  if (dealType === 'rental') pack = pack.filter((doc) => doc.rentalOnly || RENTAL_SHARED_IDS.has(doc.id));
+  else if (dealType) pack = pack.filter((doc) => !doc.rentalOnly);
   if (!represented) return pack;
   return pack.filter((doc) => documentVisibleForSide(doc.audience, represented));
 }
