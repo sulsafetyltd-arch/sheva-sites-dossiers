@@ -41,6 +41,38 @@
   }
 }
 
+.re-app {
+  --background: 210 16% 96%;
+  --foreground: 210 12% 22%;
+  --card: 0 0% 100%;
+  --card-foreground: 210 12% 22%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 210 12% 22%;
+  --primary: 176 100% 33%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 176 30% 94%;
+  --secondary-foreground: 176 50% 20%;
+  --muted: 210 16% 94%;
+  --muted-foreground: 210 8% 46%;
+  --accent: 176 70% 92%;
+  --accent-foreground: 176 70% 20%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 210 14% 90%;
+  --input: 210 14% 90%;
+  --ring: 176 100% 33%;
+  --sidebar-teal: 176 100% 33%;
+  --sidebar-teal-dark: 176 100% 27%;
+}
+
+.re-app .re-card {
+  @apply bg-card rounded-xl border border-border/80 shadow-[0_1px_3px_rgba(16,24,40,0.04)];
+}
+
+.re-app .re-table th {
+  @apply text-xs font-semibold text-muted-foreground bg-muted/60;
+}
+
 @layer base {
   * {
     @apply border-border;
