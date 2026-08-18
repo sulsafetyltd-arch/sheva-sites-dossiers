@@ -21,6 +21,7 @@ import AlertsPage from "./pages/real-estate/AlertsPage.tsx";
 import UsersPage from "./pages/real-estate/UsersPage.tsx";
 import PackagesPage from "./pages/real-estate/PackagesPage.tsx";
 import HelpPage from "./pages/real-estate/HelpPage.tsx";
+import DocumentPackPage from "./pages/real-estate/DocumentPackPage.tsx";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route index element={<RealEstateDashboard />} />
             <Route path="deals" element={<DealList />} />
             <Route path="deals/:id" element={<DealEditor />} />
+            <Route path="deals/:id/documents" element={<DocumentPackPage />} />
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="alerts" element={<AlertsPage />} />

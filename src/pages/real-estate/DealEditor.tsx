@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowRight, FileStack, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -123,10 +123,16 @@ const DealEditor = () => {
             <ProgressBar value={progress} />
           </div>
         </div>
-        <Button className="gap-2" onClick={() => persist()} disabled={!dirty}>
-          <Save className="w-4 h-4" />
-          {dirty ? 'שמירה' : 'נשמר'}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => navigate(`/deals/${deal.id}/documents`)}>
+            <FileStack className="w-4 h-4" />
+            הפק סט מסמכים
+          </Button>
+          <Button className="gap-2" onClick={() => persist()} disabled={!dirty}>
+            <Save className="w-4 h-4" />
+            {dirty ? 'שמירה' : 'נשמר'}
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="details" className="space-y-4">
@@ -550,6 +556,16 @@ const DealEditor = () => {
         </TabsContent>
 
         <TabsContent value="docs" className="space-y-3">
+          <div className="re-card p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-medium">סט מסמכים מובנה</p>
+              <p className="text-sm text-muted-foreground">הסכם מכר, שטר מכר, ייפויי כוח, הערות אזהרה וטופס 7000 — לפי שמות הצדדים</p>
+            </div>
+            <Button onClick={() => navigate(`/deals/${deal.id}/documents`)}>
+              <FileStack className="w-4 h-4" />
+              הפקה אוטומטית
+            </Button>
+          </div>
           <div className="flex justify-end">
             <Button
               variant="outline"

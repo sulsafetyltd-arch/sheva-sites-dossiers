@@ -31,6 +31,7 @@ const nav = [
 
 const TITLES: Array<{ test: (path: string) => boolean; title: string }> = [
   { test: (p) => p === '/', title: 'לוח בקרה' },
+  { test: (p) => /\/documents$/.test(p), title: 'הפקת מסמכים' },
   { test: (p) => /^\/deals\/[^/]+$/.test(p), title: 'פרטי עסקה' },
   { test: (p) => p.startsWith('/deals'), title: 'עסקאות' },
   { test: (p) => p.startsWith('/clients'), title: 'לקוחות' },

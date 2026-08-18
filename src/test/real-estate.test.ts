@@ -198,3 +198,48 @@ describe('real-estate store', () => {
     expect(getAllDeals()).toHaveLength(1);
   });
 });
+
+describe('legal document pack', () => {
+  it('fills the full document set from party names', async () => {
+    const { buildDocContext, missingDocFields } = await import('@/lib/legal-doc-context');
+    const { buildDocumentPack, DOCUMENT_PACK_TITLES } = await import('@/data/legal-document-pack');
+    const deal = sampleDeal({
+      contractDate: '2026-07-06',
+      consideration: 450000,
+      parties: [
+        { id: 'b1', role: 'buyer', name: 'אילעי שמואל ציון וקנין', idNumber: '326349933', phone: '', email: '', address: 'כרמיאל', notes: '' },
+        { id: 's1', role: 'seller', name: 'אופק חרוץ', idNumber: '208948281', phone: '', email: '', address: 'בת ים', notes: '' },
+      ],
+      property: {
+        address: 'מרחבים 1331/36',
+        city: 'דימונה',
+        type: 'apartment',
+        block: '39522',
+        parcel: '29',
+        subParcel: '36',
+        floor: '3',
+        rooms: '3',
+        area: '63',
+        registryOffice: 'באר שבע',
+        rights: 'בעלות',
+        description: '',
+      },
+    });
+    const ctx = buildDocContext(deal, {
+      attorneyName: 'עו"ד אוריאל סולטן',
+      license: '100206',
+      officeAddress: 'הבנאים 9, אשדוד',
+      officeCity: 'באר שבע',
+      secondAttorneyName: 'עו"ד תמיר חיון',
+    });
+    expect(missingDocFields(ctx)).toEqual([]);
+    const pack = buildDocumentPack(ctx);
+    expect(pack.map((d) => d.title)).toEqual([...DOCUMENT_PACK_TITLES]);
+    const sale = pack.find((d) => d.id === 'sale-agreement')!.html;
+    expect(sale).toContain('אילעי שמואל ציון וקנין');
+    expect(sale).toContain('אופק חרוץ');
+    expect(sale).toContain('39522');
+    expect(pack.find((d) => d.id === 'form-7000')!.html).toContain('7000');
+    expect(pack.find((d) => d.id === 'deed')!.html).toContain('שטר מכר');
+  });
+});
