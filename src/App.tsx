@@ -11,6 +11,11 @@ import NotFound from "./pages/NotFound.tsx";
 import SafetyAuditIndex from "./pages/safety-audit/SafetyAuditIndex.tsx";
 import SafetyAuditEditor from "./pages/safety-audit/SafetyAuditEditor.tsx";
 import SafetyAuditPreview from "./pages/safety-audit/SafetyAuditPreview.tsx";
+import RealEstateLayout from "./components/real-estate/RealEstateLayout.tsx";
+import RealEstateDashboard from "./pages/real-estate/RealEstateDashboard.tsx";
+import DealList from "./pages/real-estate/DealList.tsx";
+import DealEditor from "./pages/real-estate/DealEditor.tsx";
+import CalendarPage from "./pages/real-estate/CalendarPage.tsx";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +34,12 @@ const App = () => (
           <Route path="/safety" element={<SafetyAuditIndex />} />
           <Route path="/safety/editor/:id" element={<SafetyAuditEditor />} />
           <Route path="/safety/preview/:id" element={<SafetyAuditPreview />} />
+          <Route path="/real-estate" element={<RealEstateLayout />}>
+            <Route index element={<RealEstateDashboard />} />
+            <Route path="deals" element={<DealList />} />
+            <Route path="deals/:id" element={<DealEditor />} />
+            <Route path="calendar" element={<CalendarPage />} />
+          </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

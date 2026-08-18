@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, FileText, Trash2, Copy, Eye, Edit, Flame } from 'lucide-react';
+import { Search, Plus, FileText, Trash2, Copy, Eye, Edit, Flame, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -87,6 +87,11 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">ניהול תיקי שטח לבטיחות אש</p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => navigate('/real-estate')}>
+              <Scale className="w-4 h-4" />
+              עסקאות מקרקעין
+            </Button>
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setSelectedTemplate(null); }}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -136,10 +141,29 @@ const Index = () => {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </header>
 
       <main className="container py-8 space-y-8">
+        <button
+          onClick={() => navigate('/real-estate')}
+          className="w-full text-right bg-card rounded-lg border p-4 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-foreground text-background flex items-center justify-center shrink-0">
+              <Scale className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-semibold">ניהול עסקאות מקרקעין לעורכי דין</h2>
+              <p className="text-sm text-muted-foreground">
+                תיקי עסקה, צדדים, לוח תשלומים, בדיקות מקדימות ויומן מועדים
+              </p>
+            </div>
+          </div>
+          <span className="text-sm font-medium text-primary shrink-0">כניסה למודול</span>
+        </button>
+
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 animate-reveal">
           {[
