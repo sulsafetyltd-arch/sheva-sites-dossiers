@@ -41,15 +41,14 @@ const TITLES: Array<{ test: (path: string) => boolean; title: string }> = [
   { test: (p) => p.startsWith('/real-estate/calendar'), title: 'יומן מועדים' },
 ];
 
-function RealLexLogo() {
+function SoloLogo() {
   return (
-    <div className="flex items-end justify-center text-white select-none">
-      <span className="text-[27px] font-extrabold tracking-tight leading-none">Rea</span>
-      <svg viewBox="0 0 32 32" className="w-8 h-8 mx-px fill-current" aria-hidden>
+    <div className="flex flex-col items-center text-white select-none gap-1">
+      <svg viewBox="0 0 32 32" className="w-8 h-8 fill-current" aria-hidden>
         <path d="M16 3.5 30 16h-4v13H6V16H2L16 3.5Z" />
         <rect x="13" y="18" width="6" height="11" className="fill-[hsl(var(--sidebar-teal))]" />
       </svg>
-      <span className="text-[27px] font-extrabold tracking-tight leading-none">ex</span>
+      <span className="text-[22px] font-extrabold tracking-tight leading-none">סולו נדלן</span>
     </div>
   );
 }
@@ -65,13 +64,13 @@ const RealEstateLayout = () => {
     setAlerts(alertCount(getAllDeals()));
   }, [location.pathname]);
 
-  const title = TITLES.find((t) => t.test(location.pathname))?.title ?? 'RealLex';
+  const title = TITLES.find((t) => t.test(location.pathname))?.title ?? 'סולו נדלן';
   const hideNewDeal = /^\/real-estate\/deals\/[^/]+$/.test(location.pathname);
 
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="px-5 pt-7 pb-6">
-        <RealLexLogo />
+        <SoloLogo />
       </div>
       <nav className="flex-1 px-3 space-y-1">
         {nav.map((item) => (
