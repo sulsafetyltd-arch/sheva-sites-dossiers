@@ -35,7 +35,7 @@ const AlertsPage = () => {
           <h2 className="font-semibold">התראות מערכת</h2>
           <p className="text-sm text-muted-foreground">מועדים באיחור ומשימות פתוחות</p>
         </div>
-        <button className="text-sm text-primary font-medium" onClick={() => navigate('/real-estate/calendar')}>
+        <button className="text-sm text-primary font-medium" onClick={() => navigate('/calendar')}>
           יומן מלא
         </button>
       </div>
@@ -48,7 +48,7 @@ const AlertsPage = () => {
           return (
             <button
               key={item.id}
-              onClick={() => navigate(`/real-estate/deals/${item.dealId}`)}
+              onClick={() => navigate(`/deals/${item.dealId}`)}
               className="w-full text-right px-5 py-4 hover:bg-muted/40 flex items-start justify-between gap-3"
             >
               <div>

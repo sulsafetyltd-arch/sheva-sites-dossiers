@@ -81,7 +81,7 @@ const DealEditor = () => {
     return (
       <main className="py-16 text-center space-y-4">
         <p className="text-muted-foreground">התיק לא נמצא</p>
-        <Button variant="outline" onClick={() => navigate('/real-estate/deals')}>
+        <Button variant="outline" onClick={() => navigate('/deals')}>
           חזרה לרשימה
         </Button>
       </main>
@@ -105,7 +105,7 @@ const DealEditor = () => {
     <main className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <Button variant="ghost" size="sm" className="px-0 h-auto" onClick={() => navigate('/real-estate/deals')}>
+          <Button variant="ghost" size="sm" className="px-0 h-auto" onClick={() => navigate('/deals')}>
             <ArrowRight className="w-4 h-4" />
             כל העסקאות
           </Button>

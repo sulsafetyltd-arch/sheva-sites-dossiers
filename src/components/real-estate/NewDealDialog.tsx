@@ -49,7 +49,7 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
     });
     reset();
     onOpenChange(false);
-    navigate(`/real-estate/deals/${deal.id}`);
+    navigate(`/deals/${deal.id}`);
   };
 
   return (

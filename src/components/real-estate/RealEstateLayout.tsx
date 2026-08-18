@@ -20,25 +20,25 @@ import { getAllDeals } from '@/lib/real-estate-store';
 import { alertCount } from '@/lib/real-estate-utils';
 
 const nav = [
-  { to: '/real-estate', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
-  { to: '/real-estate/deals', label: 'עסקאות', icon: FolderKanban, end: false },
-  { to: '/real-estate/clients', label: 'לקוחות', icon: Users, end: false },
-  { to: '/real-estate/alerts', label: 'התראות', icon: Bell, end: false },
-  { to: '/real-estate/users', label: 'משתמשים', icon: UserCog, end: false },
-  { to: '/real-estate/packages', label: 'חבילות', icon: Package, end: false },
-  { to: '/real-estate/help', label: 'עזרה', icon: CircleHelp, end: false },
+  { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
+  { to: '/deals', label: 'עסקאות', icon: FolderKanban, end: false },
+  { to: '/clients', label: 'לקוחות', icon: Users, end: false },
+  { to: '/alerts', label: 'התראות', icon: Bell, end: false },
+  { to: '/users', label: 'משתמשים', icon: UserCog, end: false },
+  { to: '/packages', label: 'חבילות', icon: Package, end: false },
+  { to: '/help', label: 'עזרה', icon: CircleHelp, end: false },
 ];
 
 const TITLES: Array<{ test: (path: string) => boolean; title: string }> = [
-  { test: (p) => p === '/real-estate', title: 'לוח בקרה' },
-  { test: (p) => /^\/real-estate\/deals\/[^/]+$/.test(p), title: 'פרטי עסקה' },
-  { test: (p) => p.startsWith('/real-estate/deals'), title: 'עסקאות' },
-  { test: (p) => p.startsWith('/real-estate/clients'), title: 'לקוחות' },
-  { test: (p) => p.startsWith('/real-estate/alerts'), title: 'התראות' },
-  { test: (p) => p.startsWith('/real-estate/users'), title: 'משתמשים' },
-  { test: (p) => p.startsWith('/real-estate/packages'), title: 'חבילות' },
-  { test: (p) => p.startsWith('/real-estate/help'), title: 'עזרה' },
-  { test: (p) => p.startsWith('/real-estate/calendar'), title: 'יומן מועדים' },
+  { test: (p) => p === '/', title: 'לוח בקרה' },
+  { test: (p) => /^\/deals\/[^/]+$/.test(p), title: 'פרטי עסקה' },
+  { test: (p) => p.startsWith('/deals'), title: 'עסקאות' },
+  { test: (p) => p.startsWith('/clients'), title: 'לקוחות' },
+  { test: (p) => p.startsWith('/alerts'), title: 'התראות' },
+  { test: (p) => p.startsWith('/users'), title: 'משתמשים' },
+  { test: (p) => p.startsWith('/packages'), title: 'חבילות' },
+  { test: (p) => p.startsWith('/help'), title: 'עזרה' },
+  { test: (p) => p.startsWith('/calendar'), title: 'יומן מועדים' },
 ];
 
 function SoloLogo() {
@@ -65,7 +65,7 @@ const RealEstateLayout = () => {
   }, [location.pathname]);
 
   const title = TITLES.find((t) => t.test(location.pathname))?.title ?? 'סולו נדלן';
-  const hideNewDeal = /^\/real-estate\/deals\/[^/]+$/.test(location.pathname);
+  const hideNewDeal = /^\/deals\/[^/]+$/.test(location.pathname);
 
   const sidebar = (
     <div className="flex h-full flex-col">
@@ -90,7 +90,7 @@ const RealEstateLayout = () => {
           >
             <item.icon className="w-[18px] h-[18px]" />
             <span>{item.label}</span>
-            {item.to === '/real-estate/alerts' && alerts > 0 && (
+            {item.to === '/alerts' && alerts > 0 && (
               <span className="mr-auto rounded-full bg-white text-primary text-[11px] font-bold min-w-5 h-5 px-1.5 inline-flex items-center justify-center">
                 {alerts}
               </span>
@@ -100,7 +100,7 @@ const RealEstateLayout = () => {
       </nav>
       <div className="px-3 pb-5 pt-2">
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/dossiers')}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium text-white/85 hover:bg-white/10 hover:text-white"
         >
           <LogOut className="w-[18px] h-[18px]" />
@@ -148,7 +148,7 @@ const RealEstateLayout = () => {
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
                 <button
-                  onClick={() => navigate('/real-estate/alerts')}
+                  onClick={() => navigate('/alerts')}
                   className="hidden sm:inline-flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
                 >
                   <Bell className="w-4 h-4" />

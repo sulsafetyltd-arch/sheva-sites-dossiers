@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { HashRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -29,17 +29,9 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/editor/:id" element={<DossierEditor />} />
-          <Route path="/preview/:id" element={<DossierPreview />} />
-          <Route path="/reports/:id" element={<DossierReports />} />
-          {/* Safety Audit module */}
-          <Route path="/safety" element={<SafetyAuditIndex />} />
-          <Route path="/safety/editor/:id" element={<SafetyAuditEditor />} />
-          <Route path="/safety/preview/:id" element={<SafetyAuditPreview />} />
-          <Route path="/real-estate" element={<RealEstateLayout />}>
+          <Route path="/" element={<RealEstateLayout />}>
             <Route index element={<RealEstateDashboard />} />
             <Route path="deals" element={<DealList />} />
             <Route path="deals/:id" element={<DealEditor />} />
@@ -50,9 +42,16 @@ const App = () => (
             <Route path="packages" element={<PackagesPage />} />
             <Route path="help" element={<HelpPage />} />
           </Route>
+          <Route path="/dossiers" element={<Index />} />
+          <Route path="/editor/:id" element={<DossierEditor />} />
+          <Route path="/preview/:id" element={<DossierPreview />} />
+          <Route path="/reports/:id" element={<DossierReports />} />
+          <Route path="/safety" element={<SafetyAuditIndex />} />
+          <Route path="/safety/editor/:id" element={<SafetyAuditEditor />} />
+          <Route path="/safety/preview/:id" element={<SafetyAuditPreview />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );

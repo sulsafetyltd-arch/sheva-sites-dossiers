@@ -70,7 +70,7 @@ const CalendarPage = () => {
               return (
                 <button
                   key={item.id}
-                  onClick={() => navigate(`/real-estate/deals/${item.dealId}`)}
+                  onClick={() => navigate(`/deals/${item.dealId}`)}
                   className="w-full text-right p-4 hover:bg-muted/40 transition-colors flex items-start justify-between gap-3"
                 >
                   <div className="min-w-0">

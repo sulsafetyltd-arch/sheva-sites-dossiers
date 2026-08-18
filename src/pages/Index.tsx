@@ -88,7 +88,7 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => navigate('/real-estate')}>
+            <Button variant="outline" className="gap-2" onClick={() => navigate('/')}>
               <Scale className="w-4 h-4" />
               סולו נדלן
             </Button>
@@ -147,7 +147,7 @@ const Index = () => {
 
       <main className="container py-8 space-y-8">
         <button
-          onClick={() => navigate('/real-estate')}
+          onClick={() => navigate('/')}
           className="w-full text-right bg-card rounded-lg border p-4 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between gap-4"
         >
           <div className="flex items-center gap-3 min-w-0">

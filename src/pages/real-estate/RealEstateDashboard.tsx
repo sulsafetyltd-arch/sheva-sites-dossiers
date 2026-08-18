@@ -116,7 +116,7 @@ const RealEstateDashboard = () => {
                   <tr
                     key={deal.id}
                     className="border-t hover:bg-muted/40 cursor-pointer"
-                    onClick={() => navigate(`/real-estate/deals/${deal.id}`)}
+                    onClick={() => navigate(`/deals/${deal.id}`)}
                   >
                     <td className="px-4 py-3">
                       <p className="font-medium">{propertySummary(deal)}</p>
@@ -143,7 +143,7 @@ const RealEstateDashboard = () => {
             <div className="flex items-center gap-3">
               <button
                 className="text-sm text-primary font-medium"
-                onClick={() => navigate('/real-estate/deals')}
+                onClick={() => navigate('/deals')}
               >
                 הכל
               </button>

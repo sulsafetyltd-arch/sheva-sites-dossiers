@@ -119,11 +119,11 @@ const DealList = () => {
               )}
               {filtered.map((deal) => (
                 <tr key={deal.id} className="border-t hover:bg-muted/40">
-                  <td className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/real-estate/deals/${deal.id}`)}>
+                  <td className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/deals/${deal.id}`)}>
                     <p className="font-medium">{propertySummary(deal)}</p>
                     <p className="text-xs text-muted-foreground">{deal.fileNumber}</p>
                   </td>
-                  <td className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/real-estate/deals/${deal.id}`)}>
+                  <td className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/deals/${deal.id}`)}>
                     {primaryClientName(deal)}
                   </td>
                   <td className="px-4 py-3">{DEAL_TYPE_LABEL[deal.type]}</td>
