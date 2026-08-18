@@ -1,9 +1,12 @@
+import type { DocAudience, RepresentedSide } from '@/lib/document-audience';
+import { documentVisibleForSide } from '@/lib/document-audience';
 import type { DocContext } from '@/lib/legal-doc-context';
 
 export interface LegalDocument {
   id: string;
   title: string;
   group: string;
+  audience: DocAudience;
   html: string;
 }
 
@@ -44,88 +47,160 @@ function saleAgreement(ctx: DocContext): string {
   return `
     ${header(ctx, 'הסכם מכר')}
     <p class="center">שנערך ונחתם ב${ctx.officeCity} ביום ${ctx.contractDate}</p>
-    <p><strong>בין:</strong> ${ctx.sellerNames}, ת.ז. ${ctx.sellerIds}, מרחוב ${ctx.sellerAddresses}, טל׳ ${ctx.sellerPhones}<br/>(להלן: "<strong>המוכר</strong>")</p>
-    <p><strong>לבין:</strong> ${ctx.buyerNames}, ת.ז. ${ctx.buyerIds}, מרחוב ${ctx.buyerAddresses}, טל׳ ${ctx.buyerPhones}<br/>(להלן: "<strong>הקונה</strong>")</p>
+    <p><strong>בין:</strong><br/>
+    ${ctx.sellerNames}<br/>
+    ת.ז. ${ctx.sellerIds}<br/>
+    מרחוב ${ctx.sellerAddresses}<br/>
+    טל׳ ${ctx.sellerPhones}<br/>
+    (להלן: "<strong>המוכר</strong>")</p>
+    <p class="center"><strong>לבין:</strong></p>
+    <p>${ctx.buyerNames}<br/>
+    ת.ז. ${ctx.buyerIds}<br/>
+    מרחוב ${ctx.buyerAddresses}<br/>
+    טל׳ ${ctx.buyerPhones}<br/>
+    (להלן: "<strong>הקונה</strong>")</p>
     <h2>הואיל</h2>
-    <p>והמוכר מצהיר כי הוא בעל הזכויות ב${ctx.propertyType} הידוע כגוש ${ctx.block} חלקה ${ctx.parcel} תת-חלקה ${ctx.subParcel}, ברחוב ${ctx.propertyAddress}, ${ctx.propertyCity}, בשטח של כ-${ctx.area} מ"ר, בקומה ${ctx.floor}, וכי הזכות הרשומה היא ${ctx.rights} בלשכת רישום המקרקעין ${ctx.registryOffice};</p>
-    <p>והקונה מעוניין לרכוש את הנכס והמוכר מעוניין למכרו, והצדדים מעוניינים לעגן את התחייבויותיהם בהסכם זה;</p>
-    <h2>1. המבוא</h2>
-    <p>המבוא להסכם זה מהווה חלק בלתי נפרד ממנו ומחייב את הצדדים.</p>
-    <h2>2. הצהרות המוכר</h2>
-    <p>2.1. המוכר מצהיר כי הזכויות בנכס רשומות ו/או ניתנות לרישום על שמו בלשכת רישום המקרקעין ${ctx.registryOffice}.</p>
-    <p>2.2. המוכר יישא במס שבח ובהיטל השבחה החלים עליו, וימציא לקונה אישורי מסים כנדרש להעברת הזכויות.</p>
-    <p>2.3. אין מניעה חוקית או התחייבות קודמת המונעת העברת הזכויות לקונה.</p>
-    <p>2.4. הקונה רוכש את הנכס במצבו AS IS, והמוכר ישמור על מצבו עד למסירה.</p>
-    <p>2.5. המוכר לא ישעבד ולא יעמיס על הנכס שעבוד נוסף לאחר החתימה, ויפעל להסרת שעבודים קיימים עד למועד התשלום המתאים.</p>
-    <p>2.6. המוכר ישתף פעולה עם הליך המשכנתא של הקונה, לרבות חתימה על מסמכי הבנק.</p>
-    <p>2.7. המוכר מתיר כניסת שמאי לנכס בתיאום סביר.</p>
-    <p>2.8. אין הליכי פשיטת רגל, כינוס או הוצאה לפועל המונעים את ביצוע ההסכם.</p>
-    <h2>3. הצהרות הקונה</h2>
-    <p>3.1. הקונה בדק את הנכס, את מצבו התכנוני והרישומי, והוא רוכש אותו על סמך בדיקותיו.</p>
-    <p>3.2. הקונה יישא במס רכישה ובהוצאות רישום החלות עליו.</p>
-    <h2>4. התמורה</h2>
-    <p>תמורה כוללת בסך <strong>${ctx.consideration}</strong> תשולם לפי לוח התשלומים:</p>
+    <p><strong>הואיל</strong> והמוכר מצהיר כי הוא הבעלים ו/או בעל הזכויות ב${ctx.propertyType} הידוע כגוש ${ctx.block} חלקה ${ctx.parcel} תת-חלקה ${ctx.subParcel}, ברחוב ${ctx.propertyAddress}, ${ctx.propertyCity}, בשטח של כ-${ctx.area} מ״ר, בקומה ${ctx.floor}, ${ctx.rooms} חדרים, וכי הזכות הרשומה היא ${ctx.rights} בלשכת רישום המקרקעין ${ctx.registryOffice} (להלן: "<strong>הנכס</strong>" או "<strong>הממכר</strong>");</p>
+    <p><strong>והואיל</strong> והמוכר מעוניין למכור את הנכס והקונה מעוניין לרכשו, והצדדים מעוניינים לעגן את התקשרותם בהסכם זה;</p>
+    <p><strong>לפיכך הוצהר, הותנה והוסכם בין הצדדים כדלקמן:</strong></p>
+    <h2>1. המבוא, הכותרת והנספחים</h2>
+    <p>1.1. המבוא להסכם זה, כותרות הסעיפים והנספחים המצורפים לו מהווים חלק בלתי נפרד הימנו ומחייבים את הצדדים.</p>
+    <p>1.2. כותרות הסעיפים הן לנוחות בלבד ולא ישמשו לפרשנות.</p>
+    <h2>2. הממכר</h2>
+    <p>2.1. המוכר מוכר בזה לקונה, והקונה רוכש בזה מהמוכר, את מלוא זכויות המוכר בנכס, לרבות כל הבנוי והמחובר חיבור של קבע, וכל הזכויות הנלוות על פי דין ועל פי התקנון / הסכם השיתוף, אם ישנם.</p>
+    <p>2.2. הממכר יימסר כשהוא פנוי מכל אדם וחפץ שאינו כלול בעסקה, חופשי מכל זכות צד ג׳, שוכר, בר-רשות או דייר מוגן, זולת כמפורט במפורש בהסכם זה.</p>
+    <h2>3. הצהרות והתחייבויות המוכר</h2>
+    <p>3.1. המוכר מצהיר כי הזכויות בנכס רשומות ו/או ניתנות לרישום על שמו בלשכת רישום המקרקעין ${ctx.registryOffice}, וכי הוא רשאי למכור את הנכס ולהעביר את הזכויות בו.</p>
+    <p>3.2. המוכר מצהיר כי אין מניעה חוקית, שיעבוד, עיקול, הערת אזהרה, התחייבות לצד ג׳ או הליך משפטי המונעים את העברת הזכויות, זולת כמפורט בנסח הרישום / באישור הזכויות שיצורף.</p>
+    <p>3.3. המוכר יישא במס שבח, בהיטל השבחה ובכל תשלום החל עליו על פי דין בקשר למכירה, וימציא לקונה ו/או לבא-כוחו אישורי מסים כנדרש להעברת הזכויות, לרבות אישור לפי סעיף 16 לחוק מיסוי מקרקעין (טופס 50) ככל שיידרש.</p>
+    <p>3.4. המוכר לא ישעבד, לא ימכור ולא יעמיס על הנכס שעבוד או זכות נוספת לאחר החתימה, ויפעל להסרת שעבודים קיימים עד למועד התשלום שייקבע לשם כך.</p>
+    <p>3.5. המוכר ישמור על מצב הנכס עד למסירה, יאפשר כניסת שמאי ו/או מהנדס בתיאום סביר, וישתף פעולה עם הליך המשכנתא של הקונה, לרבות חתימה על מסמכי הבנק כמקובל.</p>
+    <p>3.6. המוכר מצהיר כי אינו מצוי בהליך חדלות פירעון, כינוס נכסים או הוצאה לפועל המונע את ביצוע ההסכם.</p>
+    <p>3.7. המוכר מתחייב לחתום על ייפוי כוח בלתי חוזר לפי סעיף 91 לחוק לשכת עורכי הדין, התשכ״א–1961, על שטר מכר ועל כל מסמך הדרוש להשלמת העסקה ולרישום הזכויות.</p>
+    <h2>4. הצהרות והתחייבויות הקונה</h2>
+    <p>4.1. הקונה מצהיר כי ניתנה לו ההזדמנות לבדוק את הנכס, את מצבו התכנוני, הפיזי והרישומי, והוא רוכש אותו על סמך בדיקותיו, בכפוף להצהרות המוכר בהסכם זה.</p>
+    <p>4.2. הקונה יישא במס רכישה, באגרות הרישום ובהוצאות החלות עליו על פי דין ועל פי הסכם זה.</p>
+    <p>4.3. הקונה מתחייב לחתום על ייפוי כוח בלתי חוזר, על שטר מכר ועל מסמכי הרישום והמיסוי הדרושים.</p>
+    <h2>5. התמורה</h2>
+    <p>5.1. תמורת הממכר ישלם הקונה למוכר סך כולל של <strong>${ctx.consideration}</strong> (להלן: "<strong>התמורה</strong>"), והתמורה היא סופית ומוחלטת.</p>
+    <p>5.2. התמורה תשולם בהתאם ללוח התשלומים שלהלן ו/או לנספח התשלומים:</p>
     ${ctx.paymentsHtml}
-    <h2>5. מסירה ורישום</h2>
-    <p>הנכס יימסר ביום ${ctx.closingDate}, כשהוא פנוי מכל אדם וחפץ שאינו כלול בעסקה. הצדדים יחתמו על ייפוי כוח בלתי חוזר לצורך רישום הזכויות והערת אזהרה.</p>
-    <h2>6. הפרה</h2>
-    <p>הפרה יסודית תזכה את הצד המקיים בביטול ו/או בפיצוי מוסכם בשיעור 10% מהתמורה, מבלי לגרוע מסעדים אחרים.</p>
-    <h2>7. כללי</h2>
-    <p>סמכות השיפוט לבתי המשפט במחוז ${ctx.officeCity}. כתובות הצדדים למסירה הן כמפורט לעיל.</p>
+    <p>5.3. כל תשלום יופקד, ככל שסוכם, בחשבון נאמנות אצל בא-כוח הצדדים, וישוחרר רק בהתקיים התנאי הרלוונטי.</p>
+    <h2>6. מסירת החזקה</h2>
+    <p>6.1. החזקה בנכס תימסר לקונה ביום ${ctx.closingDate}, או במועד אחר שיסוכם בכתב, כנגד תשלום יתרת התמורה שנועד למסירה וכנגד מסירת מפתחות.</p>
+    <p>6.2. במעמד המסירה ייחתם פרוטוקול מסירה. המוכר יישא בהוצאות ארנונה, מים, חשמל, גז וועד בית עד למועד המסירה; הקונה — החל ממועד המסירה.</p>
+    <h2>7. רישום הזכויות והערת אזהרה</h2>
+    <p>7.1. בסמוך לאחר החתימה תרשם הערת אזהרה לטובת הקונה בלשכת רישום המקרקעין ${ctx.registryOffice}, על יסוד הסכם זה.</p>
+    <p>7.2. הצדדים יחתמו על שטר מכר ועל כל מסמך הדרוש לרישום מלוא הזכויות על שם הקונה. הרישום יבוצע לאחר קבלת אישורי המסים ואישור הרשות המקומית.</p>
+    <h2>8. מיסים והוצאות</h2>
+    <p>8.1. מס שבח והיטל השבחה — על המוכר, זולת אם הוסכם אחרת בכתב.</p>
+    <p>8.2. מס רכישה ואגרות רישום — על הקונה.</p>
+    <p>8.3. שכר טרחת כל צד — על אותו צד, כלפי בא-כוחו.</p>
+    <h2>9. הפרה ותרופות</h2>
+    <p>9.1. הפרה יסודית של הסכם זה תזכה את הצד המקיים בביטול ההסכם ו/או בפיצוי מוסכם בסך 10% מהתמורה, וזאת מבלי לגרוע מכל סעד אחר על פי דין או הסכם.</p>
+    <p>9.2. אי-תשלום במועד, אי-מסירת חזקה פנויה, ואי-המצאת אישורי מסים במועדם ייחשבו, בין היתר, כהפרה יסודית.</p>
+    <h2>10. ייפויי כוח</h2>
+    <p>הצדדים יחתמו במעמד החתימה על ייפויי כוח בלתי חוזרים לפי סעיף 91 לחוק לשכת עורכי הדין, לטובת באי-כוחם, לצורך ביצוע הוראות הסכם זה, רישום הערת אזהרה, דיווח לרשויות המס ורישום הזכויות.</p>
+    <h2>11. הוראות כלליות</h2>
+    <p>11.1. הסכם זה ממצה את כל המוסכם בין הצדדים. כל שינוי טעון מסמך בכתב בחתימת הצדדים.</p>
+    <p>11.2. כתובות הצדדים למסירת הודעות הן כמפורט בכותרת. הודעה שנמסרה במסירה אישית או בדואר רשום תיחשב כאילו הגיעה במועדה על פי דין.</p>
+    <p>11.3. סמכות השיפוט הייחודית נתונה לבתי המשפט המוסמכים במחוז ${ctx.officeCity}.</p>
+    <p>11.4. לשון יחיד כוללת רבים, לשון זכר כוללת נקבה, ולהפך.</p>
     <p>ולראיה באו הצדדים על החתום במקום ובמועד הנקובים בכותרת.</p>
     ${sigBlock(ctx)}`;
 }
 
 function deedOfSale(ctx: DocContext): string {
   return `
-    <div class="legal-head official">
-      <p>מדינת ישראל · משרד המשפטים</p>
-      <p>הרשות לרישום ולהסדר זכויות מקרקעין</p>
-      <p>לשכת רישום המקרקעין ב${ctx.registryOffice}</p>
+    <div class="legal-head official-form">
+      <p class="emblem">מדינת ישראל</p>
+      <p>משרד המשפטים · הרשות לרישום ולהסדר זכויות מקרקעין</p>
+      <div class="form-meta">
+        <span>מס׳ השטר ______________</span>
+        <span>לשכת רישום ב-${ctx.registryOffice}</span>
+      </div>
       <h1>שטר מכר</h1>
-      <p>שטר זה מעיד: ☒ שבתמורה &nbsp;&nbsp; ☐ שלא בתמורה</p>
     </div>
-    <h2>מאת: המוכר/ים</h2>
+    <p>השטר הזה מעיד שבתמורה שקיבל/ו ה״ה ${ctx.sellerNames}, מס׳ ת.ז. ${ctx.sellerIds}, מעביר/ים בזה ל-${ctx.buyerNames}, מס׳ ת.ז. ${ctx.buyerIds}, את זכות הקניין במקרקעין המפורטים ברשימה דלהלן, ומצהיר/ים בזה שהוא/שהם בעל/י המקרקעין הנזכרים ברשימה והם נקיים מכל ערעור זכות צד שלישי, פרט למפורטים להלן. כן מצהיר/ים הצד/דים שהתמורה המלאה והנכונה שולמה.</p>
+    <h2>המעביר/ים — המוכר/ים</h2>
     <table class="legal-table">
       <thead><tr><th>שם מלא / תאגיד</th><th>סוג זיהוי</th><th>מס׳ זיהוי</th><th>החלק בזכות</th></tr></thead>
       <tbody>${ctx.sellers.map((p) => `<tr><td>${p.name || '________'}</td><td>ת.ז.</td><td>${p.idNumber || '________'}</td><td>1/1</td></tr>`).join('') || '<tr><td>________</td><td>ת.ז.</td><td>________</td><td>1/1</td></tr>'}</tbody>
     </table>
-    <h2>ל-: הקונה/ים</h2>
+    <h2>הנעבר/ים — הקונה/ים</h2>
     <table class="legal-table">
       <thead><tr><th>שם מלא / תאגיד</th><th>סוג זיהוי</th><th>מס׳ זיהוי</th><th>החלק בזכות</th></tr></thead>
       <tbody>${ctx.buyers.map((p) => `<tr><td>${p.name || '________'}</td><td>ת.ז.</td><td>${p.idNumber || '________'}</td><td>1/1</td></tr>`).join('') || '<tr><td>________</td><td>ת.ז.</td><td>________</td><td>1/1</td></tr>'}</tbody>
     </table>
-    <p>המוכר/ים ${ctx.sellerNames} מעביר/ים בזה לקונה/ים ${ctx.buyerNames} את הזכויות במקרקעין שלהלן, כשהן נקיות מכל שעבוד, עיקול והתחייבות לצד ג׳, זולת כמפורט בפנקסי המקרקעין.</p>
     <h2>הרשימה — תיאור המקרקעין</h2>
     <table class="legal-table">
+      <thead><tr><th>הישוב</th><th>גוש</th><th>חלקה</th><th>תת-חלקה</th><th>השטח</th><th>החלקים המועברים</th><th>עודף לאחר המכר</th></tr></thead>
       <tbody>
-        <tr><th>יישוב</th><td>${ctx.propertyCity}</td><th>גוש</th><td>${ctx.block}</td></tr>
-        <tr><th>חלקה</th><td>${ctx.parcel}</td><th>תת-חלקה</th><td>${ctx.subParcel}</td></tr>
-        <tr><th>שטח במ״ר</th><td>${ctx.area}</td><th>כתובת</th><td>${ctx.propertyAddress}</td></tr>
-        <tr><th>חלקים מועברים</th><td>מלוא הזכויות</td><th>עודף למוכר</th><td>0</td></tr>
+        <tr>
+          <td>${ctx.propertyCity}</td>
+          <td>${ctx.block}</td>
+          <td>${ctx.parcel}</td>
+          <td>${ctx.subParcel}</td>
+          <td>${ctx.area} מ״ר</td>
+          <td>מלוא הזכויות</td>
+          <td>אין</td>
+        </tr>
       </tbody>
     </table>
-    <p>ולראיה באו הצדדים על החתום.</p>
-    ${sigBlock(ctx)}
-    <p class="tiny">* זיהוי: ת.ז. / דרכון / ח.פ. &nbsp; ** לא צוין חלק — תירשם בעלות בחלקים שווים.</p>`;
+    <p>תיאור המקרקעין או גבולותיהם והשעבודים: ${ctx.propertyAddress}, ${ctx.propertyCity}. זכות: ${ctx.rights}. ${ctx.propertyDescription !== '________' ? ctx.propertyDescription : 'אין שעבודים נוספים על המפורט בנסח.'}</p>
+    <p>התמורה: ${ctx.consideration}.</p>
+    <div class="sig-row">
+      <div><div class="sig-line"></div><p>חתימת המוכר/ים<br/>${ctx.sellerNames}</p></div>
+      <div><div class="sig-line"></div><p>חתימת הקונה/ים<br/>${ctx.buyerNames}</p></div>
+    </div>
+    <div class="cert">
+      <p><strong>אימות חתימת השטר — ימולא בפני עו״ד או רשם</strong></p>
+      <p>אני מעיד כי היום התייצב/ו לפני המוכר/ים והקונה/ים הנ״ל, ולאחר שזיהיתי אותם והסברתי להם את מהות העסקה שהם עומדים לבצע ואת התוצאות המשפטיות הנובעות ממנה, ולאחר ששוכנעתי שהדבר הובן להם כראוי, חתמו לפני מרצונם.</p>
+      <p>אני מאמת את החתימות על שטר זה לפי הוראות תקנות 16–17 לתקנות המקרקעין (ניהול ורישום), התש״ל–1969.</p>
+      <p>תאריך: ${ctx.contractDateShort} &nbsp; שם עורך הדין: ${ctx.attorney} &nbsp; רישיון: ${ctx.license} &nbsp; כתובת: ${ctx.officeAddress} &nbsp; חתימה: ________</p>
+    </div>
+    <div class="cert">
+      <p><strong>אישור עורך-דין לפי תקנה 17 לתקנות המקרקעין (ניהול ורישום), התש״ל–1969</strong></p>
+      <p>אני מאשר כי בדקתי את הפרטים המופיעים בשטר זה והמסמכים שצורפו לו, כאמור בתקנות המקרקעין (ניהול ורישום), התש״ל–1969, ומצאתים מתאימים וראויים לעסקה המבוקשת.</p>
+      <p>תאריך: ${ctx.contractDateShort} &nbsp; ${ctx.attorney}, עו״ד &nbsp; ${ctx.officeAddress} &nbsp; חתימה: ________</p>
+    </div>
+    <div class="cert muted">
+      <p><strong>לשימוש רשם המקרקעין</strong></p>
+      <p>אישור: העסקה אושרה לרישום בהתאם לסעיף 7 לחוק המקרקעין, התשכ״ט–1969.</p>
+      <p>תאריך: ________ &nbsp; רשם המקרקעין: ________</p>
+    </div>`;
 }
 
 function poaJoint(ctx: DocContext): string {
   return `
-    ${header(ctx, 'ייפוי כוח בלתי חוזר')}
-    <p class="center">נוטריוני / לפי סעיף 91 לחוק לשכת עורכי הדין, התשכ״א–1961</p>
-    <p>אנו הח״מ, הקונה/ים ${ctx.buyerNames} ת.ז. ${ctx.buyerIds} והמוכר/ים ${ctx.sellerNames} ת.ז. ${ctx.sellerIds}, ממנים בזה את ${ctx.attorney}${ctx.secondAttorney !== '________' ? ` ו/או ${ctx.secondAttorney}` : ''} לפעול בשמנו ולמעננו בכל הקשור להסכם מיום ${ctx.contractDateShort} לגבי הנכס גוש ${ctx.block} חלקה ${ctx.parcel} תת-חלקה ${ctx.subParcel}, ${ctx.propertyAddress}, ${ctx.propertyCity}.</p>
-    <p>1. לרשום ו/או לבטל הערות אזהרה, משכנתאות ושעבודים בקשר לנכס.</p>
-    <p>2. לייצגנו בפני לשכת רישום המקרקעין, רשות המסים, הרשות המקומית, בתי משפט וכל רשות מוסמכת, ולחתום על כל בקשה, הצהרה, שטר ודיווח.</p>
-    <p>3. להעביר סמכויות אלה לאחר.</p>
-    <p>4. ייפוי כוח זה בלתי חוזר, הואיל וזכויות צד ג׳ תלויות בו, ויעמוד בתוקף גם לאחר פטירה.</p>
-    <p>5. לשון יחיד כוללת רבים ולשון זכר כוללת נקבה.</p>
+    <div class="legal-head official-form">
+      <h1>ייפוי כוח בלתי חוזר</h1>
+      <p class="center">לפי סעיף 91 לחוק לשכת עורכי הדין, התשכ״א–1961</p>
+    </div>
+    <p>אנו הח״מ:</p>
+    <table class="legal-table">
+      <thead><tr><th>צד</th><th>שם</th><th>מס׳ זהות</th><th>כתובת</th></tr></thead>
+      <tbody>
+        <tr><td>מוכר/ים</td><td>${ctx.sellerNames}</td><td>${ctx.sellerIds}</td><td>${ctx.sellerAddresses}</td></tr>
+        <tr><td>קונה/ים</td><td>${ctx.buyerNames}</td><td>${ctx.buyerIds}</td><td>${ctx.buyerAddresses}</td></tr>
+      </tbody>
+    </table>
+    <p>ממנים בזה את ${ctx.attorney}, עו״ד, רישיון ${ctx.license}${ctx.secondAttorney !== '________' ? `, ו/או את ${ctx.secondAttorney}` : ''}, לפעול בשמנו ולמעננו בכל הקשור להסכם המכר מיום ${ctx.contractDateShort} לגבי הנכס גוש ${ctx.block} חלקה ${ctx.parcel} תת-חלקה ${ctx.subParcel}, ${ctx.propertyAddress}, ${ctx.propertyCity}.</p>
+    <p>מיופה הכוח יהיה רשאי, בשמנו ובמקומנו:</p>
+    <p>1. לחתום על שטר מכר, בקשות רישום, הצהרות ותצהירים מכל סוג.</p>
+    <p>2. לרשום ו/או לבטל הערות אזהרה, משכנתאות, שעבודים והתחייבויות בקשר לנכס.</p>
+    <p>3. לייצגנו בפני לשכת רישום המקרקעין, רשות המסים, הרשות המקומית, בתי משפט, בנקים וכל רשות מוסמכת.</p>
+    <p>4. לשלם ולקבל כספים, אגרות, מסים והיטלים הכרוכים בעסקה, ולתת קבלות.</p>
+    <p>5. להסמיך ממלאי מקום ולהעביר סמכויות אלה, כולן או מקצתן, לאחר.</p>
+    <p>6. לעשות כל פעולה אחרת הדרושה או המועילה להשלמת העסקה ולרישום הזכויות.</p>
+    <p>ייפוי כוח זה ניתן לטובת צד ג׳ והוא <strong>בלתי חוזר</strong>, הואיל וזכויות צד ג׳ תלויות בו, והוא יעמוד בתוקף גם לאחר פטירה, פסלות דין או פשיטת רגל של מי מהחותמים, לפי סעיף 91 לחוק לשכת עורכי הדין, התשכ״א–1961.</p>
+    <p>לשון יחיד כוללת רבים ולשון זכר כוללת נקבה.</p>
     <p>ולראיה באנו על החתום ב${ctx.officeCity} ביום ${ctx.contractDate}.</p>
     ${sigBlock(ctx)}
     <div class="cert">
       <p><strong>אימות חתימה ע״י עו״ד</strong></p>
-      <p>אני הח״מ, ${ctx.attorney}, מס׳ רישיון ${ctx.license}, מעיד כי היום התייצבו לפניי החותמים הנ״ל, הזדהו בפניי ולאחר שהסברתי להם את מהות הפעולה חתמו מרצונם החופשי.</p>
-      <p>תאריך: ${ctx.contractDateShort} &nbsp;&nbsp; חתימת עו״ד: ________</p>
+      <p>אני הח״מ, ${ctx.attorney}, מס׳ רישיון ${ctx.license}, מעיד כי היום התייצבו לפניי החותמים הנ״ל, הזדהו בפניי על פי תעודת זהות, ולאחר שהסברתי להם את מהות הפעולה ואת היות ייפוי הכוח בלתי חוזר — חתמו מרצונם החופשי.</p>
+      <p>תאריך: ${ctx.contractDateShort} &nbsp;&nbsp; כתובת: ${ctx.officeAddress} &nbsp;&nbsp; חתימת עו״ד: ________</p>
     </div>`;
 }
 
@@ -159,10 +234,12 @@ function poaBuyer(ctx: DocContext): string {
 
 function cautionRegister(ctx: DocContext): string {
   return `
-    <div class="legal-head official">
-      <p>מדינת ישראל · משרד המשפטים · הרשות לרישום ולהסדר זכויות מקרקעין</p>
+    <div class="legal-head official-form">
+      <p class="emblem">מדינת ישראל</p>
+      <p>משרד המשפטים · הרשות לרישום ולהסדר זכויות מקרקעין</p>
       <p>לשכת רישום המקרקעין ${ctx.registryOffice}</p>
       <h1>בקשה לרישום הערת אזהרה בהסכמת כל הצדדים</h1>
+      <p class="tiny">לפי סעיף 126 לחוק המקרקעין, התשכ״ט–1969</p>
     </div>
     <h2>1. תיאור המקרקעין</h2>
     <table class="legal-table">
@@ -170,40 +247,51 @@ function cautionRegister(ctx: DocContext): string {
         <tr><th>יישוב</th><td>${ctx.propertyCity}</td><th>גוש</th><td>${ctx.block}</td></tr>
         <tr><th>חלקה</th><td>${ctx.parcel}</td><th>תת-חלקה</th><td>${ctx.subParcel}</td></tr>
         <tr><th>כתובת</th><td colspan="3">${ctx.propertyAddress}</td></tr>
+        <tr><th>הזכות</th><td>${ctx.rights}</td><th>שטח</th><td>${ctx.area} מ״ר</td></tr>
       </tbody>
     </table>
     <h2>2. הפעולה המבוקשת</h2>
-    <p>מתבקש בזה לרשום הערת אזהרה על יסוד התחייבות בהסכם מכר מיום ${ctx.contractDateShort}.</p>
-    <h2>3. בעל הזכויות / המוכר</h2>
+    <p>מתבקש בזה לרשום הערת אזהרה על יסוד התחייבות בעל הזכות בהסכם מכר מיום ${ctx.contractDateShort} למכור / להעביר את הזכות במקרקעין הנ״ל.</p>
+    <h2>3. בעל הזכויות שעליהן תירשם ההערה — המוכר</h2>
     <table class="legal-table">
       <thead><tr><th>שם</th><th>סוג זיהוי</th><th>מס׳ זיהוי</th><th>כתובת</th></tr></thead>
       <tbody>${partyRows(ctx, 'sellers')}</tbody>
     </table>
-    <h2>4. הזכאי / הקונה</h2>
+    <h2>4. הזכאי שההערה תירשם לטובתו — הקונה</h2>
     <table class="legal-table">
       <thead><tr><th>שם</th><th>סוג זיהוי</th><th>מס׳ זיהוי</th><th>כתובת</th></tr></thead>
       <tbody>${partyRows(ctx, 'buyers')}</tbody>
     </table>
-    <h2>5. פרטי המטפל ברישום</h2>
+    <h2>5. מהות ההתחייבות</h2>
+    <p>התחייבות למכור ולהעביר את הזכויות בנכס לפי הסכם המכר שבין הצדדים, בתמורה ${ctx.consideration}.</p>
+    <h2>6. הסכמת בעל הזכות</h2>
+    <p>אני/אנו ${ctx.sellerNames} מסכים/ים לרישום הערת האזהרה לטובת ${ctx.buyerNames} על המקרקעין המפורטים לעיל.</p>
+    <h2>7. פרטי המטפל ברישום</h2>
     <p>${ctx.attorney}, עו״ד, רישיון ${ctx.license}, ${ctx.officeAddress}</p>
-    ${sigBlock(ctx)}`;
+    ${sigBlock(ctx)}
+    <div class="cert">
+      <p>אני מעיד כי היום התייצבו לפניי הצדדים, זוהו על ידיי, הוסברה להם מהות הפעולה, והם חתמו מרצונם החופשי.</p>
+      <p>${ctx.attorney}, עו״ד, רישיון ${ctx.license} · תאריך ${ctx.contractDateShort}</p>
+    </div>`;
 }
 
 function cautionCancel(ctx: DocContext): string {
   return `
-    <div class="legal-head official">
-      <p>מדינת ישראל · משרד המשפטים · הרשות לרישום ולהסדר זכויות מקרקעין</p>
+    <div class="legal-head official-form">
+      <p class="emblem">מדינת ישראל</p>
+      <p>משרד המשפטים · הרשות לרישום ולהסדר זכויות מקרקעין</p>
       <p>לשכת רישום המקרקעין ${ctx.registryOffice}</p>
       <h1>בקשה לביטול הערת אזהרה</h1>
-      <p>לפי סעיף 132 לחוק המקרקעין, התשכ״ט–1969</p>
+      <p class="tiny">לפי סעיף 132 לחוק המקרקעין, התשכ״ט–1969</p>
     </div>
-    <h2>1. המבקש/ים</h2>
+    <h2>1. המבקש/ים — הזכאי שההערה נרשמה לטובתו</h2>
     <table class="legal-table">
       <thead><tr><th>שם</th><th>סוג זיהוי</th><th>מס׳ זיהוי</th></tr></thead>
       <tbody>${ctx.buyers.map((p) => `<tr><td>${p.name || '________'}</td><td>ת.ז.</td><td>${p.idNumber || '________'}</td></tr>`).join('') || '<tr><td>________</td><td>ת.ז.</td><td>________</td></tr>'}</tbody>
     </table>
-    <p>גוש ${ctx.block} &nbsp; חלקה ${ctx.parcel} &nbsp; תת-חלקה ${ctx.subParcel}</p>
-    <h2>2. נושא הזכות שעליה נרשמה ההערה</h2>
+    <h2>2. תיאור המקרקעין</h2>
+    <p>גוש ${ctx.block} &nbsp; חלקה ${ctx.parcel} &nbsp; תת-חלקה ${ctx.subParcel} &nbsp; יישוב ${ctx.propertyCity} &nbsp; כתובת ${ctx.propertyAddress}</p>
+    <h2>3. נושא הזכות שעליה נרשמה ההערה</h2>
     <table class="legal-table">
       <thead><tr><th>שם</th><th>מס׳ זיהוי</th></tr></thead>
       <tbody>${ctx.sellers.map((p) => `<tr><td>${p.name || '________'}</td><td>${p.idNumber || '________'}</td></tr>`).join('') || '<tr><td>________</td><td>________</td></tr>'}</tbody>
@@ -218,8 +306,9 @@ function cautionCancel(ctx: DocContext): string {
 
 function form7000(ctx: DocContext): string {
   return `
-    <div class="legal-head official">
-      <p>רשות המסים בישראל · מיסוי מקרקעין</p>
+    <div class="legal-head official-form">
+      <p class="emblem">רשות המסים בישראל</p>
+      <p>מיסוי מקרקעין</p>
       <h1>הצהרה על נכונות הפרטים בהצהרה מקוונת</h1>
       <p>נספח לטופס 7000</p>
       <p>לשכת מיסוי מקרקעין באזור ${ctx.registryOffice || ctx.officeCity}</p>
@@ -245,7 +334,7 @@ function form7000(ctx: DocContext): string {
 function feeAgreement(ctx: DocContext): string {
   return `
     ${header(ctx, 'הסכם שכר טרחה')}
-    <p>שנערך בין ${ctx.attorney} (להלן: "<strong>עורך הדין</strong>") לבין הלקוח/ה ${ctx.buyerNames !== '________' ? ctx.buyerNames : ctx.sellerNames}.</p>
+    <p>שנערך בין ${ctx.attorney} (להלן: "<strong>עורך הדין</strong>") לבין הלקוח/ה ${ctx.clientNames}.</p>
     <p>1. עורך הדין ייצג את הלקוח בעסקת המקרקעין בתיק ${ctx.fileNumber}, נכס ${ctx.propertyAddress}, ${ctx.propertyCity}.</p>
     <p>2. שכר הטרחה ישולם לפי הרשום בתיק, בתוספת מע״מ כדין, ויהיה בלתי מותנה בתוצאה זולת אם הוסכם אחרת בכתב.</p>
     <p>3. הלקוח ישתף פעולה, ימציא מסמכים ויחתום על ייפויי כוח.</p>
@@ -645,45 +734,51 @@ export const DOCUMENT_PACK_TITLES = [
   'נספח ערבות חוק מכר',
 ] as const;
 
-export function buildDocumentPack(ctx: DocContext): LegalDocument[] {
+function allDocuments(ctx: DocContext): LegalDocument[] {
   return [
-    { id: 'sale-agreement', title: 'הסכם מכר', group: 'חוזה', html: saleAgreement(ctx) },
-    { id: 'deed', title: 'שטר מכר', group: 'טאבו', html: deedOfSale(ctx) },
-    { id: 'poa-joint', title: 'ייפוי כוח בלתי חוזר לפי סעיף 91', group: 'ייפוי כוח', html: poaJoint(ctx) },
-    { id: 'poa-buyer', title: 'ייפוי כוח בלתי חוזר — הקונה', group: 'ייפוי כוח', html: poaBuyer(ctx) },
-    { id: 'poa-seller', title: 'ייפוי כוח בלתי חוזר — המוכר', group: 'ייפוי כוח', html: poaSeller(ctx) },
-    { id: 'poa-notary', title: 'ייפוי כוח נוטריוני', group: 'ייפוי כוח', html: notarialPoa(ctx) },
-    { id: 'poa-bank', title: 'ייפוי כוח בלתי חוזר לבנק למשכנתא', group: 'מימון', html: poaBank(ctx) },
-    { id: 'poa-seller-bank', title: 'ייפוי כוח למוכר כלפי הבנק — סילוק משכנתא', group: 'מימון', html: poaSellerBank(ctx) },
-    { id: 'caution-on', title: 'בקשה לרישום הערת אזהרה', group: 'טאבו', html: cautionRegister(ctx) },
-    { id: 'caution-off', title: 'בקשה לביטול הערת אזהרה', group: 'טאבו', html: cautionCancel(ctx) },
-    { id: 'form-7000', title: 'הצהרה לטופס 7000', group: 'מס', html: form7000(ctx) },
-    { id: 'purchase-tax', title: 'הצהרת רוכש — בקשה לשומת מס רכישה', group: 'מס', html: purchaseTaxDeclaration(ctx) },
-    { id: 'capital-gains', title: 'דיווח מס שבח + בקשת פטור דירת מגורים מזכה', group: 'מס', html: capitalGainsReport(ctx) },
-    { id: 'form-50', title: 'בקשה לטופס 50 / אישור מס שבח לרישום', group: 'מס', html: form50Request(ctx) },
-    { id: 'fees', title: 'הסכם שכר טרחה', group: 'משרד', html: feeAgreement(ctx) },
-    { id: 'payments', title: 'נספח תשלומים', group: 'חוזה', html: paymentAppendix(ctx) },
-    { id: 'trust', title: 'נספח נאמנות', group: 'חוזה', html: trustAppendix(ctx) },
-    { id: 'dual-trust', title: 'הסכם נאמנות בין באי כוח', group: 'חוזה', html: dualCounselTrust(ctx) },
-    { id: 'conditions', title: 'נספח תנאים מתלים', group: 'חוזה', html: conditionsAppendix(ctx) },
-    { id: 'mortgage-first', title: 'כתב התחייבות לרישום משכנתא ראשונה', group: 'מימון', html: firstMortgageUndertaking(ctx) },
-    { id: 'bank-balance', title: 'מכתב לבנק המוכר — בקשת יתרה לסילוק', group: 'מימון', html: mortgageBalanceLetter(ctx) },
-    { id: 'discharge', title: 'התחייבות המוכר לסילוק משכנתא קיימת', group: 'מימון', html: dischargeUndertaking(ctx) },
-    { id: 'registry', title: 'הוראות לרישום בלשכת המקרקעין', group: 'טאבו', html: registryInstructions(ctx) },
-    { id: 'affidavit', title: 'תצהיר היעדר חובות והיעדר הליכים', group: 'מוכר', html: noDebtAffidavit(ctx) },
-    { id: 'contents', title: 'נספח תכולה — מה נשאר בנכס', group: 'חוזה', html: contentsAppendix(ctx) },
-    { id: 'vaad', title: 'בקשה לאישור ועד בית / דמי ניהול', group: 'רשויות', html: houseCommitteeRequest(ctx) },
-    { id: 'delivery', title: 'פרוטוקול מסירה', group: 'סגירה', html: deliveryProtocol(ctx) },
-    { id: 'muni', title: 'בקשה לאישור עירייה', group: 'רשויות', html: municipalRequest(ctx) },
-    { id: 'letter', title: 'מכתב לצד שכנגד', group: 'התכתבות', html: opposingLetter(ctx) },
-    { id: 'heirs', title: 'הסכמת יורשים / תצהיר יורש', group: 'מיוחד', html: heirsConsent(ctx) },
-    { id: 'corporate', title: 'פרוטוקול מורשי חתימה', group: 'מיוחד', html: corporateResolution(ctx) },
-    { id: 'sharing', title: 'הסכם שיתוף במקרקעין', group: 'מיוחד', html: sharingAgreement(ctx) },
-    { id: 'deviation', title: 'נספח חריגות בנייה / התחייבות להכשרה', group: 'מיוחד', html: buildingDeviationAppendix(ctx) },
-    { id: 'guarantee', title: 'כתב ערבות', group: 'מיוחד', html: guaranteeDeed(ctx) },
-    { id: 'interim-lease', title: 'הסכם שכירות ביניים עד למסירה', group: 'מיוחד', html: interimLease(ctx) },
-    { id: 'combination', title: 'הסכם קומבינציה', group: 'קומבינציה', html: combinationAgreement(ctx) },
-    { id: 'combination-app', title: 'נספח תמורות — עסקת קומבינציה', group: 'קומבינציה', html: combinationConsideration(ctx) },
-    { id: 'sale-law-guar', title: 'נספח ערבות חוק מכר', group: 'קומבינציה', html: saleLawGuarantee(ctx) },
+    { id: 'sale-agreement', title: 'הסכם מכר', group: 'חוזה', audience: 'both', html: saleAgreement(ctx) },
+    { id: 'deed', title: 'שטר מכר', group: 'טאבו', audience: 'both', html: deedOfSale(ctx) },
+    { id: 'poa-joint', title: 'ייפוי כוח בלתי חוזר לפי סעיף 91', group: 'ייפוי כוח', audience: 'both', html: poaJoint(ctx) },
+    { id: 'poa-buyer', title: 'ייפוי כוח בלתי חוזר — הקונה', group: 'ייפוי כוח', audience: 'buyer', html: poaBuyer(ctx) },
+    { id: 'poa-seller', title: 'ייפוי כוח בלתי חוזר — המוכר', group: 'ייפוי כוח', audience: 'seller', html: poaSeller(ctx) },
+    { id: 'poa-notary', title: 'ייפוי כוח נוטריוני', group: 'ייפוי כוח', audience: 'both', html: notarialPoa(ctx) },
+    { id: 'poa-bank', title: 'ייפוי כוח בלתי חוזר לבנק למשכנתא', group: 'מימון', audience: 'buyer', html: poaBank(ctx) },
+    { id: 'poa-seller-bank', title: 'ייפוי כוח למוכר כלפי הבנק — סילוק משכנתא', group: 'מימון', audience: 'seller', html: poaSellerBank(ctx) },
+    { id: 'caution-on', title: 'בקשה לרישום הערת אזהרה', group: 'טאבו', audience: 'both', html: cautionRegister(ctx) },
+    { id: 'caution-off', title: 'בקשה לביטול הערת אזהרה', group: 'טאבו', audience: 'both', html: cautionCancel(ctx) },
+    { id: 'form-7000', title: 'הצהרה לטופס 7000', group: 'מס', audience: 'both', html: form7000(ctx) },
+    { id: 'purchase-tax', title: 'הצהרת רוכש — בקשה לשומת מס רכישה', group: 'מס', audience: 'buyer', html: purchaseTaxDeclaration(ctx) },
+    { id: 'capital-gains', title: 'דיווח מס שבח + בקשת פטור דירת מגורים מזכה', group: 'מס', audience: 'seller', html: capitalGainsReport(ctx) },
+    { id: 'form-50', title: 'בקשה לטופס 50 / אישור מס שבח לרישום', group: 'מס', audience: 'seller', html: form50Request(ctx) },
+    { id: 'fees', title: 'הסכם שכר טרחה', group: 'משרד', audience: 'both', html: feeAgreement(ctx) },
+    { id: 'payments', title: 'נספח תשלומים', group: 'חוזה', audience: 'both', html: paymentAppendix(ctx) },
+    { id: 'trust', title: 'נספח נאמנות', group: 'חוזה', audience: 'both', html: trustAppendix(ctx) },
+    { id: 'dual-trust', title: 'הסכם נאמנות בין באי כוח', group: 'חוזה', audience: 'both', html: dualCounselTrust(ctx) },
+    { id: 'conditions', title: 'נספח תנאים מתלים', group: 'חוזה', audience: 'both', html: conditionsAppendix(ctx) },
+    { id: 'mortgage-first', title: 'כתב התחייבות לרישום משכנתא ראשונה', group: 'מימון', audience: 'buyer', html: firstMortgageUndertaking(ctx) },
+    { id: 'bank-balance', title: 'מכתב לבנק המוכר — בקשת יתרה לסילוק', group: 'מימון', audience: 'both', html: mortgageBalanceLetter(ctx) },
+    { id: 'discharge', title: 'התחייבות המוכר לסילוק משכנתא קיימת', group: 'מימון', audience: 'seller', html: dischargeUndertaking(ctx) },
+    { id: 'registry', title: 'הוראות לרישום בלשכת המקרקעין', group: 'טאבו', audience: 'both', html: registryInstructions(ctx) },
+    { id: 'affidavit', title: 'תצהיר היעדר חובות והיעדר הליכים', group: 'מוכר', audience: 'seller', html: noDebtAffidavit(ctx) },
+    { id: 'contents', title: 'נספח תכולה — מה נשאר בנכס', group: 'חוזה', audience: 'both', html: contentsAppendix(ctx) },
+    { id: 'vaad', title: 'בקשה לאישור ועד בית / דמי ניהול', group: 'רשויות', audience: 'both', html: houseCommitteeRequest(ctx) },
+    { id: 'delivery', title: 'פרוטוקול מסירה', group: 'סגירה', audience: 'both', html: deliveryProtocol(ctx) },
+    { id: 'muni', title: 'בקשה לאישור עירייה', group: 'רשויות', audience: 'both', html: municipalRequest(ctx) },
+    { id: 'letter', title: 'מכתב לצד שכנגד', group: 'התכתבות', audience: 'both', html: opposingLetter(ctx) },
+    { id: 'heirs', title: 'הסכמת יורשים / תצהיר יורש', group: 'מיוחד', audience: 'seller', html: heirsConsent(ctx) },
+    { id: 'corporate', title: 'פרוטוקול מורשי חתימה', group: 'מיוחד', audience: 'both', html: corporateResolution(ctx) },
+    { id: 'sharing', title: 'הסכם שיתוף במקרקעין', group: 'מיוחד', audience: 'both', html: sharingAgreement(ctx) },
+    { id: 'deviation', title: 'נספח חריגות בנייה / התחייבות להכשרה', group: 'מיוחד', audience: 'both', html: buildingDeviationAppendix(ctx) },
+    { id: 'guarantee', title: 'כתב ערבות', group: 'מיוחד', audience: 'buyer', html: guaranteeDeed(ctx) },
+    { id: 'interim-lease', title: 'הסכם שכירות ביניים עד למסירה', group: 'מיוחד', audience: 'both', html: interimLease(ctx) },
+    { id: 'combination', title: 'הסכם קומבינציה', group: 'קומבינציה', audience: 'both', html: combinationAgreement(ctx) },
+    { id: 'combination-app', title: 'נספח תמורות — עסקת קומבינציה', group: 'קומבינציה', audience: 'both', html: combinationConsideration(ctx) },
+    { id: 'sale-law-guar', title: 'נספח ערבות חוק מכר', group: 'קומבינציה', audience: 'both', html: saleLawGuarantee(ctx) },
   ];
+}
+
+export function buildDocumentPack(ctx: DocContext, represented?: RepresentedSide): LegalDocument[] {
+  const pack = allDocuments(ctx);
+  if (!represented) return pack;
+  return pack.filter((doc) => documentVisibleForSide(doc.audience, represented));
 }

@@ -245,5 +245,41 @@ describe('legal document pack', () => {
     expect(pack.find((d) => d.id === 'poa-seller')!.html).toContain('המוכר');
     expect(pack.find((d) => d.id === 'capital-gains')!.html).toContain('מס שבח');
     expect(pack.find((d) => d.id === 'trust')!.html).toContain('נאמנות');
+    expect(pack.find((d) => d.id === 'deed')!.html).toContain('השטר הזה מעיד שבתמורה');
+  });
+
+  it('shows only the documents for the represented side', async () => {
+    const { buildDocContext } = await import('@/lib/legal-doc-context');
+    const { buildDocumentPack } = await import('@/data/legal-document-pack');
+    const { representedSide } = await import('@/lib/document-audience');
+    const deal = sampleDeal({
+      clientSide: 'buyer',
+      parties: [
+        { id: 'b1', role: 'buyer', name: 'קונה בדיקה', idNumber: '1', phone: '', email: '', address: '', notes: '' },
+        { id: 's1', role: 'seller', name: 'מוכר בדיקה', idNumber: '2', phone: '', email: '', address: '', notes: '' },
+      ],
+    });
+    const ctx = buildDocContext(deal, {
+      attorneyName: 'עו"ד בדיקה',
+      license: '1',
+      officeAddress: 'א',
+      officeCity: 'ב',
+      secondAttorneyName: '',
+    });
+    const buyerPack = buildDocumentPack(ctx, representedSide('buyer'));
+    const sellerPack = buildDocumentPack(ctx, representedSide('seller'));
+    const bothPack = buildDocumentPack(ctx, representedSide('both'));
+    expect(buyerPack.some((d) => d.id === 'poa-buyer')).toBe(true);
+    expect(buyerPack.some((d) => d.id === 'purchase-tax')).toBe(true);
+    expect(buyerPack.some((d) => d.id === 'poa-seller')).toBe(false);
+    expect(buyerPack.some((d) => d.id === 'capital-gains')).toBe(false);
+    expect(sellerPack.some((d) => d.id === 'poa-seller')).toBe(true);
+    expect(sellerPack.some((d) => d.id === 'capital-gains')).toBe(true);
+    expect(sellerPack.some((d) => d.id === 'poa-buyer')).toBe(false);
+    expect(sellerPack.some((d) => d.id === 'purchase-tax')).toBe(false);
+    expect(bothPack.some((d) => d.id === 'poa-buyer')).toBe(true);
+    expect(bothPack.some((d) => d.id === 'poa-seller')).toBe(true);
+    expect(bothPack.length).toBeGreaterThan(buyerPack.length);
+    expect(bothPack.length).toBeGreaterThan(sellerPack.length);
   });
 });

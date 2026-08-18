@@ -6,6 +6,7 @@ import { getDeal } from '@/lib/real-estate-store';
 import { getOfficeProfile } from '@/lib/office-profile';
 import { buildDocContext, missingDocFields } from '@/lib/legal-doc-context';
 import { buildDocumentPack } from '@/data/legal-document-pack';
+import { REPRESENTED_SIDE_LABEL, representedSide } from '@/lib/document-audience';
 
 const DocumentPackPage = () => {
   const { id } = useParams();
@@ -21,7 +22,8 @@ const DocumentPackPage = () => {
 
   const ctx = buildDocContext(deal, office);
   const missing = missingDocFields(ctx);
-  const pack = buildDocumentPack(ctx);
+  const side = representedSide(deal.clientSide);
+  const pack = buildDocumentPack(ctx, side);
   const current = pack.find((d) => d.id === active) ?? pack[0];
 
   return (
@@ -34,7 +36,7 @@ const DocumentPackPage = () => {
           </Link>
           <h2 className="text-xl font-bold">סט מסמכים אוטומטי</h2>
           <p className="text-sm text-muted-foreground">
-            {deal.fileNumber} · {pack.length} מסמכים · {ctx.buyerNames} ← {ctx.sellerNames}
+            {deal.fileNumber} · {REPRESENTED_SIDE_LABEL[side]} · {pack.length} מסמכים · {ctx.buyerNames} ← {ctx.sellerNames}
           </p>
         </div>
         <div className="flex gap-2">
@@ -43,6 +45,17 @@ const DocumentPackPage = () => {
             הדפס / PDF לכל הסט
           </Button>
         </div>
+      </div>
+
+      <div className="no-print re-card p-4 text-sm">
+        <p className="font-medium">
+          {side === 'buyer' && 'מוצגים רק מסמכי הקונה — לפי «צד הלקוח» בתיק.'}
+          {side === 'seller' && 'מוצגים רק מסמכי המוכר — לפי «צד הלקוח» בתיק.'}
+          {side === 'both' && 'מוצגים מסמכי הקונה והמוכר — הייצוג בתיק הוא שני הצדדים.'}
+        </p>
+        <p className="text-muted-foreground mt-1">
+          לשינוי הצד לחצו «חזרה לתיק» ושנו את השדה «צד הלקוח».
+        </p>
       </div>
 
       {missing.length > 0 && (

@@ -1,4 +1,4 @@
-import type { Deal, Party } from '@/types/real-estate';
+import type { ClientSide, Deal, Party } from '@/types/real-estate';
 import { formatDateHe, formatMoney, formatShortDate } from '@/lib/real-estate-utils';
 import type { OfficeProfile } from '@/lib/office-profile';
 
@@ -43,6 +43,9 @@ export interface DocContext {
   opposingCounsel: string;
   propertyDescription: string;
   dealType: string;
+  clientSide: ClientSide;
+  clientNames: string;
+  clientIds: string;
 }
 
 function named(parties: Party[]): string {
@@ -125,6 +128,19 @@ export function buildDocContext(deal: Deal, office: OfficeProfile): DocContext {
     opposingCounsel: named(opposing),
     propertyDescription: blank(deal.property.description || deal.notes),
     dealType: dealTypeLabel,
+    clientSide: deal.clientSide,
+    clientNames:
+      deal.clientSide === 'seller' || deal.clientSide === 'landlord'
+        ? named(sellers)
+        : deal.clientSide === 'both'
+          ? [named(buyers), named(sellers)].filter((n) => n !== '________').join(' ; ') || '________'
+          : named(buyers),
+    clientIds:
+      deal.clientSide === 'seller' || deal.clientSide === 'landlord'
+        ? ids(sellers)
+        : deal.clientSide === 'both'
+          ? [ids(buyers), ids(sellers)].filter((n) => n !== '________').join(' / ') || '________'
+          : ids(buyers),
   };
 }
 

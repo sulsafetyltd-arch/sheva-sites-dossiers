@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { addTimeline, getDeal, saveDeal } from '@/lib/real-estate-store';
+import { REPRESENTED_SIDE_LABEL, representedSide } from '@/lib/document-audience';
 import { newId } from '@/data/real-estate-checklists';
 import { Field, ProgressBar } from '@/components/real-estate/Field';
 import {
@@ -559,7 +560,13 @@ const DealEditor = () => {
           <div className="re-card p-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-medium">סט מסמכים מובנה</p>
-              <p className="text-sm text-muted-foreground">38 מסמכים: חוזה, טאבו, ייפויי כוח, מסים, נאמנות, משכנתא, מוכר/קונה ומקרים מיוחדים</p>
+              <p className="text-sm text-muted-foreground">
+                {REPRESENTED_SIDE_LABEL[representedSide(deal.clientSide)]}
+                {' — '}
+                {representedSide(deal.clientSide) === 'buyer' && 'יופקו רק מסמכי הקונה (ייפוי כוח קונה, משכנתא, מס רכישה ועוד).'}
+                {representedSide(deal.clientSide) === 'seller' && 'יופקו רק מסמכי המוכר (ייפוי כוח מוכר, מס שבח, טופס 50, סילוק משכנתא ועוד).'}
+                {representedSide(deal.clientSide) === 'both' && 'יופקו מסמכי הקונה והמוכר יחד, כולל הטפסים הרשמיים של עסקת המכר.'}
+              </p>
             </div>
             <Button onClick={() => navigate(`/deals/${deal.id}/documents`)}>
               <FileStack className="w-4 h-4" />

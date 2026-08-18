@@ -98,7 +98,25 @@
 .legal-doc .center { text-align: center; }
 .legal-doc .tiny { font-size: 11px; color: #555; }
 .legal-doc .office, .legal-doc .file { font-size: 11px; color: #555; }
-.legal-doc .legal-head.official { text-align: center; }
+.legal-doc .legal-head.official,
+.legal-doc .legal-head.official-form { text-align: center; }
+.legal-doc .legal-head.official-form {
+  border: 2px solid #111;
+  padding: 10px 12px 6px;
+  margin-bottom: 14px;
+}
+.legal-doc .emblem {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin: 0 0 2px;
+}
+.legal-doc .form-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin: 8px 0 0;
+}
+.legal-doc .cert.muted { color: #444; background: #fafafa; }
 .legal-table {
   width: 100%;
   border-collapse: collapse;
