@@ -34,7 +34,7 @@ const DocumentPackPage = () => {
           </Link>
           <h2 className="text-xl font-bold">סט מסמכים אוטומטי</h2>
           <p className="text-sm text-muted-foreground">
-            {deal.fileNumber} · {ctx.buyerNames} ← {ctx.sellerNames}
+            {deal.fileNumber} · {pack.length} מסמכים · {ctx.buyerNames} ← {ctx.sellerNames}
           </p>
         </div>
         <div className="flex gap-2">
@@ -53,17 +53,29 @@ const DocumentPackPage = () => {
         </div>
       )}
 
-      <div className="no-print flex flex-wrap gap-2">
-        {pack.map((doc) => (
-          <button
-            key={doc.id}
-            onClick={() => setActive(doc.id)}
-            className={`rounded-lg border px-3 py-1.5 text-sm ${
-              current.id === doc.id ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted'
-            }`}
-          >
-            {doc.title}
-          </button>
+      <div className="no-print space-y-3">
+        {Object.entries(
+          pack.reduce<Record<string, typeof pack>>((acc, doc) => {
+            (acc[doc.group] ??= []).push(doc);
+            return acc;
+          }, {}),
+        ).map(([group, docs]) => (
+          <div key={group}>
+            <p className="text-xs font-semibold text-muted-foreground mb-1.5">{group}</p>
+            <div className="flex flex-wrap gap-2">
+              {docs.map((doc) => (
+                <button
+                  key={doc.id}
+                  onClick={() => setActive(doc.id)}
+                  className={`rounded-lg border px-3 py-1.5 text-sm ${
+                    current.id === doc.id ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted'
+                  }`}
+                >
+                  {doc.title}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 

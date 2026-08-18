@@ -559,7 +559,7 @@ const DealEditor = () => {
           <div className="re-card p-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-medium">סט מסמכים מובנה</p>
-              <p className="text-sm text-muted-foreground">הסכם מכר, שטר מכר, ייפויי כוח, הערות אזהרה וטופס 7000 — לפי שמות הצדדים</p>
+              <p className="text-sm text-muted-foreground">38 מסמכים: חוזה, טאבו, ייפויי כוח, מסים, נאמנות, משכנתא, מוכר/קונה ומקרים מיוחדים</p>
             </div>
             <Button onClick={() => navigate(`/deals/${deal.id}/documents`)}>
               <FileStack className="w-4 h-4" />

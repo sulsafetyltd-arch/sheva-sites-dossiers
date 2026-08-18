@@ -38,6 +38,11 @@ export interface DocContext {
   closingDate: string;
   openedAt: string;
   paymentsHtml: string;
+  bankName: string;
+  bankAddress: string;
+  opposingCounsel: string;
+  propertyDescription: string;
+  dealType: string;
 }
 
 function named(parties: Party[]): string {
@@ -64,7 +69,14 @@ function blank(value: string | undefined): string {
 export function buildDocContext(deal: Deal, office: OfficeProfile): DocContext {
   const buyers = deal.parties.filter((p) => p.role === 'buyer' || p.role === 'tenant');
   const sellers = deal.parties.filter((p) => p.role === 'seller' || p.role === 'landlord');
+  const banks = deal.parties.filter((p) => p.role === 'bank');
+  const opposing = deal.parties.filter((p) => p.role === 'opposing_counsel');
   const attorney = office.attorneyName.trim() || deal.responsibleAttorney.trim() || '________';
+  const dealTypeLabel =
+    deal.type === 'combination' ? 'עסקת קומבינציה' :
+    deal.type === 'rental' ? 'עסקת שכירות' :
+    deal.type === 'gift' ? 'העברה במתנה' :
+    'עסקת מכר';
 
   const paymentsHtml = deal.payments.length
     ? `<table class="legal-table"><thead><tr><th>תיאור</th><th>סכום</th><th>מועד</th></tr></thead><tbody>${deal.payments
@@ -108,6 +120,11 @@ export function buildDocContext(deal: Deal, office: OfficeProfile): DocContext {
     closingDate: formatDateHe(deal.closingDate),
     openedAt: formatDateHe(deal.openedAt),
     paymentsHtml,
+    bankName: named(banks),
+    bankAddress: addresses(banks),
+    opposingCounsel: named(opposing),
+    propertyDescription: blank(deal.property.description || deal.notes),
+    dealType: dealTypeLabel,
   };
 }
 

@@ -241,5 +241,9 @@ describe('legal document pack', () => {
     expect(sale).toContain('39522');
     expect(pack.find((d) => d.id === 'form-7000')!.html).toContain('7000');
     expect(pack.find((d) => d.id === 'deed')!.html).toContain('שטר מכר');
+    expect(pack).toHaveLength(DOCUMENT_PACK_TITLES.length);
+    expect(pack.find((d) => d.id === 'poa-seller')!.html).toContain('המוכר');
+    expect(pack.find((d) => d.id === 'capital-gains')!.html).toContain('מס שבח');
+    expect(pack.find((d) => d.id === 'trust')!.html).toContain('נאמנות');
   });
 });
