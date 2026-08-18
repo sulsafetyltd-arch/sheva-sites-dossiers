@@ -116,8 +116,8 @@ describe('real-estate utils', () => {
         { id: '2', title: 'b', type: 'consideration', amount: 1, dueDate: '2026-01-01', status: 'pending', notes: '' },
       ],
       documents: [
-        { id: 'd1', title: 'x', category: 'contract', received: true },
-        { id: 'd2', title: 'y', category: 'tabo', received: false },
+        { id: 'd1', title: 'x', category: 'contract', received: true, notes: '' },
+        { id: 'd2', title: 'y', category: 'tabo', received: false, notes: '' },
       ],
     });
     const score = dealProgress(mid);
