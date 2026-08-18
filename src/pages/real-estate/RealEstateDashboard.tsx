@@ -1,151 +1,213 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, CalendarClock, FolderOpen, Plus, Scale } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Briefcase, Building2, CircleDollarSign, FolderOpen } from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { getAllDeals } from '@/lib/real-estate-store';
 import {
-  ACTIVE_STATUSES,
-  collectCalendarItems,
   DEAL_STATUS_LABEL,
   DEAL_TYPE_LABEL,
-  dealProgress,
+  feeAmount,
   formatMoney,
-  formatShortDate,
-  isOverdueDate,
+  isOpenDeal,
+  monthlyReceivedFees,
+  primaryClientName,
+  propertySummary,
   statusBadgeClass,
 } from '@/lib/real-estate-utils';
-import { ProgressBar } from '@/components/real-estate/Field';
+import { Badge } from '@/components/ui/badge';
+
+const YEARS = [2026, 2025, 2024];
 
 const RealEstateDashboard = () => {
   const navigate = useNavigate();
   const [deals, setDeals] = useState(() => getAllDeals());
+  const [year, setYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
     setDeals(getAllDeals());
   }, []);
 
   const stats = useMemo(() => {
-    const active = deals.filter((d) => ACTIVE_STATUSES.includes(d.status));
-    const overdueTasks = deals.flatMap((d) =>
-      d.tasks.filter((t) => !t.done && isOverdueDate(t.dueDate)),
-    );
-    const overduePayments = deals.flatMap((d) =>
-      d.payments.filter((p) => p.status !== 'paid' && p.status !== 'waived' && isOverdueDate(p.dueDate)),
-    );
-    const volume = active.reduce((sum, d) => sum + (d.consideration || 0), 0);
+    const open = deals.filter(isOpenDeal);
     return {
+      expected: feeAmount(open, { paid: false }),
+      received: feeAmount(deals, { paid: true, year }),
       total: deals.length,
-      active: active.length,
-      overdue: overdueTasks.length + overduePayments.length,
-      volume,
+      open: open.length,
     };
-  }, [deals]);
+  }, [deals, year]);
 
-  const upcoming = useMemo(() => {
-    const horizon = new Date();
-    horizon.setDate(horizon.getDate() + 21);
-    const until = horizon.toISOString().slice(0, 10);
-    return collectCalendarItems(deals)
-      .filter((i) => !i.done && i.date <= until)
-      .slice(0, 8);
-  }, [deals]);
+  const recentOpen = useMemo(
+    () => deals.filter(isOpenDeal).slice(0, 8),
+    [deals],
+  );
+
+  const chartData = useMemo(() => monthlyReceivedFees(deals, year), [deals, year]);
 
   return (
-    <main className="container py-8 space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">שלום למשרד</p>
-          <h2 className="text-2xl font-bold">לוח בקרה</h2>
-        </div>
-        <Button className="gap-2" onClick={() => navigate('/real-estate/deals?new=1')}>
-          <Plus className="w-4 h-4" />
-          עסקה חדשה
-        </Button>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <Kpi
+          icon={CircleDollarSign}
+          value={formatMoney(stats.expected)}
+          title='שכר טרחה צפוי (כולל מע"מ)'
+          hint="סכום שכר טרחה שטרם התקבל בתיקים פתוחים"
+        />
+        <Kpi
+          icon={Briefcase}
+          value={formatMoney(stats.received)}
+          title="שכר טרחה שנתי שהתקבל"
+          hint={`סה"כ במערכת כולל מע"מ · ${year}`}
+        />
+        <Kpi
+          icon={Building2}
+          value={String(stats.total)}
+          title='סה"כ העסקאות'
+          hint="כל העסקאות במערכת"
+        />
+        <Kpi
+          icon={FolderOpen}
+          value={String(stats.open)}
+          title="עסקאות פתוחות"
+          hint="עסקאות שטרם נסגרו"
+        />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'סה"כ תיקים', value: stats.total, icon: FolderOpen },
-          { label: 'תיקים פעילים', value: stats.active, icon: Scale },
-          { label: 'מועדים באיחור', value: stats.overdue, icon: AlertTriangle, warn: stats.overdue > 0 },
-          { label: 'היקף פעיל', value: formatMoney(stats.volume), icon: CalendarClock, text: true },
-        ].map((s) => (
-          <div key={s.label} className="bg-card rounded-lg border p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">{s.label}</p>
-              <s.icon className={`w-4 h-4 ${s.warn ? 'text-destructive' : 'text-muted-foreground'}`} />
+      <div className="grid xl:grid-cols-5 gap-4">
+        <section className="xl:col-span-3 re-card overflow-hidden">
+          <div className="px-5 py-4 border-b">
+            <h2 className="font-semibold">עסקאות פתוחות אחרונות</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="re-table text-right">
+                  <th className="px-4 py-3">פרטי נכס</th>
+                  <th className="px-4 py-3">שם לקוח</th>
+                  <th className="px-4 py-3">מהות העסקה</th>
+                  <th className="px-4 py-3">בטיפול של</th>
+                  <th className="px-4 py-3">שלב העסקה</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentOpen.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-16 text-center text-muted-foreground">
+                      אין עסקאות פתוחות להצגה
+                    </td>
+                  </tr>
+                )}
+                {recentOpen.map((deal) => (
+                  <tr
+                    key={deal.id}
+                    className="border-t hover:bg-muted/40 cursor-pointer"
+                    onClick={() => navigate(`/real-estate/deals/${deal.id}`)}
+                  >
+                    <td className="px-4 py-3">
+                      <p className="font-medium">{propertySummary(deal)}</p>
+                      <p className="text-xs text-muted-foreground">{deal.fileNumber}</p>
+                    </td>
+                    <td className="px-4 py-3">{primaryClientName(deal)}</td>
+                    <td className="px-4 py-3">{DEAL_TYPE_LABEL[deal.type]}</td>
+                    <td className="px-4 py-3">{deal.responsibleAttorney || '—'}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant="outline" className={statusBadgeClass(deal.status)}>
+                        {DEAL_STATUS_LABEL[deal.status]}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="xl:col-span-2 re-card p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-semibold">שכר טרחה שהתקבל</h2>
+            <div className="flex items-center gap-3">
+              <button
+                className="text-sm text-primary font-medium"
+                onClick={() => navigate('/real-estate/deals')}
+              >
+                הכל
+              </button>
+              <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+                <SelectTrigger className="w-[96px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEARS.map((y) => (
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <p className={`text-2xl font-bold tabular-nums ${s.warn ? 'text-destructive' : ''}`}>
-              {s.value}
-            </p>
           </div>
-        ))}
-      </div>
-
-      <div className="grid lg:grid-cols-5 gap-6">
-        <section className="lg:col-span-3 space-y-3">
-          <h3 className="font-semibold">תיקים פעילים</h3>
-          <div className="space-y-3">
-            {deals.filter((d) => ACTIVE_STATUSES.includes(d.status)).map((deal) => (
-              <button
-                key={deal.id}
-                onClick={() => navigate(`/real-estate/deals/${deal.id}`)}
-                className="w-full text-right bg-card rounded-lg border p-4 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">{deal.fileNumber}</p>
-                    <h4 className="font-semibold truncate">{deal.title}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {DEAL_TYPE_LABEL[deal.type]} · {deal.property.city || 'ללא עיר'} · {formatMoney(deal.consideration)}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className={statusBadgeClass(deal.status)}>
-                    {DEAL_STATUS_LABEL[deal.status]}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-3">
-                  <ProgressBar value={dealProgress(deal)} />
-                  <span className="text-xs tabular-nums text-muted-foreground w-10">{dealProgress(deal)}%</span>
-                </div>
-              </button>
-            ))}
-            {deals.filter((d) => ACTIVE_STATUSES.includes(d.status)).length === 0 && (
-              <p className="text-sm text-muted-foreground py-8 text-center">אין תיקים פעילים</p>
-            )}
-          </div>
-        </section>
-
-        <section className="lg:col-span-2 space-y-3">
-          <h3 className="font-semibold">מועדים קרובים (21 יום)</h3>
-          <div className="bg-card rounded-lg border divide-y shadow-sm">
-            {upcoming.length === 0 && (
-              <p className="text-sm text-muted-foreground p-6 text-center">אין מועדים בטווח זה</p>
-            )}
-            {upcoming.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => navigate(`/real-estate/deals/${item.dealId}`)}
-                className="w-full text-right p-3 hover:bg-muted/40 transition-colors"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium">{item.title}</p>
-                  <span className={`text-xs tabular-nums ${isOverdueDate(item.date) ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
-                    {formatShortDate(item.date)}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {item.fileNumber} · {item.dealTitle}
-                  {item.amount != null ? ` · ${formatMoney(item.amount)}` : ''}
-                </p>
-              </button>
-            ))}
+          <div className="h-[260px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} barSize={18}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e6e8ec" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#7a828c' }} axisLine={false} tickLine={false} />
+                <YAxis
+                  tick={{ fontSize: 11, fill: '#7a828c' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={36}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  formatter={(value: number) => [formatMoney(value), 'התקבל']}
+                  contentStyle={{ direction: 'rtl', borderRadius: 8 }}
+                />
+                <Bar dataKey="amount" fill="#00A79D" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 };
+
+function Kpi({
+  icon: Icon,
+  value,
+  title,
+  hint,
+}: {
+  icon: typeof CircleDollarSign;
+  value: string;
+  title: string;
+  hint: string;
+}) {
+  return (
+    <div className="re-card p-5 flex items-start gap-4">
+      <div className="w-11 h-11 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-2xl font-bold tabular-nums leading-tight">{value}</p>
+        <p className="font-medium mt-1">{title}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
+      </div>
+    </div>
+  );
+}
 
 export default RealEstateDashboard;

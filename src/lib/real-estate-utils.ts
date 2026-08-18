@@ -277,3 +277,87 @@ export function nextFileNumber(existing: Deal[]): string {
   }
   return `${prefix}${String(max + 1).padStart(4, '0')}`;
 }
+
+const CLIENT_ROLES: PartyRole[] = ['buyer', 'seller', 'tenant', 'landlord'];
+
+export function primaryClientName(deal: Deal): string {
+  const preferred = CLIENT_ROLES.filter((role) => {
+    if (deal.clientSide === 'both') return true;
+    if (deal.clientSide === 'buyer') return role === 'buyer';
+    if (deal.clientSide === 'seller') return role === 'seller';
+    if (deal.clientSide === 'tenant') return role === 'tenant';
+    if (deal.clientSide === 'landlord') return role === 'landlord';
+    return false;
+  });
+  const match =
+    deal.parties.find((p) => preferred.includes(p.role) && p.name.trim()) ??
+    deal.parties.find((p) => CLIENT_ROLES.includes(p.role) && p.name.trim());
+  return match?.name || '—';
+}
+
+export function propertySummary(deal: Deal): string {
+  const { address, city, type } = deal.property;
+  const kind = PROPERTY_TYPE_LABEL[type];
+  const loc = [address, city].filter(Boolean).join(', ');
+  return loc ? `${kind} · ${loc}` : kind;
+}
+
+export function isOpenDeal(deal: Deal): boolean {
+  return ACTIVE_STATUSES.includes(deal.status);
+}
+
+export function feeAmount(deals: Deal[], opts: { paid: boolean; year?: number }): number {
+  return deals.reduce((sum, deal) => {
+    return (
+      sum +
+      deal.payments
+        .filter((p) => p.type === 'fees')
+        .filter((p) => (opts.paid ? p.status === 'paid' : p.status !== 'paid' && p.status !== 'waived'))
+        .filter((p) => {
+          if (opts.year == null) return true;
+          const date = opts.paid ? p.paidDate || p.dueDate : p.dueDate;
+          return date?.startsWith(String(opts.year));
+        })
+        .reduce((s, p) => s + (p.amount || 0), 0)
+    );
+  }, 0);
+}
+
+export function monthlyReceivedFees(deals: Deal[], year: number): Array<{ month: number; label: string; amount: number }> {
+  const labels = ['ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יונ', 'יול', 'אוג', 'ספט', 'אוק', 'נוב', 'דצמ'];
+  const amounts = Array.from({ length: 12 }, () => 0);
+  for (const deal of deals) {
+    for (const payment of deal.payments) {
+      if (payment.type !== 'fees' || payment.status !== 'paid') continue;
+      const date = payment.paidDate || payment.dueDate;
+      if (!date?.startsWith(String(year))) continue;
+      const month = Number(date.slice(5, 7)) - 1;
+      if (month >= 0 && month < 12) amounts[month] += payment.amount || 0;
+    }
+  }
+  return labels.map((label, month) => ({ month, label, amount: amounts[month] }));
+}
+
+export function listClients(deals: Deal[]): Array<{
+  name: string;
+  phone: string;
+  email: string;
+  role: PartyRole;
+  deals: number;
+}> {
+  const map = new Map<string, { name: string; phone: string; email: string; role: PartyRole; deals: number }>();
+  for (const deal of deals) {
+    for (const party of deal.parties) {
+      if (!CLIENT_ROLES.includes(party.role) || !party.name.trim()) continue;
+      const key = party.idNumber || party.name;
+      const prev = map.get(key);
+      if (prev) prev.deals += 1;
+      else map.set(key, { name: party.name, phone: party.phone, email: party.email, role: party.role, deals: 1 });
+    }
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'he'));
+}
+
+export function alertCount(deals: Deal[]): number {
+  return collectCalendarItems(deals).filter((i) => !i.done && isOverdueDate(i.date)).length;
+}

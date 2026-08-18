@@ -90,7 +90,7 @@ const Index = () => {
           <div className="flex items-center gap-2">
             <Button variant="outline" className="gap-2" onClick={() => navigate('/real-estate')}>
               <Scale className="w-4 h-4" />
-              עסקאות מקרקעין
+              RealLex
             </Button>
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setSelectedTemplate(null); }}>
             <DialogTrigger asChild>
@@ -155,9 +155,9 @@ const Index = () => {
               <Scale className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-semibold">ניהול עסקאות מקרקעין לעורכי דין</h2>
+              <h2 className="font-semibold">RealLex — ניהול עסקאות מקרקעין</h2>
               <p className="text-sm text-muted-foreground">
-                תיקי עסקה, צדדים, לוח תשלומים, בדיקות מקדימות ויומן מועדים
+                לוח בקרה, תיקי עסקה, לקוחות, שכר טרחה והתראות למשרד עו״ד
               </p>
             </div>
           </div>

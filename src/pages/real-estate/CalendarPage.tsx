@@ -39,10 +39,9 @@ const CalendarPage = () => {
   }, [deals, hideDone]);
 
   return (
-    <main className="container py-8 space-y-6">
+    <main className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">יומן מועדים</h2>
           <p className="text-sm text-muted-foreground">משימות, תשלומים ומועדי חתימה / מסירה / רישום</p>
         </div>
         <label className="flex items-center gap-2 text-sm">
@@ -65,7 +64,7 @@ const CalendarPage = () => {
           <h3 className="font-semibold text-lg">
             {format(parseISO(`${month}-01`), 'MMMM yyyy', { locale: he })}
           </h3>
-          <div className="bg-card rounded-lg border divide-y shadow-sm">
+          <div className="re-card divide-y">
             {items.map((item) => {
               const overdue = !item.done && isOverdueDate(item.date);
               return (

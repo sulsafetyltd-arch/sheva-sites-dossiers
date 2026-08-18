@@ -4,9 +4,12 @@ import {
   collectCalendarItems,
   dealProgress,
   effectivePaymentStatus,
+  feeAmount,
   formatMoney,
   isOverdueDate,
+  monthlyReceivedFees,
   nextFileNumber,
+  primaryClientName,
 } from '@/lib/real-estate-utils';
 import type { Deal, Payment } from '@/types/real-estate';
 import { buildChecklist } from '@/data/real-estate-checklists';
@@ -123,6 +126,35 @@ describe('real-estate utils', () => {
     const score = dealProgress(mid);
     expect(score).toBeGreaterThan(30);
     expect(score).toBeLessThan(90);
+  });
+
+  it('computes expected and received attorney fees', () => {
+    const deals = [
+      sampleDeal({
+        status: 'signed',
+        parties: [
+          {
+            id: 'c1',
+            role: 'buyer',
+            name: 'דנה לוי',
+            idNumber: '1',
+            phone: '',
+            email: '',
+            address: '',
+            notes: '',
+          },
+        ],
+        payments: [
+          { id: '1', title: 'שכ"ט', type: 'fees', amount: 10000, dueDate: '2026-03-01', status: 'pending', notes: '' },
+          { id: '2', title: 'שכ"ט שולם', type: 'fees', amount: 7000, dueDate: '2026-02-01', paidDate: '2026-02-10', status: 'paid', notes: '' },
+          { id: '3', title: 'תמורה', type: 'consideration', amount: 999, dueDate: '2026-02-01', status: 'paid', notes: '' },
+        ],
+      }),
+    ];
+    expect(feeAmount(deals, { paid: false })).toBe(10000);
+    expect(feeAmount(deals, { paid: true, year: 2026 })).toBe(7000);
+    expect(monthlyReceivedFees(deals, 2026)[1].amount).toBe(7000);
+    expect(primaryClientName(deals[0])).toBe('דנה לוי');
   });
 
   it('collects calendar items from tasks, payments and milestones', () => {

@@ -79,7 +79,7 @@ const DealEditor = () => {
 
   if (!deal) {
     return (
-      <main className="container py-16 text-center space-y-4">
+      <main className="py-16 text-center space-y-4">
         <p className="text-muted-foreground">התיק לא נמצא</p>
         <Button variant="outline" onClick={() => navigate('/real-estate/deals')}>
           חזרה לרשימה
@@ -102,7 +102,7 @@ const DealEditor = () => {
   };
 
   return (
-    <main className="container py-6 space-y-5">
+    <main className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <Button variant="ghost" size="sm" className="px-0 h-auto" onClick={() => navigate('/real-estate/deals')}>
@@ -141,7 +141,7 @@ const DealEditor = () => {
           <TabsTrigger value="log">יומן תיק</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="details" className="bg-card rounded-lg border p-4 shadow-sm space-y-4">
+        <TabsContent value="details" className="re-card p-4 space-y-4">
           <div className="grid md:grid-cols-2 gap-3">
             <Field label="שם התיק" className="md:col-span-2">
               <Input value={deal.title} onChange={(e) => update({ title: e.target.value })} />
@@ -219,7 +219,7 @@ const DealEditor = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="property" className="bg-card rounded-lg border p-4 shadow-sm">
+        <TabsContent value="property" className="re-card p-4">
           <div className="grid md:grid-cols-2 gap-3">
             <Field label="כתובת" className="md:col-span-2">
               <Input
@@ -328,7 +328,7 @@ const DealEditor = () => {
             <p className="text-sm text-muted-foreground text-center py-8">אין צדדים בתיק</p>
           )}
           {deal.parties.map((party, idx) => (
-            <div key={party.id} className="bg-card rounded-lg border p-4 shadow-sm space-y-3">
+            <div key={party.id} className="re-card p-4 space-y-3">
               <div className="flex justify-between items-center">
                 <p className="font-medium">{party.name || `צד ${idx + 1}`}</p>
                 <Button
@@ -406,7 +406,7 @@ const DealEditor = () => {
           {deal.payments.map((payment) => {
             const status = effectivePaymentStatus(payment);
             return (
-              <div key={payment.id} className="bg-card rounded-lg border p-4 shadow-sm grid md:grid-cols-6 gap-3">
+              <div key={payment.id} className="re-card p-4 grid md:grid-cols-6 gap-3">
                 <Field label="תיאור" className="md:col-span-2">
                   <Input
                     value={payment.title}
@@ -513,7 +513,7 @@ const DealEditor = () => {
 
         <TabsContent value="checklist" className="space-y-4">
           {groupChecklist(deal.checklist).map(([group, items]) => (
-            <section key={group} className="bg-card rounded-lg border p-4 shadow-sm space-y-2">
+            <section key={group} className="re-card p-4 space-y-2">
               <h3 className="font-semibold">{group}</h3>
               {items.map((item) => (
                 <div key={item.id} className="flex items-start gap-3 py-1.5 border-b last:border-0">
@@ -569,7 +569,7 @@ const DealEditor = () => {
             </Button>
           </div>
           {deal.documents.map((doc) => (
-            <div key={doc.id} className="bg-card rounded-lg border p-4 shadow-sm grid md:grid-cols-5 gap-3 items-end">
+            <div key={doc.id} className="re-card p-4 grid md:grid-cols-5 gap-3 items-end">
               <Field label="שם המסמך" className="md:col-span-2">
                 <Input
                   value={doc.title}
@@ -668,7 +668,7 @@ const DealEditor = () => {
             }}
           />
           {deal.timeline.map((ev) => (
-            <div key={ev.id} className="bg-card rounded-lg border p-4 shadow-sm">
+            <div key={ev.id} className="re-card p-4">
               <p className="text-xs text-muted-foreground">{formatDateHe(ev.date.slice(0, 10))}</p>
               <h4 className="font-semibold">{ev.title}</h4>
               {ev.body && <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{ev.body}</p>}
@@ -717,7 +717,7 @@ function TaskRow({
     update({ tasks: deal.tasks.map((t) => (t.id === task.id ? { ...t, ...next } : t)) });
 
   return (
-    <div className={`bg-card rounded-lg border p-4 shadow-sm grid md:grid-cols-6 gap-3 ${overdue ? 'border-destructive/40' : ''}`}>
+    <div className={`re-card p-4 grid md:grid-cols-6 gap-3 ${overdue ? 'border-destructive/40' : ''}`}>
       <div className="md:col-span-3 flex items-start gap-3">
         <Checkbox
           className="mt-2"
@@ -759,7 +759,7 @@ function LogComposer({ onAdd }: { onAdd: (title: string, body: string) => void }
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   return (
-    <div className="bg-card rounded-lg border p-4 shadow-sm space-y-3">
+    <div className="re-card p-4 space-y-3">
       <Field label="כותרת רשומה">
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="למשל: שיחה עם עו״ד הצד שכנגד" />
       </Field>

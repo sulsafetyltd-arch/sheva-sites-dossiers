@@ -16,6 +16,11 @@ import RealEstateDashboard from "./pages/real-estate/RealEstateDashboard.tsx";
 import DealList from "./pages/real-estate/DealList.tsx";
 import DealEditor from "./pages/real-estate/DealEditor.tsx";
 import CalendarPage from "./pages/real-estate/CalendarPage.tsx";
+import ClientsPage from "./pages/real-estate/ClientsPage.tsx";
+import AlertsPage from "./pages/real-estate/AlertsPage.tsx";
+import UsersPage from "./pages/real-estate/UsersPage.tsx";
+import PackagesPage from "./pages/real-estate/PackagesPage.tsx";
+import HelpPage from "./pages/real-estate/HelpPage.tsx";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +44,11 @@ const App = () => (
             <Route path="deals" element={<DealList />} />
             <Route path="deals/:id" element={<DealEditor />} />
             <Route path="calendar" element={<CalendarPage />} />
+            <Route path="clients" element={<ClientsPage />} />
+            <Route path="alerts" element={<AlertsPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="packages" element={<PackagesPage />} />
+            <Route path="help" element={<HelpPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
