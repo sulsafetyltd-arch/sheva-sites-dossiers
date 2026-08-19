@@ -41,28 +41,30 @@
   }
 }
 
+/* Brand palette from the office logo: navy #151f28 + gold #eeba2b */
 .re-app {
-  --background: 210 16% 96%;
-  --foreground: 210 12% 22%;
+  --background: 210 20% 97%;
+  --foreground: 208 28% 14%;
   --card: 0 0% 100%;
-  --card-foreground: 210 12% 22%;
+  --card-foreground: 208 28% 14%;
   --popover: 0 0% 100%;
-  --popover-foreground: 210 12% 22%;
-  --primary: 176 100% 33%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 176 30% 94%;
-  --secondary-foreground: 176 50% 20%;
+  --popover-foreground: 208 28% 14%;
+  --primary: 42 82% 42%;
+  --primary-foreground: 208 31% 10%;
+  --secondary: 44 60% 94%;
+  --secondary-foreground: 42 60% 24%;
   --muted: 210 16% 94%;
-  --muted-foreground: 210 8% 46%;
-  --accent: 176 70% 92%;
-  --accent-foreground: 176 70% 20%;
+  --muted-foreground: 209 10% 44%;
+  --accent: 44 75% 91%;
+  --accent-foreground: 42 65% 24%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 210 14% 90%;
-  --input: 210 14% 90%;
-  --ring: 176 100% 33%;
-  --sidebar-teal: 176 100% 33%;
-  --sidebar-teal-dark: 176 100% 27%;
+  --border: 210 14% 89%;
+  --input: 210 14% 89%;
+  --ring: 42 82% 45%;
+  --sidebar-teal: 208 31% 12%;
+  --sidebar-teal-dark: 209 32% 8%;
+  --gold: 44 85% 55%;
 }
 
 .re-app .re-card {

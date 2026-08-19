@@ -10,11 +10,16 @@ import { buildDocContext, missingDocFields } from '@/lib/legal-doc-context';
 import { buildDocumentPack } from '@/data/legal-document-pack';
 import { REPRESENTED_SIDE_LABEL, representedSide } from '@/lib/document-audience';
 import { clearDocOverride, getDocOverrides, saveDocOverride } from '@/lib/doc-overrides';
+import soloLogoUrl from '@/assets/solo-logo.svg';
 
 const DocumentPackPage = () => {
   const { id } = useParams();
   const deal = id ? getDeal(id) : undefined;
-  const office = useMemo(() => getOfficeProfile(), []);
+  const office = useMemo(() => {
+    const profile = getOfficeProfile();
+    // The bundled office logo is used unless a custom one was uploaded in the Users screen.
+    return { ...profile, logoDataUrl: profile.logoDataUrl?.trim() ? profile.logoDataUrl : soloLogoUrl };
+  }, []);
   const [active, setActive] = useState<string>('');
   const [editing, setEditing] = useState(false);
   const [overrideVersion, setOverrideVersion] = useState(0);

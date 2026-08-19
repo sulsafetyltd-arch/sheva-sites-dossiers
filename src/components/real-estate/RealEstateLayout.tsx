@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { NewDealDialog } from '@/components/real-estate/NewDealDialog';
 import { GlobalSearch } from '@/components/real-estate/GlobalSearch';
+import soloLogoUrl from '@/assets/solo-logo.svg';
 import { getAllDeals } from '@/lib/real-estate-store';
 import { alertCount } from '@/lib/real-estate-utils';
 import { getCloudSettings, isCloudConfigured, syncNow } from '@/lib/cloud-sync';
@@ -46,12 +47,13 @@ const TITLES: Array<{ test: (path: string) => boolean; title: string }> = [
 
 function SoloLogo() {
   return (
-    <div className="flex flex-col items-center text-white select-none gap-1">
-      <svg viewBox="0 0 32 32" className="w-8 h-8 fill-current" aria-hidden>
-        <path d="M16 3.5 30 16h-4v13H6V16H2L16 3.5Z" />
-        <rect x="13" y="18" width="6" height="11" className="fill-[hsl(var(--sidebar-teal))]" />
-      </svg>
-      <span className="text-[22px] font-extrabold tracking-tight leading-none">סולו נדלן</span>
+    <div className="flex flex-col items-center text-white select-none gap-2">
+      <div className="bg-white rounded-2xl p-2 shadow-md ring-2 ring-[hsl(var(--gold))]">
+        <img src={soloLogoUrl} alt="לוגו המשרד" className="w-24 h-24 object-contain" />
+      </div>
+      <span className="text-[20px] font-extrabold tracking-tight leading-none">
+        סולו <span className="text-[hsl(var(--gold))]">נדלן</span>
+      </span>
     </div>
   );
 }
@@ -92,7 +94,7 @@ const RealEstateLayout = () => {
               cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition-colors',
                 isActive
-                  ? 'bg-white/20 text-white shadow-sm'
+                  ? 'bg-[hsl(var(--gold))] text-[hsl(var(--sidebar-teal))] font-semibold shadow-sm'
                   : 'text-white/85 hover:bg-white/10 hover:text-white',
               )
             }
@@ -100,7 +102,7 @@ const RealEstateLayout = () => {
             <item.icon className="w-[18px] h-[18px]" />
             <span>{item.label}</span>
             {item.to === '/alerts' && alerts > 0 && (
-              <span className="mr-auto rounded-full bg-white text-primary text-[11px] font-bold min-w-5 h-5 px-1.5 inline-flex items-center justify-center">
+              <span className="mr-auto rounded-full bg-white text-[hsl(var(--sidebar-teal))] text-[11px] font-bold min-w-5 h-5 px-1.5 inline-flex items-center justify-center shadow-sm">
                 {alerts}
               </span>
             )}

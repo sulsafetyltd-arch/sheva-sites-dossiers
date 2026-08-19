@@ -175,7 +175,7 @@ const RealEstateDashboard = () => {
                   formatter={(value: number) => [formatMoney(value), 'התקבל']}
                   contentStyle={{ direction: 'rtl', borderRadius: 8 }}
                 />
-                <Bar dataKey="amount" fill="#00A79D" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="amount" fill="#eeba2b" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
