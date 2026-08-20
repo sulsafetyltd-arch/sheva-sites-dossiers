@@ -7,7 +7,7 @@ import { Field } from '@/components/real-estate/Field';
 import { getAllDeals } from '@/lib/real-estate-store';
 import { getOfficeProfile, saveOfficeProfile, type OfficeProfile } from '@/lib/office-profile';
 import { SETUP_SQL, getCloudSettings, saveCloudSettings, syncNow, type CloudSettings } from '@/lib/cloud-sync';
-import { downloadBackup, restoreBackup } from '@/lib/backup';
+import { downloadBackup, getBackupHistory, restoreBackup } from '@/lib/backup';
 import { formatDateHe } from '@/lib/real-estate-utils';
 
 const MAX_LOGO_BYTES = 500 * 1024;
@@ -16,6 +16,7 @@ const UsersPage = () => {
   const [deals, setDeals] = useState(() => getAllDeals());
   const [office, setOffice] = useState<OfficeProfile>(() => getOfficeProfile());
   const [cloud, setCloud] = useState<CloudSettings>(() => getCloudSettings());
+  const [backupHistory, setBackupHistory] = useState<string[]>(() => getBackupHistory());
   const [syncing, setSyncing] = useState(false);
   const [showSql, setShowSql] = useState(false);
   const restoreRef = useRef<HTMLInputElement>(null);
@@ -192,12 +193,51 @@ const UsersPage = () => {
       <section className="re-card p-5 space-y-3">
         <div>
           <h2 className="font-semibold">גיבוי מקומי לקובץ</h2>
-          <p className="text-sm text-muted-foreground">ייצוא כל התיקים, פרטי המשרד והעריכות לקובץ JSON — ושחזור ממנו במחשב אחר</p>
+          <p className="text-sm text-muted-foreground">ייצוא כל התיקים, פרטי המשרד, התבניות והעריכות לקובץ JSON — ושחזור ממנו במחשב אחר</p>
         </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+          <div className="rounded-lg bg-muted/50 px-3 py-2">
+            <p className="text-muted-foreground text-xs">תיקים</p>
+            <p className="font-bold tabular-nums">{deals.length}</p>
+          </div>
+          <div className="rounded-lg bg-muted/50 px-3 py-2">
+            <p className="text-muted-foreground text-xs">לקוחות וצדדים</p>
+            <p className="font-bold tabular-nums">{deals.reduce((s, d) => s + d.parties.length, 0)}</p>
+          </div>
+          <div className="rounded-lg bg-muted/50 px-3 py-2">
+            <p className="text-muted-foreground text-xs">משימות</p>
+            <p className="font-bold tabular-nums">{deals.reduce((s, d) => s + d.tasks.length, 0)}</p>
+          </div>
+          <div className="rounded-lg bg-muted/50 px-3 py-2">
+            <p className="text-muted-foreground text-xs">מסמכים ותשלומים</p>
+            <p className="font-bold tabular-nums">
+              {deals.reduce((s, d) => s + d.documents.length + d.payments.length, 0)}
+            </p>
+          </div>
+        </div>
+
+        {backupHistory.length === 0 ? (
+          <p className="text-sm rounded-lg border border-amber-300 bg-amber-50 text-amber-800 px-3 py-2">
+            ⚠️ טרם בוצע גיבוי למערכת — מומלץ מאוד לייצא גיבוי ולשמור במקום בטוח (Google Drive, Dropbox וכו׳)
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            גיבוי אחרון: {formatDateHe(backupHistory[0].slice(0, 10))} · סה״כ {backupHistory.length} גיבויים אחרונים נרשמו
+          </p>
+        )}
+
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => downloadBackup()}>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              downloadBackup();
+              setBackupHistory(getBackupHistory());
+            }}
+          >
             <Download className="w-4 h-4" />
-            ייצוא גיבוי
+            ייצוא גיבוי מלא
           </Button>
           <input
             ref={restoreRef}

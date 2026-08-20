@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { getDeal } from '@/lib/real-estate-store';
 import { getOfficeProfile } from '@/lib/office-profile';
 import { buildDocContext, missingDocFields } from '@/lib/legal-doc-context';
-import { buildDocumentPack } from '@/data/legal-document-pack';
+import { buildDocumentPack, renderCustomDocuments } from '@/data/legal-document-pack';
+import { getCustomTemplates } from '@/lib/custom-templates';
 import { REPRESENTED_SIDE_LABEL, representedSide } from '@/lib/document-audience';
 import { clearDocOverride, getDocOverrides, saveDocOverride } from '@/lib/doc-overrides';
 import soloLogoUrl from '@/assets/solo-logo.svg';
@@ -34,7 +35,10 @@ const DocumentPackPage = () => {
   const ctx = buildDocContext(deal, office);
   const missing = missingDocFields(ctx);
   const side = representedSide(deal.clientSide);
-  const pack = buildDocumentPack(ctx, side, deal.type);
+  const pack = [
+    ...buildDocumentPack(ctx, side, deal.type),
+    ...renderCustomDocuments(ctx, getCustomTemplates(), side),
+  ];
   const overrides = getDocOverrides(deal.id);
   const current = pack.find((d) => d.id === active) ?? pack[0];
 

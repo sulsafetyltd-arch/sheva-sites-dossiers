@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
+  CalendarDays,
   CircleHelp,
+  ExternalLink,
+  FileText,
   FolderKanban,
   LayoutDashboard,
   LogOut,
@@ -25,8 +28,11 @@ import { getCloudSettings, isCloudConfigured, syncNow } from '@/lib/cloud-sync';
 const nav = [
   { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
   { to: '/deals', label: 'עסקאות', icon: FolderKanban, end: false },
+  { to: '/calendar', label: 'יומן מועדים', icon: CalendarDays, end: false },
   { to: '/clients', label: 'לקוחות', icon: Users, end: false },
   { to: '/alerts', label: 'התראות', icon: Bell, end: false },
+  { to: '/templates', label: 'תבניות מסמכים', icon: FileText, end: false },
+  { to: '/shortcuts', label: 'קיצורי דרך', icon: ExternalLink, end: false },
   { to: '/users', label: 'משתמשים', icon: UserCog, end: false },
   { to: '/packages', label: 'חבילות', icon: Package, end: false },
   { to: '/help', label: 'עזרה', icon: CircleHelp, end: false },
@@ -41,6 +47,8 @@ const TITLES: Array<{ test: (path: string) => boolean; title: string }> = [
   { test: (p) => p.startsWith('/alerts'), title: 'התראות' },
   { test: (p) => p.startsWith('/users'), title: 'משתמשים' },
   { test: (p) => p.startsWith('/packages'), title: 'חבילות' },
+  { test: (p) => p.startsWith('/templates'), title: 'תבניות מסמכים' },
+  { test: (p) => p.startsWith('/shortcuts'), title: 'קיצורי דרך' },
   { test: (p) => p.startsWith('/help'), title: 'עזרה' },
   { test: (p) => p.startsWith('/calendar'), title: 'יומן מועדים' },
 ];

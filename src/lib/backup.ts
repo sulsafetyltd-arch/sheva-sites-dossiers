@@ -1,8 +1,10 @@
 import type { Deal } from '@/types/real-estate';
 import { STORAGE_KEY } from '@/lib/real-estate-store';
 import { OFFICE_KEY } from '@/lib/office-profile';
+import { CUSTOM_TEMPLATES_KEY } from '@/lib/custom-templates';
 
 const OVERRIDES_PREFIX = 'solo-doc-overrides-';
+const HISTORY_KEY = 'solo-backup-history-v1';
 
 export interface BackupFile {
   app: 'solo-nadlan';
@@ -11,6 +13,21 @@ export interface BackupFile {
   deals: Deal[];
   office: unknown;
   docOverrides: Record<string, unknown>;
+  customTemplates?: unknown[];
+}
+
+export function getBackupHistory(): string[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function recordBackup(timestamp: string): void {
+  const history = [timestamp, ...getBackupHistory()].slice(0, 10);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
 
 export function buildBackup(): BackupFile {
@@ -38,6 +55,13 @@ export function buildBackup(): BackupFile {
       }
     }
   }
+  let customTemplates: unknown[] = [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CUSTOM_TEMPLATES_KEY) ?? '[]');
+    if (Array.isArray(parsed)) customTemplates = parsed;
+  } catch {
+    customTemplates = [];
+  }
   return {
     app: 'solo-nadlan',
     version: 1,
@@ -45,6 +69,7 @@ export function buildBackup(): BackupFile {
     deals,
     office,
     docOverrides,
+    customTemplates,
   };
 }
 
@@ -57,6 +82,7 @@ export function downloadBackup(): void {
   a.download = `solo-nadlan-backup-${backup.exportedAt.slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
+  recordBackup(backup.exportedAt);
 }
 
 function readFileText(file: File): Promise<string> {
@@ -81,6 +107,9 @@ export async function restoreBackup(file: File): Promise<{ deals: number }> {
     for (const [key, value] of Object.entries(parsed.docOverrides)) {
       if (key.startsWith(OVERRIDES_PREFIX)) localStorage.setItem(key, JSON.stringify(value));
     }
+  }
+  if (Array.isArray(parsed.customTemplates)) {
+    localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(parsed.customTemplates));
   }
   return { deals: parsed.deals.length };
 }

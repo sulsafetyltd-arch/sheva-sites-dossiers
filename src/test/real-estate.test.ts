@@ -331,6 +331,63 @@ describe('legal document pack', () => {
   });
 });
 
+describe('custom templates', () => {
+  const office = {
+    attorneyName: 'עו"ד בדיקה',
+    license: '12345',
+    officeAddress: 'הרצל 5, תל אביב',
+    officeCity: 'תל אביב',
+    secondAttorneyName: '',
+  };
+  const deal = () =>
+    sampleDeal({
+      parties: [
+        { id: 'b1', role: 'buyer' as const, name: 'ישראל ישראלי', idNumber: '111', phone: '050-1111111', email: '', address: 'חיפה', notes: '' },
+        { id: 's1', role: 'seller' as const, name: 'שרה כהן', idNumber: '222', phone: '', email: '', address: 'אשדוד', notes: '' },
+      ],
+    });
+
+  it('replaces Hebrew curly-brace variables with deal data', async () => {
+    const { buildDocContext } = await import('@/lib/legal-doc-context');
+    const { renderTemplateText } = await import('@/lib/template-variables');
+    const ctx = buildDocContext(deal(), office);
+    const out = renderTemplateText(
+      'תיק {מספר_תיק}: {שם_קונה_1} (ת.ז. {תעודת_זהות_קונה_1}) קונה מ-{כל_המוכרים} בגוש {גוש}. {לא_קיים}',
+      ctx,
+    );
+    expect(out).toContain('2026-0001');
+    expect(out).toContain('ישראל ישראלי');
+    expect(out).toContain('111');
+    expect(out).toContain('שרה כהן');
+    expect(out).toContain('בגוש 1');
+    expect(out).toContain('{לא_קיים}');
+  });
+
+  it('renders custom documents and filters them by audience', async () => {
+    const { buildDocContext } = await import('@/lib/legal-doc-context');
+    const { renderCustomDocuments } = await import('@/data/legal-document-pack');
+    const ctx = buildDocContext(deal(), office);
+    const templates = [
+      { id: 't1', title: 'מכתב לקונה', audience: 'buyer' as const, body: 'שלום {שם_קונה_1}', updatedAt: '' },
+      { id: 't2', title: 'מכתב למוכר', audience: 'seller' as const, body: 'שלום {שם_מוכר_1}', updatedAt: '' },
+    ];
+    const buyerDocs = renderCustomDocuments(ctx, templates, 'buyer');
+    expect(buyerDocs).toHaveLength(1);
+    expect(buyerDocs[0].title).toBe('מכתב לקונה');
+    expect(buyerDocs[0].html).toContain('ישראל ישראלי');
+    expect(buyerDocs[0].group).toBe('תבניות שלי');
+    const allDocs = renderCustomDocuments(ctx, templates, 'both');
+    expect(allDocs).toHaveLength(2);
+  });
+
+  it('lists every documented variable with a value function', async () => {
+    const { TEMPLATE_VARIABLES, buildVariablesText } = await import('@/lib/template-variables');
+    expect(TEMPLATE_VARIABLES.length).toBeGreaterThan(70);
+    const text = buildVariablesText();
+    for (const v of TEMPLATE_VARIABLES.slice(0, 5)) expect(text).toContain(`{${v.name}}`);
+  });
+});
+
 describe('purchase tax calculator', () => {
   it('computes zero tax under the single-home exemption bracket', async () => {
     const { calcPurchaseTax } = await import('@/lib/purchase-tax');

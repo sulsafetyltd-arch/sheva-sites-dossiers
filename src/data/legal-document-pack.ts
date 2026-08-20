@@ -1,6 +1,8 @@
 import type { DocAudience, RepresentedSide } from '@/lib/document-audience';
 import { documentVisibleForSide } from '@/lib/document-audience';
 import type { DocContext } from '@/lib/legal-doc-context';
+import type { CustomTemplate } from '@/lib/custom-templates';
+import { renderTemplateText } from '@/lib/template-variables';
 
 export interface LegalDocument {
   id: string;
@@ -876,4 +878,38 @@ export function buildDocumentPack(
   else if (dealType) pack = pack.filter((doc) => !doc.rentalOnly);
   if (!represented) return pack;
   return pack.filter((doc) => documentVisibleForSide(doc.audience, represented));
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Renders a user-defined template ({variable} placeholders) into a printable document. */
+export function renderCustomDocument(ctx: DocContext, template: CustomTemplate): LegalDocument {
+  const filled = renderTemplateText(template.body, ctx);
+  const paragraphs = escapeHtml(filled)
+    .split(/\n{2,}/)
+    .map((block) => `<p>${block.replace(/\n/g, '<br/>')}</p>`)
+    .join('');
+  return {
+    id: `custom-${template.id}`,
+    title: template.title,
+    group: 'תבניות שלי',
+    audience: template.audience,
+    html: `${header(ctx, template.title)}${paragraphs}`,
+  };
+}
+
+export function renderCustomDocuments(
+  ctx: DocContext,
+  templates: CustomTemplate[],
+  represented?: RepresentedSide,
+): LegalDocument[] {
+  return templates
+    .filter((t) => !represented || documentVisibleForSide(t.audience, represented))
+    .map((t) => renderCustomDocument(ctx, t));
 }
