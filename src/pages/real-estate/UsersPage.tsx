@@ -87,6 +87,14 @@ const UsersPage = () => {
           <Field label="עיר חתימה">
             <Input value={office.officeCity} onChange={(e) => setOffice({ ...office, officeCity: e.target.value })} />
           </Field>
+          <Field label="טלפון המשרד (לוואטסאפ וטופס לקוח)">
+            <Input
+              inputMode="tel"
+              value={office.officePhone ?? ''}
+              onChange={(e) => setOffice({ ...office, officePhone: e.target.value })}
+              placeholder="050-0000000"
+            />
+          </Field>
           <Field label="עו״ד נוסף (אופציונלי)" className="md:col-span-2">
             <Input value={office.secondAttorneyName} onChange={(e) => setOffice({ ...office, secondAttorneyName: e.target.value })} />
           </Field>

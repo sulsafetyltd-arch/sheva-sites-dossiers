@@ -5,6 +5,7 @@ export interface OfficeProfile {
   officeCity: string;
   secondAttorneyName: string;
   logoDataUrl?: string;
+  officePhone?: string;
 }
 
 export const OFFICE_KEY = 'solo-nadlan-office-v1';
@@ -16,6 +17,7 @@ export const EMPTY_OFFICE: OfficeProfile = {
   officeCity: '',
   secondAttorneyName: '',
   logoDataUrl: '',
+  officePhone: '',
 };
 
 export function getOfficeProfile(): OfficeProfile {

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
+  BarChart3,
   Bell,
+  Calculator,
   CalendarDays,
   CircleHelp,
   ExternalLink,
@@ -32,6 +34,8 @@ const nav = [
   { to: '/clients', label: 'לקוחות', icon: Users, end: false },
   { to: '/alerts', label: 'התראות', icon: Bell, end: false },
   { to: '/templates', label: 'תבניות מסמכים', icon: FileText, end: false },
+  { to: '/reports', label: 'דוחות שכ"ט', icon: BarChart3, end: false },
+  { to: '/calculators', label: 'מחשבונים', icon: Calculator, end: false },
   { to: '/shortcuts', label: 'קיצורי דרך', icon: ExternalLink, end: false },
   { to: '/users', label: 'משתמשים', icon: UserCog, end: false },
   { to: '/packages', label: 'חבילות', icon: Package, end: false },
@@ -48,6 +52,8 @@ const TITLES: Array<{ test: (path: string) => boolean; title: string }> = [
   { test: (p) => p.startsWith('/users'), title: 'משתמשים' },
   { test: (p) => p.startsWith('/packages'), title: 'חבילות' },
   { test: (p) => p.startsWith('/templates'), title: 'תבניות מסמכים' },
+  { test: (p) => p.startsWith('/reports'), title: 'דוחות שכ"ט' },
+  { test: (p) => p.startsWith('/calculators'), title: 'מחשבונים' },
   { test: (p) => p.startsWith('/shortcuts'), title: 'קיצורי דרך' },
   { test: (p) => p.startsWith('/help'), title: 'עזרה' },
   { test: (p) => p.startsWith('/calendar'), title: 'יומן מועדים' },

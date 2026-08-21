@@ -24,6 +24,9 @@ import HelpPage from "./pages/real-estate/HelpPage.tsx";
 import DocumentPackPage from "./pages/real-estate/DocumentPackPage.tsx";
 import TemplatesPage from "./pages/real-estate/TemplatesPage.tsx";
 import ShortcutsPage from "./pages/real-estate/ShortcutsPage.tsx";
+import ReportsPage from "./pages/real-estate/ReportsPage.tsx";
+import CalculatorsPage from "./pages/real-estate/CalculatorsPage.tsx";
+import IntakePage from "./pages/real-estate/IntakePage.tsx";
 
 const queryClient = new QueryClient();
 
@@ -45,9 +48,12 @@ const App = () => (
             <Route path="users" element={<UsersPage />} />
             <Route path="packages" element={<PackagesPage />} />
             <Route path="templates" element={<TemplatesPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="calculators" element={<CalculatorsPage />} />
             <Route path="shortcuts" element={<ShortcutsPage />} />
             <Route path="help" element={<HelpPage />} />
           </Route>
+          <Route path="/intake" element={<IntakePage />} />
           <Route path="/dossiers" element={<Index />} />
           <Route path="/editor/:id" element={<DossierEditor />} />
           <Route path="/preview/:id" element={<DossierPreview />} />

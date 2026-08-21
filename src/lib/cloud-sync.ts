@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { Deal } from '@/types/real-estate';
 import { STORAGE_KEY } from '@/lib/real-estate-store';
 import { getOfficeProfile, saveOfficeProfile, type OfficeProfile } from '@/lib/office-profile';
+import { CUSTOM_TEMPLATES_KEY, getCustomTemplates, type CustomTemplate } from '@/lib/custom-templates';
 
 export interface CloudSettings {
   url: string;
@@ -118,6 +119,31 @@ export async function syncNow(): Promise<SyncResult> {
     saveOfficeProfile(kvRow.value as OfficeProfile);
   } else if (hasOffice) {
     await client.from('solo_kv').upsert({ key: 'office', value: office, updated_at: new Date().toISOString() });
+  }
+
+  // Custom templates: merge by id, newer updatedAt wins, then mirror both ways.
+  const localTemplates = getCustomTemplates();
+  const { data: tplRow } = await client
+    .from('solo_kv')
+    .select('value')
+    .eq('key', 'custom_templates')
+    .maybeSingle();
+  const remoteTemplates: CustomTemplate[] = Array.isArray(tplRow?.value) ? (tplRow.value as CustomTemplate[]) : [];
+  const templatesById = new Map(remoteTemplates.map((t) => [t.id, t]));
+  for (const t of localTemplates) {
+    const remote = templatesById.get(t.id);
+    if (!remote || (t.updatedAt ?? '') > (remote.updatedAt ?? '')) templatesById.set(t.id, t);
+  }
+  const mergedTemplates = [...templatesById.values()].sort((a, b) =>
+    (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''),
+  );
+  localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(mergedTemplates));
+  if (mergedTemplates.length > 0) {
+    await client.from('solo_kv').upsert({
+      key: 'custom_templates',
+      value: mergedTemplates,
+      updated_at: new Date().toISOString(),
+    });
   }
 
   saveCloudSettings({ ...settings, lastSyncAt: new Date().toISOString() });

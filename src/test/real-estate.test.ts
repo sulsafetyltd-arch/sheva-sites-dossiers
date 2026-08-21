@@ -438,4 +438,85 @@ describe('reminders and backup', () => {
     expect(result.deals).toBe(1);
     expect(getAllDeals().some((d) => d.title === 'תיק לגיבוי')).toBe(true);
   });
+
+  it('suggests statutory deadlines from contract and closing dates', async () => {
+    const { suggestLegalDeadlines } = await import('@/lib/legal-deadlines');
+    const deal = sampleDeal({ contractDate: '2026-03-01', closingDate: '2026-06-01' });
+
+    const buyer = suggestLegalDeadlines(deal, 'buyer');
+    const titles = buyer.map((s) => s.title);
+    expect(titles).toContain('דיווח העסקה למיסוי מקרקעין (טופס 7002)');
+    expect(titles).toContain('תשלום מס רכישה');
+    expect(titles).not.toContain('הגשת שומה עצמית למס שבח');
+    expect(buyer.find((s) => s.title.includes('דיווח העסקה'))?.dueDate).toBe('2026-03-31');
+    expect(buyer.find((s) => s.title === 'תשלום מס רכישה')?.dueDate).toBe('2026-04-30');
+
+    const seller = suggestLegalDeadlines(deal, 'seller');
+    expect(seller.map((s) => s.title)).toContain('הגשת שומה עצמית למס שבח');
+    expect(seller.map((s) => s.title)).not.toContain('תשלום מס רכישה');
+
+    // Existing tasks are not duplicated.
+    const withTask = sampleDeal({
+      contractDate: '2026-03-01',
+      tasks: [{ id: 't', title: 'תשלום מס רכישה', dueDate: '2026-04-01', done: false, priority: 'high', notes: '' }],
+    });
+    expect(suggestLegalDeadlines(withTask, 'buyer').map((s) => s.title)).not.toContain('תשלום מס רכישה');
+  });
+
+  it('finds conflicts of interest by id and by name', async () => {
+    const { findConflicts } = await import('@/lib/conflict-check');
+    const other = sampleDeal({ id: 'deal-2', fileNumber: '2026-0002' });
+    other.parties = [
+      { id: 'p1', role: 'seller', name: 'ישראל ישראלי', idNumber: '012345678', phone: '', email: '', address: '', notes: '' },
+    ];
+    const byId = findConflicts('אחר לגמרי', '12345678', 'deal-1', [other]);
+    expect(byId).toHaveLength(0);
+    const byIdExact = findConflicts('אחר לגמרי', '012345678', 'deal-1', [other]);
+    expect(byIdExact).toHaveLength(1);
+    expect(byIdExact[0].matchedBy).toBe('id');
+    const byName = findConflicts('ישראל ישראלי', '', 'deal-1', [other]);
+    expect(byName[0].matchedBy).toBe('name');
+    // Same deal is excluded.
+    expect(findConflicts('ישראל ישראלי', '', 'deal-2', [other])).toHaveLength(0);
+  });
+
+  it('round-trips intake form data through the code', async () => {
+    const { encodeIntake, decodeIntake, extractIntakeCode } = await import('@/lib/intake');
+    const code = encodeIntake({
+      fileNumber: '2026-0001',
+      role: 'buyer',
+      people: [{ name: 'דנה כהן', idNumber: '123456789', phone: '0501234567', email: 'a@b.co', address: 'תל אביב' }],
+      notes: 'יש משכנתא',
+    });
+    expect(code.startsWith('SN1:')).toBe(true);
+    const decoded = decodeIntake(code);
+    expect(decoded?.people[0].name).toBe('דנה כהן');
+    expect(decoded?.notes).toBe('יש משכנתא');
+    const inMessage = extractIntakeCode(`שלום, מילאתי את הטופס:\n\n${code}\n\nתודה`);
+    expect(inMessage).toBe(code);
+    expect(decodeIntake('לא קוד')).toBeNull();
+  });
+
+  it('calculates linkage, late interest and capital gains estimates', async () => {
+    const { linkedAmount, lateInterest, estimateCapitalGains } = await import('@/lib/calculators');
+    expect(linkedAmount(100000, 100, 110)).toBe(110000);
+    expect(linkedAmount(0, 100, 110)).toBe(0);
+    expect(lateInterest(100000, 10, 365)).toBe(10000);
+    const gains = estimateCapitalGains({
+      purchasePrice: 1000000,
+      salePrice: 2000000,
+      expenses: 100000,
+      linkedPurchasePrice: 1200000,
+    });
+    expect(gains.realGain).toBe(700000);
+    expect(gains.estimatedTax).toBe(175000);
+  });
+
+  it('builds an RTL Word export document', async () => {
+    const { buildWordHtml } = await import('@/lib/word-export');
+    const html = buildWordHtml('ייפוי כוח', '<h1>ייפוי כוח</h1><p>תוכן</p>');
+    expect(html).toContain('dir="rtl"');
+    expect(html).toContain('<h1>ייפוי כוח</h1>');
+    expect(html).toContain('urn:schemas-microsoft-com:office:word');
+  });
 });

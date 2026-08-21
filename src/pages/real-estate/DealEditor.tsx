@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, Calculator, FileStack, Paperclip, Plus, Save, Trash2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  Calculator,
+  CalendarClock,
+  ClipboardPaste,
+  Copy,
+  FileStack,
+  MessageCircle,
+  Paperclip,
+  Plus,
+  Save,
+  Trash2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,10 +28,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { addTimeline, getDeal, saveDeal } from '@/lib/real-estate-store';
+import { addTimeline, duplicateDeal, getDeal, saveDeal } from '@/lib/real-estate-store';
 import { REPRESENTED_SIDE_LABEL, representedSide } from '@/lib/document-audience';
 import { deleteFile, getFile, openStoredFile, putFile, type StoredFile } from '@/lib/file-store';
 import { calcPurchaseTax } from '@/lib/purchase-tax';
+import { buildDeadlineTasks, suggestLegalDeadlines } from '@/lib/legal-deadlines';
+import { findConflicts, type ConflictMatch } from '@/lib/conflict-check';
+import { decodeIntake, extractIntakeCode, intakeLink } from '@/lib/intake';
+import { getOfficeProfile } from '@/lib/office-profile';
 import { newId } from '@/data/real-estate-checklists';
 import { Field, ProgressBar } from '@/components/real-estate/Field';
 import {
@@ -26,6 +43,7 @@ import {
   DEAL_STATUS_LABEL,
   DEAL_TYPE_LABEL,
   DOCUMENT_CATEGORY_LABEL,
+  DOCUMENT_STATUS_LABEL,
   PARTY_ROLE_LABEL,
   PAYMENT_STATUS_LABEL,
   PAYMENT_TYPE_LABEL,
@@ -53,6 +71,7 @@ import type {
   PropertyType,
   TaskPriority,
   DocumentCategory,
+  DocumentStatus,
 } from '@/types/real-estate';
 
 function groupChecklist(items: ChecklistItem[]) {
@@ -127,6 +146,20 @@ const DealEditor = () => {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              const copy = duplicateDeal(deal.id);
+              if (copy) {
+                toast.success('התיק שוכפל — נפתח העותק החדש');
+                navigate(`/deals/${copy.id}`);
+              }
+            }}
+          >
+            <Copy className="w-4 h-4" />
+            שכפול תיק
+          </Button>
           <Button variant="outline" className="gap-2" onClick={() => navigate(`/deals/${deal.id}/documents`)}>
             <FileStack className="w-4 h-4" />
             הפק סט מסמכים
@@ -315,6 +348,7 @@ const DealEditor = () => {
         </TabsContent>
 
         <TabsContent value="parties" className="space-y-3">
+          <IntakeTools deal={deal} update={update} />
           <div className="flex justify-end">
             <Button
               variant="outline"
@@ -386,6 +420,7 @@ const DealEditor = () => {
                   <PartyInput deal={deal} party={party} field="notes" update={update} area />
                 </Field>
               </div>
+              <ConflictWarning dealId={deal.id} name={party.name} idNumber={party.idNumber} />
             </div>
           ))}
         </TabsContent>
@@ -594,8 +629,24 @@ const DealEditor = () => {
               מסמך
             </Button>
           </div>
+          {deal.documents.length > 0 && (
+            <div className="re-card p-3 text-sm flex items-center justify-between">
+              <span>
+                חתומים / הוגשו:{' '}
+                <strong className="tabular-nums">
+                  {deal.documents.filter((d) => d.status === 'signed' || d.status === 'filed').length}
+                </strong>{' '}
+                מתוך {deal.documents.length} מסמכים
+              </span>
+              {deal.documents.some((d) => d.status === 'sent') && (
+                <span className="text-warning text-xs">
+                  {deal.documents.filter((d) => d.status === 'sent').length} ממתינים לחתימה
+                </span>
+              )}
+            </div>
+          )}
           {deal.documents.map((doc) => (
-            <div key={doc.id} className="re-card p-4 grid md:grid-cols-5 gap-3 items-end">
+            <div key={doc.id} className="re-card p-4 grid md:grid-cols-6 gap-3 items-end">
               <Field label="שם המסמך" className="md:col-span-2">
                 <Input
                   value={doc.title}
@@ -620,6 +671,35 @@ const DealEditor = () => {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(DOCUMENT_CATEGORY_LABEL).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="סטטוס חתימה">
+                <Select
+                  value={doc.status ?? 'missing'}
+                  onValueChange={(v) =>
+                    update({
+                      documents: deal.documents.map((d) =>
+                        d.id === doc.id ? { ...d, status: v as DocumentStatus } : d,
+                      ),
+                    })
+                  }
+                >
+                  <SelectTrigger
+                    className={
+                      doc.status === 'signed' || doc.status === 'filed'
+                        ? 'border-success/50 text-success'
+                        : doc.status === 'sent'
+                          ? 'border-warning/50 text-warning'
+                          : ''
+                    }
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(DOCUMENT_STATUS_LABEL).map(([k, v]) => (
                       <SelectItem key={k} value={k}>{v}</SelectItem>
                     ))}
                   </SelectContent>
@@ -658,7 +738,7 @@ const DealEditor = () => {
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
               </div>
-              <div className="md:col-span-5">
+              <div className="md:col-span-6">
                 <AttachmentRow dealId={deal.id} docId={doc.id} />
               </div>
             </div>
@@ -666,6 +746,34 @@ const DealEditor = () => {
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-3">
+          <div className="re-card p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-medium flex items-center gap-2">
+                <CalendarClock className="w-4 h-4 text-primary" />
+                מועדים חוקיים אוטומטיים
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {deal.contractDate || deal.closingDate
+                  ? 'יצירת משימות עם הדד-ליינים הקבועים בחוק לפי תאריך החתימה והמסירה: דיווח מיסוי מקרקעין (30 יום), מס רכישה (60 יום), הערת אזהרה, אישורים לרישום ועוד.'
+                  : 'מלאו «תאריך חתימת הסכם» (ובמידת האפשר «מועד מסירה») בלשונית פרטי עסקה — והמערכת תחשב את כל המועדים לבד.'}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              disabled={!deal.contractDate && !deal.closingDate}
+              onClick={() => {
+                const suggestions = suggestLegalDeadlines(deal, representedSide(deal.clientSide));
+                if (suggestions.length === 0) {
+                  toast.info('כל המועדים החוקיים כבר קיימים במשימות');
+                  return;
+                }
+                update({ tasks: [...deal.tasks, ...buildDeadlineTasks(suggestions)] });
+                toast.success(`נוספו ${suggestions.length} מועדים חוקיים — לחצו שמירה`);
+              }}
+            >
+              יצירת מועדים חוקיים
+            </Button>
+          </div>
           <div className="flex justify-end">
             <Button
               variant="outline"
@@ -708,6 +816,115 @@ const DealEditor = () => {
     </main>
   );
 };
+
+function ConflictWarning({ dealId, name, idNumber }: { dealId: string; name: string; idNumber: string }) {
+  const conflicts = useMemo<ConflictMatch[]>(
+    () => findConflicts(name, idNumber, dealId),
+    [dealId, name, idNumber],
+  );
+  if (conflicts.length === 0) return null;
+  return (
+    <div className="rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm space-y-1">
+      <p className="font-medium flex items-center gap-2">
+        <AlertTriangle className="w-4 h-4 text-warning" />
+        בדיקת ניגוד עניינים — הצד מופיע בתיקים נוספים:
+      </p>
+      {conflicts.map((c, i) => (
+        <p key={i} className="text-muted-foreground">
+          תיק {c.fileNumber} · {c.dealTitle} — {c.partyName} בתפקיד {PARTY_ROLE_LABEL[c.role]}{' '}
+          ({c.matchedBy === 'id' ? 'התאמה לפי ת.ז' : 'התאמה לפי שם'})
+        </p>
+      ))}
+      <p className="text-xs text-muted-foreground">בדקו האם קיים ניגוד עניינים לפני המשך הטיפול.</p>
+    </div>
+  );
+}
+
+function IntakeTools({ deal, update }: { deal: Deal; update: (patch: Partial<Deal>) => void }) {
+  const [code, setCode] = useState('');
+  const clientRole: PartyRole =
+    deal.clientSide === 'seller' ? 'seller'
+    : deal.clientSide === 'tenant' ? 'tenant'
+    : deal.clientSide === 'landlord' ? 'landlord'
+    : 'buyer';
+  const phone = (getOfficeProfile().officePhone ?? '').replace(/\D/g, '');
+  const link = intakeLink(deal.fileNumber, clientRole, phone);
+  const waShare = `https://wa.me/?text=${encodeURIComponent(
+    `שלום, לצורך הטיפול בעסקה נבקש למלא את פרטיכם בטופס הקצר הבא:\n${link}`,
+  )}`;
+
+  const importCode = () => {
+    const extracted = extractIntakeCode(code) ?? code.trim();
+    const data = decodeIntake(extracted);
+    if (!data || data.people.length === 0) {
+      toast.error('הקוד אינו תקין — הדביקו את ההודעה המלאה שקיבלתם מהלקוח');
+      return;
+    }
+    const parties = [
+      ...deal.parties,
+      ...data.people.map((p) => ({
+        id: newId(),
+        role: data.role,
+        name: p.name,
+        idNumber: p.idNumber,
+        phone: p.phone,
+        email: p.email,
+        address: p.address,
+        notes: data.notes,
+      })),
+    ];
+    update({ parties });
+    setCode('');
+    toast.success(`נקלטו ${data.people.length} צדדים מהטופס — לחצו שמירה`);
+  };
+
+  return (
+    <div className="re-card p-4 space-y-3">
+      <div>
+        <p className="font-medium">טופס פרטים ללקוח</p>
+        <p className="text-sm text-muted-foreground">
+          שלחו ללקוח קישור לטופס — הוא ממלא שם, ת.ז, טלפון וכתובת בעצמו ושולח חזרה קוד שנקלט ישירות לתיק.
+          {!phone && ' (מלאו «טלפון המשרד» במסך משתמשים כדי שהלקוח יוכל להחזיר את הקוד בוואטסאפ בלחיצה)'}
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => {
+            navigator.clipboard?.writeText(link);
+            toast.success('הקישור לטופס הועתק — שלחו ללקוח');
+          }}
+        >
+          <Copy className="w-4 h-4" />
+          העתקת קישור לטופס
+        </Button>
+        <a href={waShare} target="_blank" rel="noreferrer">
+          <Button variant="outline" size="sm" className="gap-2 text-emerald-700">
+            <MessageCircle className="w-4 h-4" />
+            שליחת הטופס בוואטסאפ
+          </Button>
+        </a>
+      </div>
+      <div className="flex gap-2 items-end border-t pt-3">
+        <Field label="קליטת קוד שהתקבל מהלקוח" className="flex-1">
+          <Input
+            dir="ltr"
+            className="font-mono text-xs"
+            placeholder="הדביקו כאן את ההודעה / הקוד (SN1:...)"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+        </Field>
+        <Button variant="outline" className="gap-2" disabled={!code.trim()} onClick={importCode}>
+          <ClipboardPaste className="w-4 h-4" />
+          קליטה לתיק
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function PartyInput({
   deal,

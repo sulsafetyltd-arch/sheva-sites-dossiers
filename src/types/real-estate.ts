@@ -53,6 +53,8 @@ export type PaymentStatus = 'pending' | 'paid' | 'overdue' | 'waived';
 
 export type TaskPriority = 'low' | 'medium' | 'high';
 
+export type DocumentStatus = 'missing' | 'draft' | 'sent' | 'signed' | 'filed';
+
 export type DocumentCategory =
   | 'contract'
   | 'appendix'
@@ -115,6 +117,8 @@ export interface DocumentItem {
   title: string;
   category: DocumentCategory;
   received: boolean;
+  /** Signature/filing workflow status. Absent on old data — treated as 'missing'. */
+  status?: DocumentStatus;
   date?: string;
   notes: string;
 }

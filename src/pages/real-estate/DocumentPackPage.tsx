@@ -1,9 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { Link, useParams } from 'react-router-dom';
-import { ArrowRight, PencilLine, Printer, RotateCcw } from 'lucide-react';
+import { ArrowRight, FileDown, PenLine, PencilLine, Printer, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { SignaturePad } from '@/components/real-estate/SignaturePad';
+import { downloadAsWord } from '@/lib/word-export';
 import { getDeal } from '@/lib/real-estate-store';
 import { getOfficeProfile } from '@/lib/office-profile';
 import { buildDocContext, missingDocFields } from '@/lib/legal-doc-context';
@@ -24,6 +26,7 @@ const DocumentPackPage = () => {
   const [active, setActive] = useState<string>('');
   const [editing, setEditing] = useState(false);
   const [overrideVersion, setOverrideVersion] = useState(0);
+  const [signOpen, setSignOpen] = useState(false);
   const editableRef = useRef<HTMLElement | null>(null);
 
   if (!deal) {
@@ -89,6 +92,24 @@ const DocumentPackPage = () => {
               שחזור נוסח מקורי
             </Button>
           )}
+          <Button variant="outline" onClick={() => setSignOpen(true)} disabled={!current}>
+            <PenLine className="w-4 h-4" />
+            החתמה על המסך
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (!current) return;
+              if (editing) commitEdit();
+              const html = getDocOverrides(deal.id)[current.id] ?? current.html;
+              downloadAsWord(`${current.title} - ${deal.fileNumber}`, html);
+              toast.success('המסמך ירד כקובץ Word');
+            }}
+            disabled={!current}
+          >
+            <FileDown className="w-4 h-4" />
+            הורדה כ-Word
+          </Button>
           <Button
             variant="outline"
             onClick={() => {
@@ -101,6 +122,20 @@ const DocumentPackPage = () => {
           </Button>
         </div>
       </div>
+
+      <SignaturePad
+        open={signOpen}
+        onOpenChange={setSignOpen}
+        onSave={(dataUrl, signerName) => {
+          if (!current) return;
+          const base = overrides[current.id] ?? current.html;
+          const signedAt = new Date().toLocaleDateString('he-IL');
+          const block = `<div class="sig-block" style="margin-top:24px;text-align:right;"><img src="${dataUrl}" alt="חתימה" style="max-width:220px;max-height:90px;display:block;" /><p style="margin:4px 0 0;">${signerName ? `${signerName} · ` : ''}נחתם ביום ${signedAt}</p></div>`;
+          saveDocOverride(deal.id, current.id, base + block);
+          setOverrideVersion((v) => v + 1);
+          toast.success('החתימה שולבה בתחתית המסמך');
+        }}
+      />
 
       <div className="no-print re-card p-4 text-sm">
         <p className="font-medium">

@@ -7,6 +7,7 @@ import type {
   DealStatus,
   DealType,
   DocumentCategory,
+  DocumentStatus,
   PartyRole,
   Payment,
   PaymentStatus,
@@ -88,6 +89,14 @@ export const PRIORITY_LABEL: Record<TaskPriority, string> = {
   low: 'נמוכה',
   medium: 'בינונית',
   high: 'גבוהה',
+};
+
+export const DOCUMENT_STATUS_LABEL: Record<DocumentStatus, string> = {
+  missing: 'טרם התקבל',
+  draft: 'טיוטה',
+  sent: 'נשלח לחתימה',
+  signed: 'חתום',
+  filed: 'הוגש לרשות',
 };
 
 export const DOCUMENT_CATEGORY_LABEL: Record<DocumentCategory, string> = {
@@ -360,4 +369,11 @@ export function listClients(deals: Deal[]): Array<{
 
 export function alertCount(deals: Deal[]): number {
   return collectCalendarItems(deals).filter((i) => !i.done && isOverdueDate(i.date)).length;
+}
+
+/** Documents that block closing: everything not yet signed or filed in an active post-signing deal. */
+export function unsignedDocsSummary(deal: Deal): { signed: number; total: number } {
+  const total = deal.documents.length;
+  const signed = deal.documents.filter((d) => d.status === 'signed' || d.status === 'filed').length;
+  return { signed, total };
 }
