@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Copy, Download, Eye, FilePlus2, Pencil, Sparkles, Trash2 } from 'lucide-react';
+import { Copy, Download, Eye, FilePlus2, Pencil, Sparkles, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,11 +32,53 @@ function emptyTemplate(): CustomTemplate {
   return { id: newId(), title: '', audience: 'both', body: '', updatedAt: '' };
 }
 
+async function extractFileText(file: File): Promise<string> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.docx')) {
+    const mammoth = await import('mammoth');
+    const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    return result.value.trim();
+  }
+  if (name.endsWith('.txt') || file.type.startsWith('text/')) {
+    return (await file.text()).trim();
+  }
+  if (name.endsWith('.doc')) {
+    throw new Error('קובץ .doc ישן אינו נתמך — שמרו אותו ב-Word בתור .docx והעלו שוב');
+  }
+  throw new Error('נתמכים קבצי Word (.docx) וטקסט (.txt) בלבד');
+}
+
 const TemplatesPage = () => {
   const [templates, setTemplates] = useState(() => getCustomTemplates());
   const [editing, setEditing] = useState<CustomTemplate | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [showVars, setShowVars] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const uploadRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (file: File | undefined) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await extractFileText(file);
+      if (!text) {
+        toast.error('לא נמצא טקסט בקובץ');
+        return;
+      }
+      setEditing({
+        ...emptyTemplate(),
+        title: file.name.replace(/\.(docx|txt)$/i, ''),
+        body: text,
+      });
+      setShowVars(true);
+      toast.success('הקובץ נטען לעורך — החליפו שמות ופרטים במשתנים ולחצו «שמירת תבנית»');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'קריאת הקובץ נכשלה');
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const previewCtx = useMemo(() => {
     const deal = getAllDeals()[0];
@@ -72,6 +114,21 @@ const TemplatesPage = () => {
           <Button variant="outline" className="gap-2" onClick={() => downloadVariablesList()}>
             <Download className="w-4 h-4" />
             הורדת רשימת משתנים
+          </Button>
+          <input
+            ref={uploadRef}
+            type="file"
+            accept=".docx,.txt,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              handleFileUpload(file);
+            }}
+          />
+          <Button variant="outline" className="gap-2" disabled={importing} onClick={() => uploadRef.current?.click()}>
+            <Upload className="w-4 h-4" />
+            {importing ? 'טוען קובץ…' : 'העלאת קובץ Word / טקסט'}
           </Button>
           <Button className="gap-2" onClick={() => setEditing(emptyTemplate())}>
             <FilePlus2 className="w-4 h-4" />
