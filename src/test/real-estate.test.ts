@@ -512,6 +512,47 @@ describe('reminders and backup', () => {
     expect(gains.estimatedTax).toBe(175000);
   });
 
+  it('round-trips a remote signature payload and builds a certificate', async () => {
+    const { encodeSignPayload, decodeSignPayload, extractSignCode, buildVerificationCertificate, emptySession, sessionProgress } =
+      await import('@/lib/remote-sign');
+    const payload = {
+      sessionId: 'abc',
+      name: 'דנה כהן',
+      idNumber: '123456789',
+      dataUrl: 'data:image/png;base64,iVBOR',
+      signedAt: '2026-08-24T10:00:00.000Z',
+    };
+    const code = encodeSignPayload(payload);
+    expect(code.startsWith('SNS:')).toBe(true);
+    expect(decodeSignPayload(code)).toEqual(payload);
+    expect(extractSignCode(`שלום, חתמתי:\n${code}\nתודה`)).toBe(code);
+    expect(decodeSignPayload('SNS:not-base64!!!')).toBeNull();
+
+    const session = {
+      ...emptySession(),
+      docTitle: 'ייפוי כוח בלתי חוזר',
+      clientName: 'דנה כהן',
+      clientId: '123456789',
+      fileNumber: '2026-0001',
+      steps: { sent: true, scheduled: true, identity: true, warning: true, signed: true },
+      signature: { dataUrl: payload.dataUrl, signedAt: payload.signedAt, name: payload.name, idNumber: payload.idNumber },
+    };
+    expect(sessionProgress(session)).toBe(100);
+    const cert = buildVerificationCertificate(session, {
+      attorneyName: 'ישראל ישראלי',
+      license: '12345',
+      officeAddress: 'הרצל 1, תל אביב',
+      officeCity: 'תל אביב',
+      secondAttorneyName: '',
+    });
+    expect(cert).toContain('אישור אימות חתימה בהיוועדות חזותית');
+    expect(cert).toContain('דנה כהן');
+    expect(cert).toContain('123456789');
+    expect(cert).toContain('ייפוי כוח בלתי חוזר');
+    expect(cert).toContain('חתימת החותם/ת');
+    expect(cert).toContain(payload.dataUrl);
+  });
+
   it('builds an RTL Word export document', async () => {
     const { buildWordHtml } = await import('@/lib/word-export');
     const html = buildWordHtml('ייפוי כוח', '<h1>ייפוי כוח</h1><p>תוכן</p>');

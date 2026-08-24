@@ -1,11 +1,13 @@
 import { useMemo, useRef, useState } from 'react';
 
-import { Link, useParams } from 'react-router-dom';
-import { ArrowRight, FileDown, PenLine, PencilLine, Printer, RotateCcw } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowRight, FileDown, PenLine, PencilLine, Printer, RotateCcw, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { SignaturePad } from '@/components/real-estate/SignaturePad';
 import { downloadAsWord } from '@/lib/word-export';
+import { emptySession, saveSession } from '@/lib/remote-sign';
+import { primaryClientName } from '@/lib/real-estate-utils';
 import { getDeal } from '@/lib/real-estate-store';
 import { getOfficeProfile } from '@/lib/office-profile';
 import { buildDocContext, missingDocFields } from '@/lib/legal-doc-context';
@@ -17,6 +19,7 @@ import soloLogoUrl from '@/assets/solo-logo.svg';
 
 const DocumentPackPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const deal = id ? getDeal(id) : undefined;
   const office = useMemo(() => {
     const profile = getOfficeProfile();
@@ -95,6 +98,28 @@ const DocumentPackPage = () => {
           <Button variant="outline" onClick={() => setSignOpen(true)} disabled={!current}>
             <PenLine className="w-4 h-4" />
             החתמה על המסך
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!current}
+            onClick={() => {
+              if (!current) return;
+              const clientName = primaryClientName(deal);
+              const client = deal.parties.find((p) => p.name === clientName);
+              saveSession({
+                ...emptySession(),
+                docTitle: current.title,
+                fileNumber: deal.fileNumber,
+                clientName: clientName === '—' ? '' : clientName,
+                clientId: client?.idNumber ?? '',
+                clientPhone: client?.phone ?? '',
+              });
+              toast.success('נפתח אימות חתימה מרחוק למסמך');
+              navigate('/remote-sign');
+            }}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            אימות חתימה מרחוק
           </Button>
           <Button
             variant="outline"

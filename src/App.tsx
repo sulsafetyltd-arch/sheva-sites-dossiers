@@ -27,6 +27,8 @@ import ShortcutsPage from "./pages/real-estate/ShortcutsPage.tsx";
 import ReportsPage from "./pages/real-estate/ReportsPage.tsx";
 import CalculatorsPage from "./pages/real-estate/CalculatorsPage.tsx";
 import IntakePage from "./pages/real-estate/IntakePage.tsx";
+import RemoteSignPage from "./pages/real-estate/RemoteSignPage.tsx";
+import SignPage from "./pages/real-estate/SignPage.tsx";
 
 const queryClient = new QueryClient();
 
@@ -49,11 +51,13 @@ const App = () => (
             <Route path="packages" element={<PackagesPage />} />
             <Route path="templates" element={<TemplatesPage />} />
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="remote-sign" element={<RemoteSignPage />} />
             <Route path="calculators" element={<CalculatorsPage />} />
             <Route path="shortcuts" element={<ShortcutsPage />} />
             <Route path="help" element={<HelpPage />} />
           </Route>
           <Route path="/intake" element={<IntakePage />} />
+          <Route path="/sign" element={<SignPage />} />
           <Route path="/dossiers" element={<Index />} />
           <Route path="/editor/:id" element={<DossierEditor />} />
           <Route path="/preview/:id" element={<DossierPreview />} />

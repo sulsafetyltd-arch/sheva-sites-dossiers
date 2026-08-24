@@ -31,6 +31,24 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, '-').trim() || 'document';
 }
 
+/** Print a standalone RTL document without the surrounding app UI. */
+export function printHtmlDocument(title: string, bodyHtml: string): void {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '100%';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument;
+  if (!doc) return;
+  doc.open();
+  doc.write(buildWordHtml(title, bodyHtml));
+  doc.close();
+  iframe.contentWindow?.focus();
+  iframe.contentWindow?.print();
+  setTimeout(() => iframe.remove(), 2000);
+}
+
 export function downloadAsWord(title: string, bodyHtml: string): void {
   const html = buildWordHtml(title, bodyHtml);
   const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
