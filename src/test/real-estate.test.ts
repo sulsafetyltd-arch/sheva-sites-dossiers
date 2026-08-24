@@ -495,6 +495,8 @@ describe('reminders and backup', () => {
     const inMessage = extractIntakeCode(`שלום, מילאתי את הטופס:\n\n${code}\n\nתודה`);
     expect(inMessage).toBe(code);
     expect(decodeIntake('לא קוד')).toBeNull();
+    expect(decodeIntake('sn1:' + code.slice(4))?.people[0].name).toBe('דנה כהן');
+    expect(decodeIntake(code.slice(0, 15) + '\n' + code.slice(15))?.people[0].name).toBe('דנה כהן');
   });
 
   it('calculates linkage, late interest and capital gains estimates', async () => {
@@ -527,6 +529,13 @@ describe('reminders and backup', () => {
     expect(decodeSignPayload(code)).toEqual(payload);
     expect(extractSignCode(`שלום, חתמתי:\n${code}\nתודה`)).toBe(code);
     expect(decodeSignPayload('SNS:not-base64!!!')).toBeNull();
+
+    // Phone keyboards lowercase the prefix; WhatsApp wraps long codes with newlines.
+    const lowercasePrefix = 'sns:' + code.slice(4);
+    expect(decodeSignPayload(lowercasePrefix)).toEqual(payload);
+    const withBreaks = code.slice(0, 20) + '\n' + code.slice(20, 40) + ' ' + code.slice(40);
+    expect(decodeSignPayload(withBreaks)).toEqual(payload);
+    expect(extractSignCode(`הודעה עם קוד שבור:\n${withBreaks}`)).toBe(code);
 
     const session = {
       ...emptySession(),

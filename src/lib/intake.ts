@@ -26,11 +26,23 @@ export function encodeIntake(data: IntakeData): string {
   return PREFIX + btoa(binary);
 }
 
+/**
+ * Normalize a pasted code: phone keyboards lowercase the prefix and
+ * WhatsApp inserts line breaks in long messages, so be forgiving.
+ */
+function normalizeCode(code: string): string | null {
+  const cleaned = code.replace(/\s+/g, '');
+  const idx = cleaned.toUpperCase().indexOf(PREFIX.toUpperCase());
+  if (idx < 0) return null;
+  const base64 = cleaned.slice(idx + PREFIX.length).match(/^[A-Za-z0-9+/=]+/)?.[0];
+  return base64 ? PREFIX + base64 : null;
+}
+
 export function decodeIntake(code: string): IntakeData | null {
-  const trimmed = code.trim();
-  if (!trimmed.startsWith(PREFIX)) return null;
+  const normalized = normalizeCode(code);
+  if (!normalized) return null;
   try {
-    const binary = atob(trimmed.slice(PREFIX.length));
+    const binary = atob(normalized.slice(PREFIX.length));
     const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
     const parsed = JSON.parse(new TextDecoder().decode(bytes));
     if (!parsed || !Array.isArray(parsed.people)) return null;
@@ -53,8 +65,7 @@ export function decodeIntake(code: string): IntakeData | null {
 
 /** Extract an intake code from free text (e.g. a pasted WhatsApp message). */
 export function extractIntakeCode(text: string): string | null {
-  const match = text.match(/SN1:[A-Za-z0-9+/=]+/);
-  return match ? match[0] : null;
+  return normalizeCode(text);
 }
 
 export function intakeLink(fileNumber: string, role: PartyRole, lawyerPhone: string): string {

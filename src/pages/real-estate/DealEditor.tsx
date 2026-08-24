@@ -913,6 +913,9 @@ function IntakeTools({ deal, update }: { deal: Deal; update: (patch: Partial<Dea
             dir="ltr"
             className="font-mono text-xs"
             placeholder="הדביקו כאן את ההודעה / הקוד (SN1:...)"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
             value={code}
             onChange={(e) => setCode(e.target.value)}
           />

@@ -309,6 +309,9 @@ function SessionRow({
                   dir="ltr"
                   className="font-mono text-xs"
                   placeholder="הדביקו את ההודעה / הקוד (SNS:...)"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                 />

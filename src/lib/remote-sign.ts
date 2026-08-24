@@ -126,11 +126,23 @@ export function encodeSignPayload(payload: SignPayload): string {
   return SIGN_PREFIX + btoa(binary);
 }
 
+/**
+ * Normalize a pasted code: phone keyboards lowercase the prefix and
+ * WhatsApp inserts line breaks in long messages, so be forgiving.
+ */
+function normalizeCode(code: string, prefix: string): string | null {
+  const cleaned = code.replace(/\s+/g, '');
+  const idx = cleaned.toUpperCase().indexOf(prefix.toUpperCase());
+  if (idx < 0) return null;
+  const base64 = cleaned.slice(idx + prefix.length).match(/^[A-Za-z0-9+/=]+/)?.[0];
+  return base64 ? prefix + base64 : null;
+}
+
 export function decodeSignPayload(code: string): SignPayload | null {
-  const trimmed = code.trim();
-  if (!trimmed.startsWith(SIGN_PREFIX)) return null;
+  const normalized = normalizeCode(code, SIGN_PREFIX);
+  if (!normalized) return null;
   try {
-    const binary = atob(trimmed.slice(SIGN_PREFIX.length));
+    const binary = atob(normalized.slice(SIGN_PREFIX.length));
     const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
     const parsed = JSON.parse(new TextDecoder().decode(bytes));
     if (!parsed?.sessionId || !parsed?.dataUrl) return null;
@@ -147,8 +159,7 @@ export function decodeSignPayload(code: string): SignPayload | null {
 }
 
 export function extractSignCode(text: string): string | null {
-  const match = text.match(/SNS:[A-Za-z0-9+/=]+/);
-  return match ? match[0] : null;
+  return normalizeCode(text, SIGN_PREFIX);
 }
 
 export function clientSignLink(session: RemoteSignSession, lawyerPhone: string): string {
