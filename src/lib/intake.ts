@@ -33,9 +33,15 @@ export function encodeIntake(data: IntakeData): string {
 function normalizeCode(code: string): string | null {
   const cleaned = code.replace(/\s+/g, '');
   const idx = cleaned.toUpperCase().indexOf(PREFIX.toUpperCase());
-  if (idx < 0) return null;
-  const base64 = cleaned.slice(idx + PREFIX.length).match(/^[A-Za-z0-9+/=]+/)?.[0];
-  return base64 ? PREFIX + base64 : null;
+  if (idx >= 0) {
+    const base64 = cleaned.slice(idx + PREFIX.length).match(/^[A-Za-z0-9+/=]+/)?.[0];
+    if (base64) return PREFIX + base64;
+  }
+  // Partial copies often drop the prefix — accept a bare base64 JSON blob
+  // ("eyJ" is base64 for '{"'); take the longest candidate in the text.
+  const candidates = cleaned.match(/eyJ[A-Za-z0-9+/=]+/g) ?? [];
+  const longest = candidates.sort((a, b) => b.length - a.length)[0];
+  return longest ? PREFIX + longest : null;
 }
 
 export function decodeIntake(code: string): IntakeData | null {

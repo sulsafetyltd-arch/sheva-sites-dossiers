@@ -497,6 +497,7 @@ describe('reminders and backup', () => {
     expect(decodeIntake('לא קוד')).toBeNull();
     expect(decodeIntake('sn1:' + code.slice(4))?.people[0].name).toBe('דנה כהן');
     expect(decodeIntake(code.slice(0, 15) + '\n' + code.slice(15))?.people[0].name).toBe('דנה כהן');
+    expect(decodeIntake(code.slice(4))?.people[0].name).toBe('דנה כהן');
   });
 
   it('calculates linkage, late interest and capital gains estimates', async () => {
@@ -536,6 +537,11 @@ describe('reminders and backup', () => {
     const withBreaks = code.slice(0, 20) + '\n' + code.slice(20, 40) + ' ' + code.slice(40);
     expect(decodeSignPayload(withBreaks)).toEqual(payload);
     expect(extractSignCode(`הודעה עם קוד שבור:\n${withBreaks}`)).toBe(code);
+
+    // Partial copy that lost the SNS: prefix entirely.
+    const bare = code.slice(4);
+    expect(decodeSignPayload(bare)).toEqual(payload);
+    expect(decodeSignPayload(`שלום, חתמתי על המסמך:\n${bare}`)).toEqual(payload);
 
     const session = {
       ...emptySession(),

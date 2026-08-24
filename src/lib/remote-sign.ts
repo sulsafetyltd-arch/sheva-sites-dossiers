@@ -133,9 +133,15 @@ export function encodeSignPayload(payload: SignPayload): string {
 function normalizeCode(code: string, prefix: string): string | null {
   const cleaned = code.replace(/\s+/g, '');
   const idx = cleaned.toUpperCase().indexOf(prefix.toUpperCase());
-  if (idx < 0) return null;
-  const base64 = cleaned.slice(idx + prefix.length).match(/^[A-Za-z0-9+/=]+/)?.[0];
-  return base64 ? prefix + base64 : null;
+  if (idx >= 0) {
+    const base64 = cleaned.slice(idx + prefix.length).match(/^[A-Za-z0-9+/=]+/)?.[0];
+    if (base64) return prefix + base64;
+  }
+  // Partial copies often drop the prefix — accept a bare base64 JSON blob
+  // ("eyJ" is base64 for '{"'); take the longest candidate in the text.
+  const candidates = cleaned.match(/eyJ[A-Za-z0-9+/=]+/g) ?? [];
+  const longest = candidates.sort((a, b) => b.length - a.length)[0];
+  return longest ? prefix + longest : null;
 }
 
 export function decodeSignPayload(code: string): SignPayload | null {
