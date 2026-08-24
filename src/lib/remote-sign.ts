@@ -226,7 +226,11 @@ export function buildVerificationCertificate(
       <tr>
         <td style="border:none;text-align:right;">
           <p>ולראיה באתי על החתום,</p>
-          <p style="margin-top:28px;">______________________</p>
+          ${
+            office.signatureDataUrl?.trim()
+              ? `<img src="${office.signatureDataUrl}" alt="חתימת עו״ד" style="max-height:70px;display:block;margin-top:10px;" /><p>______________________</p>`
+              : '<p style="margin-top:28px;">______________________</p>'
+          }
           <p>עו"ד ${esc(office.attorneyName || '________')}, רישיון ${esc(office.license || '________')}</p>
           <p>תאריך: ${new Date().toLocaleDateString('he-IL')}</p>
         </td>

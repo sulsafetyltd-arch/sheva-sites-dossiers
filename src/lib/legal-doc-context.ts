@@ -47,6 +47,8 @@ export interface DocContext {
   clientNames: string;
   clientIds: string;
   logo: string;
+  /** Attorney signature image (data URL) — empty when not set. */
+  attorneySignature: string;
 }
 
 function named(parties: Party[]): string {
@@ -143,6 +145,7 @@ export function buildDocContext(deal: Deal, office: OfficeProfile): DocContext {
           ? [ids(buyers), ids(sellers)].filter((n) => n !== '________').join(' / ') || '________'
           : ids(buyers),
     logo: office.logoDataUrl?.trim() ?? '',
+    attorneySignature: office.signatureDataUrl?.trim() ?? '',
   };
 }
 

@@ -13,9 +13,13 @@ interface SignaturePadProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (dataUrl: string, signerName: string) => void;
+  title?: string;
+  description?: string;
+  /** Hide the signer-name field (e.g. when capturing the attorney's own signature). */
+  hideName?: boolean;
 }
 
-export function SignaturePad({ open, onOpenChange, onSave }: SignaturePadProps) {
+export function SignaturePad({ open, onOpenChange, onSave, title, description, hideName }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const [hasInk, setHasInk] = useState(false);
@@ -79,17 +83,19 @@ export function SignaturePad({ open, onOpenChange, onSave }: SignaturePadProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg" dir="rtl">
         <DialogHeader>
-          <DialogTitle>החתמה על המסך</DialogTitle>
+          <DialogTitle>{title ?? 'החתמה על המסך'}</DialogTitle>
           <DialogDescription>
-            הלקוח חותם באצבע (בנייד/טאבלט) או בעכבר — החתימה תשולב בתחתית המסמך הנוכחי
+            {description ?? 'הלקוח חותם באצבע (בנייד/טאבלט) או בעכבר — החתימה תשולב בתחתית המסמך הנוכחי'}
           </DialogDescription>
         </DialogHeader>
-        <input
-          className="w-full rounded-md border px-3 py-2 text-sm"
-          placeholder="שם החותם (יופיע מתחת לחתימה)"
-          value={signerName}
-          onChange={(e) => setSignerName(e.target.value)}
-        />
+        {!hideName && (
+          <input
+            className="w-full rounded-md border px-3 py-2 text-sm"
+            placeholder="שם החותם (יופיע מתחת לחתימה)"
+            value={signerName}
+            onChange={(e) => setSignerName(e.target.value)}
+          />
+        )}
         <canvas
           ref={canvasRef}
           width={560}
@@ -111,7 +117,7 @@ export function SignaturePad({ open, onOpenChange, onSave }: SignaturePadProps) 
               onOpenChange(false);
             }}
           >
-            שילוב החתימה במסמך
+            {hideName ? 'שמירת החתימה' : 'שילוב החתימה במסמך'}
           </Button>
         </DialogFooter>
       </DialogContent>

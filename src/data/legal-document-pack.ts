@@ -38,6 +38,13 @@ function sigBlock(ctx: DocContext): string {
     </div>`;
 }
 
+/** Attorney signature: the uploaded/drawn image when set, otherwise a blank line. */
+function attorneySig(ctx: DocContext): string {
+  return ctx.attorneySignature
+    ? `<img class="attorney-sig" src="${ctx.attorneySignature}" alt="חתימת עו״ד" style="height:42px;vertical-align:middle;" />`
+    : '________';
+}
+
 function header(ctx: DocContext, title: string): string {
   return `
     <div class="legal-head">
@@ -162,12 +169,12 @@ function deedOfSale(ctx: DocContext): string {
       <p><strong>אימות חתימת השטר — ימולא בפני עו״ד או רשם</strong></p>
       <p>אני מעיד כי היום התייצב/ו לפני המוכר/ים והקונה/ים הנ״ל, ולאחר שזיהיתי אותם והסברתי להם את מהות העסקה שהם עומדים לבצע ואת התוצאות המשפטיות הנובעות ממנה, ולאחר ששוכנעתי שהדבר הובן להם כראוי, חתמו לפני מרצונם.</p>
       <p>אני מאמת את החתימות על שטר זה לפי הוראות תקנות 16–17 לתקנות המקרקעין (ניהול ורישום), התש״ל–1969.</p>
-      <p>תאריך: ${ctx.contractDateShort} &nbsp; שם עורך הדין: ${ctx.attorney} &nbsp; רישיון: ${ctx.license} &nbsp; כתובת: ${ctx.officeAddress} &nbsp; חתימה: ________</p>
+      <p>תאריך: ${ctx.contractDateShort} &nbsp; שם עורך הדין: ${ctx.attorney} &nbsp; רישיון: ${ctx.license} &nbsp; כתובת: ${ctx.officeAddress} &nbsp; חתימה: ${attorneySig(ctx)}</p>
     </div>
     <div class="cert">
       <p><strong>אישור עורך-דין לפי תקנה 17 לתקנות המקרקעין (ניהול ורישום), התש״ל–1969</strong></p>
       <p>אני מאשר כי בדקתי את הפרטים המופיעים בשטר זה והמסמכים שצורפו לו, כאמור בתקנות המקרקעין (ניהול ורישום), התש״ל–1969, ומצאתים מתאימים וראויים לעסקה המבוקשת.</p>
-      <p>תאריך: ${ctx.contractDateShort} &nbsp; ${ctx.attorney}, עו״ד &nbsp; ${ctx.officeAddress} &nbsp; חתימה: ________</p>
+      <p>תאריך: ${ctx.contractDateShort} &nbsp; ${ctx.attorney}, עו״ד &nbsp; ${ctx.officeAddress} &nbsp; חתימה: ${attorneySig(ctx)}</p>
     </div>
     <div class="cert muted">
       <p><strong>לשימוש רשם המקרקעין</strong></p>
@@ -205,7 +212,7 @@ function poaJoint(ctx: DocContext): string {
     <div class="cert">
       <p><strong>אימות חתימה ע״י עו״ד</strong></p>
       <p>אני הח״מ, ${ctx.attorney}, מס׳ רישיון ${ctx.license}, מעיד כי היום התייצבו לפניי החותמים הנ״ל, הזדהו בפניי על פי תעודת זהות, ולאחר שהסברתי להם את מהות הפעולה ואת היות ייפוי הכוח בלתי חוזר — חתמו מרצונם החופשי.</p>
-      <p>תאריך: ${ctx.contractDateShort} &nbsp;&nbsp; כתובת: ${ctx.officeAddress} &nbsp;&nbsp; חתימת עו״ד: ________</p>
+      <p>תאריך: ${ctx.contractDateShort} &nbsp;&nbsp; כתובת: ${ctx.officeAddress} &nbsp;&nbsp; חתימת עו״ד: ${attorneySig(ctx)}</p>
     </div>`;
 }
 
@@ -233,7 +240,7 @@ function poaBuyer(ctx: DocContext): string {
     <div class="cert">
       <p><strong>אימות חתימה</strong></p>
       <p>אני ${ctx.attorney}, עו״ד, רישיון ${ctx.license}, מעיד כי החותם/ים הופיע/ו בפניי, זוהו וחתמו מרצונם.</p>
-      <p>תאריך: ${ctx.contractDateShort}</p>
+      <p>תאריך: ${ctx.contractDateShort} &nbsp; חתימת עו״ד: ${attorneySig(ctx)}</p>
     </div>`;
 }
 
@@ -276,7 +283,7 @@ function cautionRegister(ctx: DocContext): string {
     ${sigBlock(ctx)}
     <div class="cert">
       <p>אני מעיד כי היום התייצבו לפניי הצדדים, זוהו על ידיי, הוסברה להם מהות הפעולה, והם חתמו מרצונם החופשי.</p>
-      <p>${ctx.attorney}, עו״ד, רישיון ${ctx.license} · תאריך ${ctx.contractDateShort}</p>
+      <p>${ctx.attorney}, עו״ד, רישיון ${ctx.license} · תאריך ${ctx.contractDateShort} · חתימה: ${attorneySig(ctx)}</p>
     </div>`;
 }
 
@@ -304,7 +311,7 @@ function cautionCancel(ctx: DocContext): string {
     <p>מתבקש בזה לבטל את הערת האזהרה שנרשמה לטובת המבקש/ים על המקרקעין הנ״ל.</p>
     <div class="cert">
       <p>אני מעיד כי היום התייצבו לפניי המבקש/ים, זוהו על ידיי, הוסברה להם מהות הפעולה, והם חתמו מרצונם החופשי.</p>
-      <p>${ctx.attorney}, עו״ד, רישיון ${ctx.license} · תאריך ${ctx.contractDateShort}</p>
+      <p>${ctx.attorney}, עו״ד, רישיון ${ctx.license} · תאריך ${ctx.contractDateShort} · חתימה: ${attorneySig(ctx)}</p>
     </div>
     ${sigBlock(ctx)}`;
 }
@@ -347,7 +354,7 @@ function feeAgreement(ctx: DocContext): string {
     <p>נחתם ב${ctx.officeCity} ביום ${ctx.openedAt}.</p>
     <div class="sig-row">
       <div><div class="sig-line"></div><p>הלקוח</p></div>
-      <div><div class="sig-line"></div><p>עורך הדין</p></div>
+      <div>${ctx.attorneySignature ? `<img class="attorney-sig" src="${ctx.attorneySignature}" alt="חתימת עו״ד" style="height:42px;display:block;margin:0 auto;" />` : ''}<div class="sig-line"></div><p>עורך הדין</p></div>
     </div>`;
 }
 
@@ -419,7 +426,7 @@ function poaSeller(ctx: DocContext): string {
     <p>4. ייפוי כוח זה בלתי חוזר לטובת הקונה וצדדים שלישיים, ויעמוד בתוקף גם לאחר פטירה.</p>
     <p>ולראיה באתי על החתום ב${ctx.officeCity} ביום ${ctx.contractDate}.</p>
     <div class="sig-row"><div><div class="sig-line"></div><p><strong>המוכר/ים:</strong> ${ctx.sellerNames}</p></div></div>
-    <div class="cert"><p>אימות: ${ctx.attorney}, עו״ד, רישיון ${ctx.license}. תאריך ${ctx.contractDateShort}.</p></div>`;
+    <div class="cert"><p>אימות: ${ctx.attorney}, עו״ד, רישיון ${ctx.license}. תאריך ${ctx.contractDateShort}. חתימה: ${attorneySig(ctx)}</p></div>`;
 }
 
 function poaBank(ctx: DocContext): string {
@@ -454,7 +461,7 @@ function purchaseTaxDeclaration(ctx: DocContext): string {
     <p>☐ זו אינה דירה יחידה.</p>
     <p>הפרטים בהצהרה זו נכונים, ואני מתחייב לעדכן על כל שינוי מהותי.</p>
     <p>חתימה: ________ &nbsp; תאריך: ${ctx.contractDateShort}</p>
-    <div class="cert"><p>אימות חתימה: ${ctx.attorney}, עו״ד, רישיון ${ctx.license}.</p></div>`;
+    <div class="cert"><p>אימות חתימה: ${ctx.attorney}, עו״ד, רישיון ${ctx.license}. חתימה: ${attorneySig(ctx)}</p></div>`;
 }
 
 function capitalGainsReport(ctx: DocContext): string {
@@ -475,7 +482,7 @@ function capitalGainsReport(ctx: DocContext): string {
     <p>☐ לחלופין מבוקש חישוב ליניארי / שומה רגילה.</p>
     <p>אני מצהיר כי הדירה שימשה למגורים וכי מתקיימים תנאי הפטור, או שאמסור השלמות כנדרש.</p>
     <div class="sig-row"><div><div class="sig-line"></div><p>המוכר/ים: ${ctx.sellerNames}</p></div></div>
-    <div class="cert"><p>אימות: ${ctx.attorney}, עו״ד, רישיון ${ctx.license}.</p></div>`;
+    <div class="cert"><p>אימות: ${ctx.attorney}, עו״ד, רישיון ${ctx.license}. חתימה: ${attorneySig(ctx)}</p></div>`;
 }
 
 function form50Request(ctx: DocContext): string {
@@ -576,7 +583,7 @@ function noDebtAffidavit(ctx: DocContext): string {
     <p>4. כל החובות בגין ארנונה, מים, ועד בית ומשכנתא ישולמו על ידי עד למועד המסירה, או יוסדרו מתוך הנאמנות.</p>
     <p>5. זה שמי, זו חתימתי ותוכן תצהירי אמת.</p>
     <div class="sig-row"><div><div class="sig-line"></div><p>המוכר/ים</p></div></div>
-    <div class="cert"><p>אימות: ${ctx.attorney}, עו״ד, רישיון ${ctx.license}, מאשר כי המצהיר הוזהר וחתם בפניי ביום ${ctx.contractDateShort}.</p></div>`;
+    <div class="cert"><p>אימות: ${ctx.attorney}, עו״ד, רישיון ${ctx.license}, מאשר כי המצהיר הוזהר וחתם בפניי ביום ${ctx.contractDateShort}. חתימה: ${attorneySig(ctx)}</p></div>`;
 }
 
 function contentsAppendix(ctx: DocContext): string {
@@ -608,7 +615,7 @@ function heirsConsent(ctx: DocContext): string {
     <p>מצורף / יצורף צו ירושה או צו קיום צוואה.</p>
     <p>שם יורש: ________ &nbsp; ת.ז.: ________ &nbsp; חתימה: ________</p>
     <p>שם יורש: ________ &nbsp; ת.ז.: ________ &nbsp; חתימה: ________</p>
-    <div class="cert"><p>אימות: ${ctx.attorney}, עו״ד, רישיון ${ctx.license}.</p></div>`;
+    <div class="cert"><p>אימות: ${ctx.attorney}, עו״ד, רישיון ${ctx.license}. חתימה: ${attorneySig(ctx)}</p></div>`;
 }
 
 function corporateResolution(ctx: DocContext): string {

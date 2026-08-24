@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Cloud, Download, Upload } from 'lucide-react';
+import { Cloud, Download, PenLine, Upload } from 'lucide-react';
+import { SignaturePad } from '@/components/real-estate/SignaturePad';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/real-estate/Field';
@@ -21,6 +22,30 @@ const UsersPage = () => {
   const [showSql, setShowSql] = useState(false);
   const restoreRef = useRef<HTMLInputElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
+  const sigRef = useRef<HTMLInputElement>(null);
+  const [sigPadOpen, setSigPadOpen] = useState(false);
+
+  const setSignature = (dataUrl: string) => {
+    const next = { ...office, signatureDataUrl: dataUrl };
+    setOffice(next);
+    saveOfficeProfile(next);
+    toast.success(
+      dataUrl
+        ? 'חתימת עו״ד נשמרה — תשולב אוטומטית באישורי האימות ובמסמכים שעורך הדין מאשר'
+        : 'החתימה הוסרה — במסמכים יופיע קו לחתימה ידנית',
+    );
+  };
+
+  const handleSignatureUpload = (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > MAX_LOGO_BYTES) {
+      toast.error('קובץ החתימה גדול מדי — עד 500KB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setSignature(String(reader.result ?? ''));
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     setDeals(getAllDeals());
@@ -137,6 +162,54 @@ const UsersPage = () => {
             </>
           )}
         </div>
+
+        <div className="border-t pt-4 space-y-2">
+          <div>
+            <p className="font-medium">חתימת עו״ד למסמכים</p>
+            <p className="text-sm text-muted-foreground">
+              החתימה משולבת אוטומטית בכל מקום שבו עורך הדין מאשר או מאמת: אימותי חתימה על ייפויי כוח ותצהירים,
+              אישורי עו״ד בשטר המכר, הסכם שכר הטרחה ואישור האימות מרחוק. ללא חתימה שמורה יופיע קו לחתימה ידנית.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              ref={sigRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                handleSignatureUpload(file);
+              }}
+            />
+            <Button variant="outline" className="gap-2" onClick={() => setSigPadOpen(true)}>
+              <PenLine className="w-4 h-4" />
+              ציור חתימה על המסך
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => sigRef.current?.click()}>
+              <Upload className="w-4 h-4" />
+              {office.signatureDataUrl ? 'החלפה בתמונת חתימה' : 'העלאת תמונת חתימה'}
+            </Button>
+            {office.signatureDataUrl && (
+              <>
+                <img src={office.signatureDataUrl} alt="חתימת עו״ד" className="h-10 rounded border bg-white p-1" />
+                <Button variant="ghost" size="sm" onClick={() => setSignature('')}>
+                  הסרת חתימה
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <SignaturePad
+          open={sigPadOpen}
+          onOpenChange={setSigPadOpen}
+          onSave={(dataUrl) => setSignature(dataUrl)}
+          title="ציור חתימת עו״ד"
+          description="ציירו את חתימתכם באצבע או בעכבר — היא תישמר ותשולב אוטומטית במסמכים"
+          hideName
+        />
       </section>
 
       <section className="re-card p-5 space-y-4">

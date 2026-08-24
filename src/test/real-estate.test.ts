@@ -329,6 +329,45 @@ describe('legal document pack', () => {
     expect(pack.find((d) => d.id === 'fees')!.html).toContain('office-logo');
     expect(pack.find((d) => d.id === 'fees')!.html).toContain('data:image/png;base64,AAAA');
   });
+
+  it('embeds the attorney signature in attorney certification blocks', async () => {
+    const { buildDocContext } = await import('@/lib/legal-doc-context');
+    const { buildDocumentPack } = await import('@/data/legal-document-pack');
+    const office = {
+      attorneyName: 'עו"ד בדיקה',
+      license: '1',
+      officeAddress: 'א',
+      officeCity: 'ב',
+      secondAttorneyName: '',
+    };
+
+    const without = buildDocumentPack(buildDocContext(sampleDeal(), office));
+    expect(without.find((d) => d.id === 'poa-joint')!.html).not.toContain('attorney-sig');
+
+    const withSig = buildDocumentPack(
+      buildDocContext(sampleDeal(), { ...office, signatureDataUrl: 'data:image/png;base64,SIG1' }),
+    );
+    for (const docId of ['poa-joint', 'deed', 'fees']) {
+      const html = withSig.find((d) => d.id === docId)?.html ?? '';
+      expect(html, `doc ${docId} should embed the attorney signature`).toContain('data:image/png;base64,SIG1');
+    }
+  });
+
+  it('embeds the attorney signature in the remote verification certificate', async () => {
+    const { buildVerificationCertificate, emptySession } = await import('@/lib/remote-sign');
+    const cert = buildVerificationCertificate(
+      { ...emptySession(), docTitle: 'תצהיר', clientName: 'דנה', clientId: '1' },
+      {
+        attorneyName: 'עו"ד בדיקה',
+        license: '1',
+        officeAddress: 'א',
+        officeCity: 'ב',
+        secondAttorneyName: '',
+        signatureDataUrl: 'data:image/png;base64,SIG2',
+      },
+    );
+    expect(cert).toContain('data:image/png;base64,SIG2');
+  });
 });
 
 describe('custom templates', () => {
