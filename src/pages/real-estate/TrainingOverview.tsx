@@ -153,9 +153,21 @@ const TrainingOverview = () => {
                             <span className="font-medium">{m.code}</span> {m.title}
                           </span>
                           {mp.explainerWatchedAt && (
-                            <span title="סרטון הסבר נצפה" className="text-primary">
+                            <span title="שקופיות הסבר נצפו" className="text-primary">
                               <PlayCircle className="w-3.5 h-3.5" />
                             </span>
+                          )}
+                          {mp.quizScore != null && (
+                            <Badge
+                              variant={mp.quizPassedAt ? 'secondary' : 'outline'}
+                              className={cn(
+                                'text-[10px] px-1.5 py-0 tabular-nums',
+                                mp.quizPassedAt && 'text-primary',
+                              )}
+                              title="ציון מבחן ידע"
+                            >
+                              {Math.round(mp.quizScore * 100)}%
+                            </Badge>
                           )}
                           {m.engineeringEdge && <span title="יתרון הנדסי">⚙️</span>}
                           {m.refreshOnly && (

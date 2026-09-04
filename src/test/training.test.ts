@@ -122,7 +122,11 @@ describe('module explainer videos', () => {
         expect(slide.narration.length).toBeGreaterThan(20);
         expect(slide.bullets.length).toBeGreaterThan(0);
         expect(slide.seconds).toBeGreaterThan(5);
+        expect(slide.visual).toBeTruthy();
+        expect(slide.visualCaption.length).toBeGreaterThan(0);
       }
+      expect(slides.some((s) => s.visual === 'exam')).toBe(true);
+      expect(slides.some((s) => s.id === 'summary')).toBe(true);
       expect(explainerDurationLabel(slides)).toMatch(/דק/);
     }
   });
