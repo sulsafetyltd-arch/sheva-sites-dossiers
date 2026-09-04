@@ -149,6 +149,11 @@ const TrainingOverview = () => {
                           <span className="flex-1 min-w-0 truncate">
                             <span className="font-medium">{m.code}</span> {m.title}
                           </span>
+                          {mp.explainerWatchedAt && (
+                            <span title="סרטון הסבר נצפה" className="text-primary">
+                              <PlayCircle className="w-3.5 h-3.5" />
+                            </span>
+                          )}
                           {m.engineeringEdge && <span title="יתרון הנדסי">⚙️</span>}
                           {m.refreshOnly && (
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0">

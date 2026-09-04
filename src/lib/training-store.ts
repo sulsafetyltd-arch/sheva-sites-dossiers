@@ -97,6 +97,19 @@ export function setMilestoneDone(milestoneId: string, done: boolean): TrainingPr
   });
 }
 
+export function setExplainerWatched(moduleId: string): TrainingProgress {
+  const all = readTrainingProgress();
+  const current = all.modules[moduleId] ?? emptyModule();
+  if (current.explainerWatchedAt) {
+    return all;
+  }
+  const next: ModuleProgress = {
+    ...current,
+    explainerWatchedAt: new Date().toISOString(),
+  };
+  return write({ ...all, modules: { ...all.modules, [moduleId]: next } });
+}
+
 export function resetTrainingProgress(): TrainingProgress {
   localStorage.removeItem(TRAINING_STORAGE_KEY);
   return write(defaultProgress());
