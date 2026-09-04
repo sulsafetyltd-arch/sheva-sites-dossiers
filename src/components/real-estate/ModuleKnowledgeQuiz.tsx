@@ -115,9 +115,9 @@ export function ModuleKnowledgeQuiz({ moduleId, content, progress, onComplete }:
                 )}
               />
             </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-extrabold tabular-nums">{scorePct}%</span>
-              <span className="text-[10px] text-muted-foreground">ציון</span>
+            <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
+              <span className="text-[10px] text-muted-foreground mb-0.5">ציון</span>
+              <span className="text-3xl font-extrabold tabular-nums tracking-tight">{scorePct}%</span>
             </div>
           </div>
 
