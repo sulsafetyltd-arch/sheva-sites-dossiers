@@ -247,3 +247,321 @@
 .pdf-capturing .print-running-footer {
   display: none !important;
 }
+
+/* Training explainer visual scenes */
+.explainer-visual {
+  width: 100%;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.explainer-visual-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.15 / 1;
+  border-radius: 1rem;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 30% 20%, hsl(176 70% 40% / 0.35), transparent 55%),
+    linear-gradient(160deg, hsl(176 35% 18%), hsl(176 50% 10%));
+  border: 1px solid hsl(0 0% 100% / 0.12);
+  display: grid;
+  place-items: center;
+}
+
+.explainer-visual-caption {
+  margin: 0;
+  font-size: 11px;
+  color: hsl(0 0% 100% / 0.65);
+  text-align: center;
+}
+
+.ev-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(2px);
+  animation: ev-float 4.5s ease-in-out infinite;
+}
+.ev-orb-a {
+  width: 88px;
+  height: 88px;
+  background: hsl(176 80% 45% / 0.45);
+  top: 18%;
+  right: 18%;
+}
+.ev-orb-b {
+  width: 56px;
+  height: 56px;
+  background: hsl(40 90% 60% / 0.35);
+  bottom: 22%;
+  left: 20%;
+  animation-delay: -1.5s;
+}
+.ev-badge {
+  position: relative;
+  z-index: 1;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  background: hsl(0 0% 100% / 0.12);
+  border: 1px solid hsl(0 0% 100% / 0.25);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  animation: ev-pop 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.ev-ring {
+  position: absolute;
+  inset: 18%;
+  border-radius: 999px;
+  border: 1px dashed hsl(176 80% 60% / 0.45);
+  animation: ev-spin 18s linear infinite;
+}
+
+.ev-law-stack,
+.ev-books,
+.ev-cases,
+.ev-practice,
+.ev-quiz,
+.ev-checks {
+  position: relative;
+  z-index: 1;
+  width: 78%;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.ev-law-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.65rem;
+  background: hsl(0 0% 100% / 0.1);
+  border: 1px solid hsl(0 0% 100% / 0.14);
+  animation: ev-rise 0.55s ease both;
+}
+.ev-law-card span {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, hsl(0 0% 100% / 0.55), hsl(0 0% 100% / 0.15));
+}
+
+.ev-books {
+  height: 120px;
+  place-items: end center;
+  grid-auto-flow: column;
+  align-items: end;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.ev-book {
+  width: 28px;
+  height: 72px;
+  border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(180deg, hsl(176 55% 48%), hsl(176 55% 28%));
+  animation: ev-rise 0.6s ease both;
+}
+.ev-book-mid {
+  height: 92px;
+  background: linear-gradient(180deg, hsl(40 70% 55%), hsl(25 65% 35%));
+  animation-delay: 0.12s;
+}
+.ev-book-icon {
+  position: absolute;
+  top: 18%;
+  color: hsl(0 0% 100% / 0.85);
+  animation: ev-pop 0.8s ease both 0.2s;
+}
+
+.ev-cases {
+  place-items: center;
+  gap: 0.75rem;
+}
+.ev-gavel {
+  color: hsl(40 90% 65%);
+  animation: ev-pop 0.6s ease both;
+}
+.ev-case-lines {
+  width: 70%;
+  display: grid;
+  gap: 0.35rem;
+}
+.ev-case-lines span {
+  height: 7px;
+  border-radius: 999px;
+  background: hsl(0 0% 100% / 0.28);
+  animation: ev-rise 0.5s ease both;
+}
+.ev-case-lines span:nth-child(2) {
+  width: 85%;
+  animation-delay: 0.1s;
+}
+.ev-case-lines span:nth-child(3) {
+  width: 65%;
+  animation-delay: 0.2s;
+}
+
+.ev-practice {
+  place-items: center;
+  min-height: 140px;
+}
+.ev-doc {
+  width: 88px;
+  height: 110px;
+  border-radius: 0.5rem;
+  background: hsl(0 0% 100% / 0.12);
+  border: 1px solid hsl(0 0% 100% / 0.2);
+  display: grid;
+  place-items: center;
+  animation: ev-rise 0.55s ease both;
+}
+.ev-pen {
+  position: absolute;
+  width: 8px;
+  height: 54px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, hsl(40 90% 65%), hsl(25 70% 40%));
+  transform: rotate(-28deg) translate(42px, 8px);
+  animation: ev-write 2.4s ease-in-out infinite;
+}
+.ev-stamp {
+  position: absolute;
+  bottom: 18%;
+  left: 18%;
+  padding: 0.25rem 0.55rem;
+  border: 2px solid hsl(176 80% 55%);
+  color: hsl(176 80% 70%);
+  border-radius: 0.35rem;
+  font-size: 11px;
+  font-weight: 800;
+  transform: rotate(-12deg);
+  animation: ev-pop 0.7s ease both 0.25s;
+}
+
+.ev-quiz {
+  place-items: center;
+  gap: 0.9rem;
+}
+.ev-score-ring {
+  width: 92px;
+  height: 92px;
+  border-radius: 999px;
+  border: 6px solid hsl(176 80% 45% / 0.35);
+  border-top-color: hsl(176 80% 55%);
+  display: grid;
+  place-items: center;
+  gap: 0.15rem;
+  animation: ev-spin 6s linear infinite;
+  font-size: 12px;
+}
+.ev-score-ring strong {
+  animation: ev-pop 0.6s ease both;
+}
+.ev-quiz-bars {
+  width: 70%;
+  display: grid;
+  grid-auto-flow: column;
+  gap: 0.35rem;
+  height: 36px;
+  align-items: end;
+}
+.ev-quiz-bars span {
+  display: block;
+  border-radius: 4px 4px 0 0;
+  background: hsl(176 70% 55% / 0.7);
+  animation: ev-bar 1.4s ease-in-out infinite;
+}
+.ev-quiz-bars span:nth-child(1) {
+  height: 55%;
+}
+.ev-quiz-bars span:nth-child(2) {
+  height: 90%;
+  animation-delay: 0.15s;
+}
+.ev-quiz-bars span:nth-child(3) {
+  height: 70%;
+  animation-delay: 0.3s;
+}
+
+.ev-finish-burst {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 999px;
+  background: radial-gradient(circle, hsl(176 80% 50% / 0.45), transparent 70%);
+  animation: ev-pulse 2s ease-in-out infinite;
+}
+.ev-finish-icon {
+  position: relative;
+  z-index: 1;
+  color: hsl(145 70% 55%);
+  animation: ev-pop 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes ev-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes ev-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes ev-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes ev-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ev-write {
+  0%,
+  100% {
+    transform: rotate(-28deg) translate(42px, 8px);
+  }
+  50% {
+    transform: rotate(-22deg) translate(48px, 2px);
+  }
+}
+@keyframes ev-bar {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.72);
+  }
+}
+@keyframes ev-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}

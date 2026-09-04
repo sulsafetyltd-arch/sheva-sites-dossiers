@@ -21,12 +21,12 @@ import {
   setDeliverableAnswer,
   setExplainerWatched,
   setLayerComplete,
-  submitQuiz,
 } from '@/lib/training-store';
 import { canToggleLayer, modulePercent } from '@/lib/training-utils';
 import type { TrainingLayerId } from '@/types/training';
 import { LAYER_LABEL } from '@/types/training';
 import { ModuleExplainerPlayer } from '@/components/real-estate/ModuleExplainerPlayer';
+import { ModuleKnowledgeQuiz } from '@/components/real-estate/ModuleKnowledgeQuiz';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -41,8 +41,6 @@ const TrainingModulePage = () => {
   const mod = getModule(moduleId);
   const [, setTick] = useState(0);
   const refresh = () => setTick((n) => n + 1);
-  const [quizDraft, setQuizDraft] = useState<Record<string, number>>({});
-  const [quizResult, setQuizResult] = useState<{ score: number; passed: boolean } | null>(null);
 
   const live = getModuleProgress(moduleId);
   const content = useMemo(() => getInteractiveContent(moduleId), [moduleId]);
@@ -83,21 +81,6 @@ const TrainingModulePage = () => {
     }
     if (isModuleComplete(getModuleProgress(moduleId))) {
       toast.success(`מודול ${mod.code} הושלם`);
-    }
-  };
-
-  const onSubmitQuiz = () => {
-    if (content.quiz.some((q) => quizDraft[q.id] === undefined)) {
-      toast.error('יש לענות על כל השאלות');
-      return;
-    }
-    const result = submitQuiz(moduleId, quizDraft);
-    setQuizResult({ score: result.score, passed: result.passed });
-    refresh();
-    if (result.passed) {
-      toast.success(`עברתם את המבחן (${Math.round(result.score * 100)}%)`);
-    } else {
-      toast.error(`לא עברתם (${Math.round(result.score * 100)}%). נסו שוב.`);
     }
   };
 
@@ -158,7 +141,7 @@ const TrainingModulePage = () => {
         onWatched={() => {
           setExplainerWatched(moduleId);
           refresh();
-          toast.success('סרטון ההסבר סומן כנצפה');
+          toast.success('שקופיות ההסבר סומנו כנצפו');
         }}
       />
 
@@ -362,61 +345,22 @@ const TrainingModulePage = () => {
         ready={layerContentReady(moduleId, 'exam', live)}
         onToggle={(v) => toggleLayer('exam', v)}
       >
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            מבחן עצמי בתוך האפליקציה — ענו על השאלות. ציון עובר:{' '}
-            {Math.round(content.passScore * 100)}%.
-          </p>
-          {content.quiz.map((q) => (
-            <div key={q.id} className="rounded-lg border p-3 space-y-2">
-              <p className="text-sm font-medium">{q.prompt}</p>
-              <div className="space-y-1">
-                {q.options.map((opt, i) => (
-                  <label
-                    key={opt}
-                    className={cn(
-                      'flex items-center gap-2 text-sm rounded-md px-2 py-1.5 cursor-pointer hover:bg-muted/50',
-                      quizDraft[q.id] === i && 'bg-muted',
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name={q.id}
-                      checked={quizDraft[q.id] === i}
-                      onChange={() => setQuizDraft((d) => ({ ...d, [q.id]: i }))}
-                    />
-                    <span>{opt}</span>
-                  </label>
-                ))}
-              </div>
-              {quizResult && quizDraft[q.id] !== undefined && (
-                <p
-                  className={cn(
-                    'text-xs',
-                    quizDraft[q.id] === q.correctIndex ? 'text-primary' : 'text-destructive',
-                  )}
-                >
-                  {q.explanation}
-                </p>
-              )}
-            </div>
-          ))}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={onSubmitQuiz}>בדוק מבחן</Button>
-            {quizResult && (
-              <Badge variant={quizResult.passed ? 'secondary' : 'destructive'}>
-                {Math.round(quizResult.score * 100)}% ·{' '}
-                {quizResult.passed ? 'עברתם' : 'לא עברתם'}
-              </Badge>
-            )}
-            {live.quizPassedAt && (
-              <Badge variant="secondary" className="gap-1 text-primary">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                מבחן עבר
-              </Badge>
-            )}
-          </div>
-        </div>
+        <ModuleKnowledgeQuiz
+          moduleId={moduleId}
+          content={content}
+          progress={live}
+          onComplete={(result) => {
+            refresh();
+            if (result.passed) {
+              toast.success(`עברתם את המבחן (${Math.round(result.score * 100)}%)`);
+            } else {
+              toast.error(`לא עברתם (${Math.round(result.score * 100)}%). נסו שוב.`);
+            }
+            if (isModuleComplete(getModuleProgress(moduleId))) {
+              toast.success(`מודול ${mod.code} הושלם`);
+            }
+          }}
+        />
       </LayerCard>
 
       <div className="flex flex-wrap gap-2 justify-between pt-2">
