@@ -58,6 +58,9 @@ const TrainingOverview = () => {
             </div>
             <h1 className="text-xl md:text-2xl font-bold leading-snug">{TRAINING_META.title}</h1>
             <p className="text-sm text-muted-foreground">{TRAINING_META.subtitle}</p>
+            <p className="text-sm text-primary font-medium">
+              כל ההכשרה מתבצעת בתוך האפליקציה — שיעורים, תקצירים, תרגול ומבחנים. אין צורך במקור לימוד חיצוני.
+            </p>
           </div>
           <div className="shrink-0 re-card bg-muted/40 p-4 min-w-[180px] space-y-2">
             <p className="text-xs text-muted-foreground">התקדמות כוללת</p>

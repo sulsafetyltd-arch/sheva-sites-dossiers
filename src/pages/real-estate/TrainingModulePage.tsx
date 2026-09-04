@@ -1,14 +1,27 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, GraduationCap, Lock } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  CheckCircle2,
+  GraduationCap,
+  Lock,
+  Scale,
+} from 'lucide-react';
 import { TRAINING_MODULES, getModule, getStage } from '@/data/training-curriculum';
+import { getInteractiveContent } from '@/data/interactive-content';
 import {
   deliverableSatisfied,
   getModuleProgress,
+  isContentRead,
   isModuleComplete,
-  setDeliverableNotes,
+  layerContentReady,
+  markContentRead,
+  setDeliverableAnswer,
   setExplainerWatched,
   setLayerComplete,
+  submitQuiz,
 } from '@/lib/training-store';
 import { canToggleLayer, modulePercent } from '@/lib/training-utils';
 import type { TrainingLayerId } from '@/types/training';
@@ -28,8 +41,11 @@ const TrainingModulePage = () => {
   const mod = getModule(moduleId);
   const [, setTick] = useState(0);
   const refresh = () => setTick((n) => n + 1);
+  const [quizDraft, setQuizDraft] = useState<Record<string, number>>({});
+  const [quizResult, setQuizResult] = useState<{ score: number; passed: boolean } | null>(null);
 
   const live = getModuleProgress(moduleId);
+  const content = useMemo(() => getInteractiveContent(moduleId), [moduleId]);
   const pct = modulePercent(live);
   const done = isModuleComplete(live);
   const stage = mod ? getStage(mod.stageId) : undefined;
@@ -49,8 +65,13 @@ const TrainingModulePage = () => {
     );
   }
 
+  const markRead = (id: string) => {
+    markContentRead(moduleId, id);
+    refresh();
+  };
+
   const toggleLayer = (layer: TrainingLayerId, value: boolean) => {
-    const check = canToggleLayer(layer, live, value);
+    const check = canToggleLayer(layer, live, value, moduleId);
     if (!check.ok) {
       toast.error(check.reason);
       return;
@@ -62,6 +83,21 @@ const TrainingModulePage = () => {
     }
     if (isModuleComplete(getModuleProgress(moduleId))) {
       toast.success(`מודול ${mod.code} הושלם`);
+    }
+  };
+
+  const onSubmitQuiz = () => {
+    if (content.quiz.some((q) => quizDraft[q.id] === undefined)) {
+      toast.error('יש לענות על כל השאלות');
+      return;
+    }
+    const result = submitQuiz(moduleId, quizDraft);
+    setQuizResult({ score: result.score, passed: result.passed });
+    refresh();
+    if (result.passed) {
+      toast.success(`עברתם את המבחן (${Math.round(result.score * 100)}%)`);
+    } else {
+      toast.error(`לא עברתם (${Math.round(result.score * 100)}%). נסו שוב.`);
     }
   };
 
@@ -102,7 +138,11 @@ const TrainingModulePage = () => {
                 </Badge>
               )}
             </h1>
-            {mod.intro && <p className="text-sm text-muted-foreground">{mod.intro}</p>}
+            <p className="text-sm text-muted-foreground leading-relaxed">{content.learningGoal}</p>
+            <p className="text-xs text-primary/90 flex items-center gap-1">
+              <BookOpen className="w-3.5 h-3.5" />
+              כל החומר נלמד כאן באפליקציה — אין צורך במקור חיצוני להשלמת המודול
+            </p>
           </div>
           <div className="text-left min-w-[100px]">
             <p className="text-2xl font-extrabold text-primary">{pct}%</p>
@@ -125,59 +165,157 @@ const TrainingModulePage = () => {
       <LayerCard
         layer="law"
         checked={Boolean(live.layers.law)}
+        ready={layerContentReady(moduleId, 'law', live)}
         onToggle={(v) => toggleLayer('law', v)}
       >
-        <ul className="space-y-2 text-sm">
-          {mod.studyItems.map((item) => (
-            <li key={item} className="flex gap-2 leading-relaxed">
-              <span className="text-primary shrink-0">•</span>
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-4">
+          {content.lessons.map((lesson) => {
+            const read = isContentRead(live, lesson.id);
+            return (
+              <article
+                key={lesson.id}
+                className={cn(
+                  'rounded-lg border p-4 space-y-2',
+                  read && 'border-primary/40 bg-muted/20',
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-sm">{lesson.title}</h3>
+                  <Button
+                    size="sm"
+                    variant={read ? 'secondary' : 'outline'}
+                    onClick={() => markRead(lesson.id)}
+                  >
+                    {read ? 'נקרא' : 'סמן כנקרא'}
+                  </Button>
+                </div>
+                <p className="text-sm leading-relaxed whitespace-pre-line">{lesson.body}</p>
+                <ul className="text-xs space-y-1 text-muted-foreground">
+                  {lesson.keyPoints.map((k) => (
+                    <li key={k} className="flex gap-2">
+                      <span className="text-primary">•</span>
+                      <span>{k}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            );
+          })}
+          {content.statutes.map((s) => {
+            const read = isContentRead(live, s.id);
+            return (
+              <article
+                key={s.id}
+                className={cn(
+                  'rounded-lg border p-4 space-y-2',
+                  read && 'border-primary/40 bg-muted/20',
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{s.citation}</p>
+                    <h3 className="font-semibold text-sm">{s.title}</h3>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={read ? 'secondary' : 'outline'}
+                    onClick={() => markRead(s.id)}
+                  >
+                    {read ? 'נקרא' : 'סמן כנקרא'}
+                  </Button>
+                </div>
+                <p className="text-sm leading-relaxed">{s.summary}</p>
+                <p className="text-xs text-primary">טיפ מעשי: {s.practiceTip}</p>
+              </article>
+            );
+          })}
+        </div>
       </LayerCard>
 
       <LayerCard
         layer="literature"
         checked={Boolean(live.layers.literature)}
+        ready={layerContentReady(moduleId, 'literature', live)}
         onToggle={(v) => toggleLayer('literature', v)}
       >
-        {mod.literature.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            אין ספרות ייעודית מעבר לספרייה הכללית — סמן לאחר עיון בחומר הרלוונטי.
-          </p>
-        ) : (
-          <ul className="space-y-2 text-sm">
-            {mod.literature.map((item) => (
-              <li key={item} className="flex gap-2">
-                <span className="text-primary">•</span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="space-y-3">
+          {content.literatureDigests.map((d) => {
+            const read = isContentRead(live, d.id);
+            return (
+              <article
+                key={d.id}
+                className={cn(
+                  'rounded-lg border p-4 space-y-2',
+                  read && 'border-primary/40 bg-muted/20',
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-sm">{d.source}</h3>
+                  <Button
+                    size="sm"
+                    variant={read ? 'secondary' : 'outline'}
+                    onClick={() => markRead(d.id)}
+                  >
+                    {read ? 'נקרא' : 'סמן כנקרא'}
+                  </Button>
+                </div>
+                <ul className="text-sm space-y-1">
+                  {d.takeaways.map((t) => (
+                    <li key={t} className="flex gap-2 leading-relaxed">
+                      <span className="text-primary shrink-0">•</span>
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            );
+          })}
+        </div>
       </LayerCard>
 
       <LayerCard
         layer="cases"
         checked={Boolean(live.layers.cases)}
+        ready={layerContentReady(moduleId, 'cases', live)}
         onToggle={(v) => toggleLayer('cases', v)}
       >
-        {mod.cases.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            אין רשימת פתיחה ייעודית — אסוף 5–10 פסקי דין מהמאגרים וסמן לאחר הקריאה.
-          </p>
-        ) : (
-          <ul className="space-y-2 text-sm">
-            {mod.cases.map((item) => (
-              <li key={item} className="flex gap-2">
-                <span className="text-primary">•</span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="text-xs text-muted-foreground mt-3">לאמת ולהרחיב מהמאגרים לפני ציטוט.</p>
+        <div className="space-y-3">
+          {content.caseBriefs.map((c) => {
+            const read = isContentRead(live, c.id);
+            return (
+              <article
+                key={c.id}
+                className={cn(
+                  'rounded-lg border p-4 space-y-2',
+                  read && 'border-primary/40 bg-muted/20',
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-sm flex items-center gap-1">
+                    <Scale className="w-3.5 h-3.5 text-primary" />
+                    {c.citation}
+                  </h3>
+                  <Button
+                    size="sm"
+                    variant={read ? 'secondary' : 'outline'}
+                    onClick={() => markRead(c.id)}
+                  >
+                    {read ? 'נקרא' : 'סמן כנקרא'}
+                  </Button>
+                </div>
+                <p className="text-sm">
+                  <span className="font-medium">עובדות: </span>
+                  {c.facts}
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">הלכה: </span>
+                  {c.holding}
+                </p>
+                <p className="text-xs text-primary">לקח מעשי: {c.takeaway}</p>
+              </article>
+            );
+          })}
+        </div>
       </LayerCard>
 
       <section className="re-card p-5 space-y-3 border-primary/30">
@@ -196,36 +334,89 @@ const TrainingModulePage = () => {
             </h2>
             <p className="text-sm leading-relaxed">{mod.deliverable}</p>
             <p className="text-xs text-amber-700 dark:text-amber-500">
-              כלל ברזל: לא עוברים בלי תיעוד התוצר (הערות / קישור / מיקום קובץ).
+              כלל ברזל: מלאו את שדות התוצר באפליקציה (לפחות כמה מילים) לפני הסימון.
             </p>
           </div>
         </div>
-        <Textarea
-          value={live.deliverableNotes}
-          onChange={(e) => {
-            setDeliverableNotes(moduleId, e.target.value);
-            refresh();
-          }}
-          placeholder="תעד כאן: היכן נשמר התוצר, קישור, או תקציר קצר של מה שנבנה…"
-          className="min-h-[100px] text-sm"
-        />
-        {live.deliverableNotes.trim().length > 0 &&
-          live.deliverableNotes.trim().length < 8 && (
-            <p className="text-xs text-destructive">
-              יש להרחיב את התיעוד (לפחות כמה מילים) לפני הסימון.
-            </p>
-          )}
+        <div className="space-y-3">
+          {content.deliverablePrompts.map((prompt) => (
+            <div key={prompt.id} className="space-y-1">
+              <label className="text-sm font-medium">{prompt.label}</label>
+              <Textarea
+                value={live.deliverableAnswers?.[prompt.id] ?? ''}
+                onChange={(e) => {
+                  setDeliverableAnswer(moduleId, prompt.id, e.target.value);
+                  refresh();
+                }}
+                placeholder={prompt.placeholder}
+                className="min-h-[80px] text-sm"
+              />
+            </div>
+          ))}
+        </div>
       </section>
 
       <LayerCard
         layer="exam"
         checked={Boolean(live.layers.exam)}
+        ready={layerContentReady(moduleId, 'exam', live)}
         onToggle={(v) => toggleLayer('exam', v)}
       >
-        <p className="text-sm leading-relaxed">{mod.exam}</p>
-        <p className="text-xs text-muted-foreground mt-2">
-          בלי הערות — הסבר בעל-פה ללקוח דמיוני, ואז סמן.
-        </p>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            מבחן עצמי בתוך האפליקציה — ענו על השאלות. ציון עובר:{' '}
+            {Math.round(content.passScore * 100)}%.
+          </p>
+          {content.quiz.map((q) => (
+            <div key={q.id} className="rounded-lg border p-3 space-y-2">
+              <p className="text-sm font-medium">{q.prompt}</p>
+              <div className="space-y-1">
+                {q.options.map((opt, i) => (
+                  <label
+                    key={opt}
+                    className={cn(
+                      'flex items-center gap-2 text-sm rounded-md px-2 py-1.5 cursor-pointer hover:bg-muted/50',
+                      quizDraft[q.id] === i && 'bg-muted',
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name={q.id}
+                      checked={quizDraft[q.id] === i}
+                      onChange={() => setQuizDraft((d) => ({ ...d, [q.id]: i }))}
+                    />
+                    <span>{opt}</span>
+                  </label>
+                ))}
+              </div>
+              {quizResult && quizDraft[q.id] !== undefined && (
+                <p
+                  className={cn(
+                    'text-xs',
+                    quizDraft[q.id] === q.correctIndex ? 'text-primary' : 'text-destructive',
+                  )}
+                >
+                  {q.explanation}
+                </p>
+              )}
+            </div>
+          ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={onSubmitQuiz}>בדוק מבחן</Button>
+            {quizResult && (
+              <Badge variant={quizResult.passed ? 'secondary' : 'destructive'}>
+                {Math.round(quizResult.score * 100)}% ·{' '}
+                {quizResult.passed ? 'עברתם' : 'לא עברתם'}
+              </Badge>
+            )}
+            {live.quizPassedAt && (
+              <Badge variant="secondary" className="gap-1 text-primary">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                מבחן עבר
+              </Badge>
+            )}
+          </div>
+        </div>
       </LayerCard>
 
       <div className="flex flex-wrap gap-2 justify-between pt-2">
@@ -258,11 +449,13 @@ const TrainingModulePage = () => {
 function LayerCard({
   layer,
   checked,
+  ready,
   onToggle,
   children,
 }: {
   layer: TrainingLayerId;
   checked: boolean;
+  ready: boolean;
   onToggle: (v: boolean) => void;
   children: ReactNode;
 }) {
@@ -274,7 +467,20 @@ function LayerCard({
           onCheckedChange={(v) => onToggle(Boolean(v))}
           className="mt-1"
         />
-        <h2 className="font-semibold flex-1">{LAYER_LABEL[layer]}</h2>
+        <div className="flex-1 flex flex-wrap items-center gap-2">
+          <h2 className="font-semibold">{LAYER_LABEL[layer]}</h2>
+          {!ready && !checked && (
+            <Badge variant="outline" className="text-xs gap-1">
+              <Lock className="w-3 h-3" />
+              השלימו את התוכן
+            </Badge>
+          )}
+          {ready && !checked && (
+            <Badge variant="secondary" className="text-xs">
+              מוכן לסימון
+            </Badge>
+          )}
+        </div>
       </div>
       <div className="pr-7">{children}</div>
     </section>

@@ -7,12 +7,19 @@ import {
 import {
   deliverableSatisfied,
   isModuleComplete,
+  layerContentReady,
   readTrainingProgress,
 } from '@/lib/training-store';
 import type { ModuleProgress, TrainingLayerId, TrainingProgress } from '@/types/training';
 import { LAYER_ORDER } from '@/types/training';
 
-const empty = (): ModuleProgress => ({ layers: {}, deliverableNotes: '' });
+const empty = (): ModuleProgress => ({
+  layers: {},
+  deliverableNotes: '',
+  readIds: [],
+  deliverableAnswers: {},
+  quizAnswers: {},
+});
 
 export function layerProgressCount(progress: ModuleProgress): number {
   return LAYER_ORDER.filter((l) => Boolean(progress.layers[l])).length;
@@ -74,13 +81,32 @@ export function canToggleLayer(
   layer: TrainingLayerId,
   progress: ModuleProgress,
   nextValue: boolean,
+  moduleId?: string,
 ): { ok: boolean; reason?: string } {
-  if (layer === 'deliverable' && nextValue && progress.deliverableNotes.trim().length < 8) {
+  if (!nextValue) return { ok: true };
+
+  if (layer === 'deliverable' && progress.deliverableNotes.trim().length < 8) {
     return {
       ok: false,
-      reason: 'כלל ברזל: יש לתעד את התוצר המעשי (לפחות כמה מילים / קישור) לפני הסימון.',
+      reason: 'כלל ברזל: יש לתעד את התוצר המעשי (לפחות כמה מילים) לפני הסימון.',
     };
   }
+
+  if (moduleId && !layerContentReady(moduleId, layer, progress)) {
+    if (layer === 'law') {
+      return { ok: false, reason: 'יש לקרוא את כל השיעורים וכרטיסי החוק באפליקציה לפני הסימון.' };
+    }
+    if (layer === 'literature') {
+      return { ok: false, reason: 'יש לקרוא את תמציות הספרות באפליקציה לפני הסימון.' };
+    }
+    if (layer === 'cases') {
+      return { ok: false, reason: 'יש לקרוא את תקצירי הפסיקה באפליקציה לפני הסימון.' };
+    }
+    if (layer === 'exam') {
+      return { ok: false, reason: 'יש לעבור את המבחן באפליקציה (ציון עובר) לפני הסימון.' };
+    }
+  }
+
   return { ok: true };
 }
 
