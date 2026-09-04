@@ -21,6 +21,8 @@ import AlertsPage from "./pages/real-estate/AlertsPage.tsx";
 import UsersPage from "./pages/real-estate/UsersPage.tsx";
 import PackagesPage from "./pages/real-estate/PackagesPage.tsx";
 import HelpPage from "./pages/real-estate/HelpPage.tsx";
+import TrainingOverview from "./pages/real-estate/TrainingOverview.tsx";
+import TrainingModulePage from "./pages/real-estate/TrainingModulePage.tsx";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +50,8 @@ const App = () => (
             <Route path="alerts" element={<AlertsPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="packages" element={<PackagesPage />} />
+            <Route path="training" element={<TrainingOverview />} />
+            <Route path="training/:moduleId" element={<TrainingModulePage />} />
             <Route path="help" element={<HelpPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
