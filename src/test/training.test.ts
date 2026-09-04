@@ -5,6 +5,7 @@ import {
   getModule,
   modulesForStage,
 } from '@/data/training-curriculum';
+import { buildExplainerSlides, explainerDurationLabel } from '@/lib/training-explainer';
 import {
   TRAINING_STORAGE_KEY,
   deliverableSatisfied,
@@ -13,6 +14,7 @@ import {
   readTrainingProgress,
   resetTrainingProgress,
   setDeliverableNotes,
+  setExplainerWatched,
   setLayerComplete,
 } from '@/lib/training-store';
 import {
@@ -44,6 +46,35 @@ describe('training curriculum', () => {
     expect(getModule('0.4')?.refreshOnly).toBe(true);
     expect(getModule('3.2')?.engineeringEdge).toBe(true);
     expect(getModule('3.6')?.refreshOnly).toBe(true);
+  });
+});
+
+describe('module explainer videos', () => {
+  it('builds slides with narration for every module', () => {
+    for (const mod of TRAINING_MODULES) {
+      const slides = buildExplainerSlides(mod);
+      expect(slides.length).toBeGreaterThanOrEqual(5);
+      expect(slides[0].id).toBe('intro');
+      expect(slides.some((s) => s.id.startsWith('law'))).toBe(true);
+      expect(slides.some((s) => s.id === 'deliverable')).toBe(true);
+      expect(slides.some((s) => s.id === 'exam')).toBe(true);
+      for (const slide of slides) {
+        expect(slide.title.length).toBeGreaterThan(0);
+        expect(slide.narration.length).toBeGreaterThan(20);
+        expect(slide.bullets.length).toBeGreaterThan(0);
+        expect(slide.seconds).toBeGreaterThan(5);
+      }
+      expect(explainerDurationLabel(slides)).toMatch(/דק/);
+    }
+  });
+
+  it('marks explainer as watched', () => {
+    expect(getModuleProgress('0.1').explainerWatchedAt).toBeFalsy();
+    setExplainerWatched('0.1');
+    expect(getModuleProgress('0.1').explainerWatchedAt).toBeTruthy();
+    const first = getModuleProgress('0.1').explainerWatchedAt;
+    setExplainerWatched('0.1');
+    expect(getModuleProgress('0.1').explainerWatchedAt).toBe(first);
   });
 });
 

@@ -53,6 +53,8 @@ export interface ModuleProgress {
   layers: Partial<Record<TrainingLayerId, boolean>>;
   deliverableNotes: string;
   completedAt?: string;
+  /** נצפה סרטון ההסבר של המודול */
+  explainerWatchedAt?: string;
 }
 
 export interface TrainingProgress {

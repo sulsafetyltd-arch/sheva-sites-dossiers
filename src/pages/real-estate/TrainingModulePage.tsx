@@ -7,11 +7,13 @@ import {
   getModuleProgress,
   isModuleComplete,
   setDeliverableNotes,
+  setExplainerWatched,
   setLayerComplete,
 } from '@/lib/training-store';
 import { canToggleLayer, modulePercent } from '@/lib/training-utils';
 import type { TrainingLayerId } from '@/types/training';
 import { LAYER_LABEL } from '@/types/training';
+import { ModuleExplainerPlayer } from '@/components/real-estate/ModuleExplainerPlayer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -109,6 +111,16 @@ const TrainingModulePage = () => {
         </div>
         <Progress value={pct} className="h-2" />
       </section>
+
+      <ModuleExplainerPlayer
+        module={mod}
+        watched={Boolean(live.explainerWatchedAt)}
+        onWatched={() => {
+          setExplainerWatched(moduleId);
+          refresh();
+          toast.success('סרטון ההסבר סומן כנצפה');
+        }}
+      />
 
       <LayerCard
         layer="law"
