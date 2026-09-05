@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { HardHat, LockKeyhole, Mail, UserRoundPlus } from 'lucide-react';
+import { HardHat, Mail, UserRoundPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
 import { Button } from '@/components/ui/button';
@@ -13,10 +13,9 @@ export default function SafetyLogin() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
-  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const destination = (location.state as { from?: string } | null)?.from || '/safety';
@@ -28,69 +27,62 @@ export default function SafetyLogin() {
 
   if (!loading && session) return <Navigate to={destination} replace />;
 
-  const submit = async () => {
+  const sendMagicLink = async () => {
     setSubmitting(true);
     setError(null);
     setMessage(null);
-    setNeedsConfirmation(false);
+    setLinkSent(false);
     try {
-      if (mode === 'register') {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: {
-            data: { full_name: fullName.trim() },
-            emailRedirectTo: safetyUrl,
-          },
-        });
-        if (signUpError) throw signUpError;
-        if (data.session) {
-          navigate('/safety', { replace: true });
-        } else {
-          setMessage('נשלח אליך מייל לאימות החשבון. לאחר האימות ניתן להתחבר.');
-          setMode('login');
-        }
-      } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (signInError) throw signInError;
-        navigate(destination, { replace: true });
-      }
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: safetyUrl,
+          shouldCreateUser: mode === 'register',
+          data: mode === 'register' ? { full_name: fullName.trim() } : undefined,
+        },
+      });
+      if (otpError) throw otpError;
+      setLinkSent(true);
+      setMessage(
+        mode === 'register'
+          ? 'נשלח אליך קישור למייל. לחץ עליו כדי לפתוח את החשבון (ימתין לאישור מנהל).'
+          : 'נשלח אליך קישור כניסה למייל. לחץ עליו כדי להיכנס למערכת.',
+      );
     } catch (cause) {
       const rawMessage = cause instanceof Error ? cause.message : '';
-      if (rawMessage.toLowerCase().includes('email not confirmed')) {
-        setNeedsConfirmation(true);
-        setError('כתובת המייל עדיין לא אומתה. יש ללחוץ על הקישור שנשלח למייל.');
-      } else if (rawMessage.toLowerCase().includes('invalid login credentials')) {
-        setError('כתובת המייל או הסיסמה אינם נכונים.');
+      if (rawMessage.toLowerCase().includes('signups not allowed')
+        || rawMessage.toLowerCase().includes('user not found')) {
+        setError('לא נמצא חשבון עם כתובת מייל זו. פתח חשבון חדש או פנה למנהל.');
       } else {
-        setError(rawMessage || 'הפעולה נכשלה');
+        setError(rawMessage || 'שליחת קישור הכניסה נכשלה');
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const resendConfirmation = async () => {
+  const resendMagicLink = async () => {
     setResending(true);
     setError(null);
-    setMessage(null);
     try {
-      const { error: resendError } = await supabase.auth.resend({
-        type: 'signup',
+      const { error: otpError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
-        options: { emailRedirectTo: safetyUrl },
+        options: {
+          emailRedirectTo: safetyUrl,
+          shouldCreateUser: mode === 'register',
+          data: mode === 'register' ? { full_name: fullName.trim() } : undefined,
+        },
       });
-      if (resendError) throw resendError;
-      setMessage('מייל אימות חדש נשלח. יש לבדוק גם בתיקיית הספאם.');
+      if (otpError) throw otpError;
+      setMessage('קישור חדש נשלח למייל. יש לבדוק גם בתיקיית הספאם.');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'שליחת מייל האימות נכשלה');
+      setError(cause instanceof Error ? cause.message : 'שליחת קישור חדש נכשלה');
     } finally {
       setResending(false);
     }
   };
+
+  const canSubmit = Boolean(email.trim()) && (mode === 'login' || Boolean(fullName.trim()));
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#0f2744] grid place-items-center p-4">
@@ -105,7 +97,7 @@ export default function SafetyLogin() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             {mode === 'login'
-              ? 'התחבר כדי לצפות בלקוחות ובדוחות שהוקצו לך'
+              ? 'הזן מייל ונשלח אליך קישור כניסה — ללא סיסמה'
               : 'חשבון עובד חדש ימתין לאישור מנהל'}
           </p>
         </div>
@@ -134,54 +126,47 @@ export default function SafetyLogin() {
               onChange={(event) => setEmail(event.target.value)}
             />
           </div>
-          <div className="relative">
-            <LockKeyhole className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input
-              dir="ltr"
-              className="pr-9 text-left"
-              type="password"
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              placeholder="סיסמה – לפחות 6 תווים"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </div>
         </div>
 
-        {error && (
-          <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm space-y-2">
-            <div>{error}</div>
-            {needsConfirmation && (
+        {error && <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</div>}
+        {message && (
+          <div className="rounded-lg bg-emerald-50 text-emerald-700 p-3 text-sm space-y-2">
+            <div>{message}</div>
+            {linkSent && (
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 disabled={resending || !email.trim()}
-                onClick={() => void resendConfirmation()}
+                onClick={() => void resendMagicLink()}
               >
-                {resending ? 'שולח…' : 'שלח שוב מייל אימות'}
+                {resending ? 'שולח…' : 'שלח שוב קישור'}
               </Button>
             )}
           </div>
         )}
-        {message && <div className="rounded-lg bg-emerald-50 text-emerald-700 p-3 text-sm">{message}</div>}
 
         <Button
           className="w-full"
           size="lg"
-          disabled={submitting || !email.trim() || password.length < 6 || (mode === 'register' && !fullName.trim())}
-          onClick={() => void submit()}
+          disabled={submitting || !canSubmit}
+          onClick={() => void sendMagicLink()}
         >
-          {submitting ? 'מתבצע…' : mode === 'login' ? 'כניסה' : 'יצירת חשבון'}
+          {submitting
+            ? 'שולח…'
+            : mode === 'login'
+              ? 'שלח קישור כניסה למייל'
+              : 'שלח קישור לפתיחת חשבון'}
         </Button>
 
         <button
           type="button"
           className="block mx-auto text-sm text-slate-600 underline"
           onClick={() => {
-            setMode((current) => current === 'login' ? 'register' : 'login');
+            setMode((current) => (current === 'login' ? 'register' : 'login'));
             setError(null);
             setMessage(null);
+            setLinkSent(false);
           }}
         >
           {mode === 'login' ? 'עובד חדש? פתיחת חשבון' : 'כבר יש חשבון? כניסה'}
