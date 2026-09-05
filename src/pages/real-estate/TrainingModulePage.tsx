@@ -16,8 +16,10 @@ import {
   getModuleProgress,
   isContentRead,
   isModuleComplete,
+  layerContentIds,
   layerContentReady,
   markContentRead,
+  markManyRead,
   setDeliverableAnswer,
   setExplainerWatched,
   setLayerComplete,
@@ -69,6 +71,14 @@ const TrainingModulePage = () => {
   const markRead = (id: string) => {
     markContentRead(moduleId, id);
     refresh();
+  };
+
+  const markLayerRead = (layer: TrainingLayerId) => {
+    const ids = layerContentIds(moduleId, layer);
+    if (!ids.length) return;
+    markManyRead(moduleId, ids);
+    refresh();
+    toast.success('כל פריטי השכבה סומנו כנקראו');
   };
 
   const toggleLayer = (layer: TrainingLayerId, value: boolean) => {
@@ -159,15 +169,28 @@ const TrainingModulePage = () => {
         onWatched={() => {
           setExplainerWatched(moduleId);
           refresh();
-          toast.success('סרטון ההסבר סומן כנצפה');
+          toast.success('הסבר המודול סומן כנצפה');
         }}
       />
+
+      {!live.explainerWatchedAt && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm space-y-1">
+          <p className="font-semibold text-amber-900 dark:text-amber-200">
+            חובה: צפו בהסבר המודול לפני סימון שכבות
+          </p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            הפעילו את שקופיות ההסבר למעלה עד הסוף (או סמנו צפייה). בלי זה לא ניתן לסמן חוק, ספרות, פסיקה,
+            תוצר או מבחן.
+          </p>
+        </div>
+      )}
 
       <LayerCard
         layer="law"
         checked={Boolean(live.layers.law)}
         ready={layerContentReady(moduleId, 'law', live)}
         onToggle={(v) => toggleLayer('law', v)}
+        onMarkAllRead={() => markLayerRead('law')}
       >
         <div className="space-y-4">
           {content.lessons.map((lesson) => {
@@ -238,6 +261,7 @@ const TrainingModulePage = () => {
         checked={Boolean(live.layers.literature)}
         ready={layerContentReady(moduleId, 'literature', live)}
         onToggle={(v) => toggleLayer('literature', v)}
+        onMarkAllRead={() => markLayerRead('literature')}
       >
         <div className="space-y-3">
           {content.literatureDigests.map((d) => {
@@ -279,6 +303,7 @@ const TrainingModulePage = () => {
         checked={Boolean(live.layers.cases)}
         ready={layerContentReady(moduleId, 'cases', live)}
         onToggle={(v) => toggleLayer('cases', v)}
+        onMarkAllRead={() => markLayerRead('cases')}
       >
         <div className="space-y-3">
           {content.caseBriefs.map((c) => {
@@ -453,12 +478,14 @@ function LayerCard({
   checked,
   ready,
   onToggle,
+  onMarkAllRead,
   children,
 }: {
   layer: TrainingLayerId;
   checked: boolean;
   ready: boolean;
   onToggle: (v: boolean) => void;
+  onMarkAllRead?: () => void;
   children: ReactNode;
 }) {
   return (
@@ -481,6 +508,11 @@ function LayerCard({
             <Badge variant="secondary" className="text-xs">
               מוכן לסימון
             </Badge>
+          )}
+          {onMarkAllRead && !ready && (
+            <Button type="button" size="sm" variant="outline" className="mr-auto text-xs h-7" onClick={onMarkAllRead}>
+              סמן הכל כנקרא
+            </Button>
           )}
         </div>
       </div>

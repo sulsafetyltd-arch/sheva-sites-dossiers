@@ -117,6 +117,8 @@ export interface DocumentItem {
   received: boolean;
   date?: string;
   notes: string;
+  /** קישור לקובץ חיצוני / Drive / אחסון משרדי */
+  url?: string;
 }
 
 export interface ChecklistItem {

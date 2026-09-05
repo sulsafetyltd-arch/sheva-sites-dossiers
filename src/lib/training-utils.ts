@@ -85,6 +85,13 @@ export function canToggleLayer(
 ): { ok: boolean; reason?: string } {
   if (!nextValue) return { ok: true };
 
+  if (!progress.explainerWatchedAt) {
+    return {
+      ok: false,
+      reason: 'יש לצפות בהסבר המודול (שקופיות + קריינות) לפני סימון שכבות.',
+    };
+  }
+
   if (layer === 'deliverable' && progress.deliverableNotes.trim().length < 8) {
     return {
       ok: false,

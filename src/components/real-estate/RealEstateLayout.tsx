@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
+  CalendarDays,
   CircleHelp,
   FolderKanban,
   GraduationCap,
@@ -24,6 +25,7 @@ const nav = [
   { to: '/real-estate', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
   { to: '/real-estate/deals', label: 'עסקאות', icon: FolderKanban, end: false },
   { to: '/real-estate/training', label: 'הכשרה', icon: GraduationCap, end: false },
+  { to: '/real-estate/calendar', label: 'יומן מועדים', icon: CalendarDays, end: false },
   { to: '/real-estate/clients', label: 'לקוחות', icon: Users, end: false },
   { to: '/real-estate/alerts', label: 'התראות', icon: Bell, end: false },
   { to: '/real-estate/users', label: 'משתמשים', icon: UserCog, end: false },

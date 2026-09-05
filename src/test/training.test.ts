@@ -40,6 +40,7 @@ afterEach(() => {
 });
 
 function completeModuleInApp(moduleId: string) {
+  setExplainerWatched(moduleId);
   const content = getInteractiveContent(moduleId);
   const readIds = [
     ...content.lessons,
@@ -138,11 +139,29 @@ describe('module explainer videos', () => {
 });
 
 describe('training progress iron rule', () => {
+  it('blocks layers until explainer is watched', () => {
+    const check = canToggleLayer('law', getModuleProgress('0.1'), true, '0.1');
+    expect(check.ok).toBe(false);
+    expect(check.reason).toMatch(/הסבר המודול/);
+  });
+
   it('blocks deliverable without notes', () => {
+    setExplainerWatched('0.1');
     const check = canToggleLayer('deliverable', getModuleProgress('0.1'), true, '0.1');
     expect(check.ok).toBe(false);
     setLayerComplete('0.1', 'deliverable', true);
     expect(getModuleProgress('0.1').layers.deliverable).toBeFalsy();
+  });
+
+  it('marks all layer content as read in one step', () => {
+    const content = getInteractiveContent('0.1');
+    const ids = [...content.lessons, ...content.statutes].map((x) => x.id);
+    expect(ids.length).toBeGreaterThan(0);
+    markManyRead('0.1', ids);
+    const read = new Set(getModuleProgress('0.1').readIds ?? []);
+    for (const id of ids) {
+      expect(read.has(id)).toBe(true);
+    }
   });
 
   it('blocks exam without passing in-app quiz', () => {

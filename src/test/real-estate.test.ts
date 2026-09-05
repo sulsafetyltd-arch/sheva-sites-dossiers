@@ -197,4 +197,24 @@ describe('real-estate store', () => {
     expect(getDeal(deal.id)).toBeUndefined();
     expect(getAllDeals()).toHaveLength(1);
   });
+
+  it('persists document link URLs on a deal', () => {
+    const deal = createDeal({ title: 'עם מסמכים', type: 'purchase' });
+    const withUrl = {
+      ...deal,
+      documents: [
+        {
+          id: 'doc-link',
+          title: 'נסח טאבו',
+          category: 'tabo' as const,
+          received: true,
+          notes: '',
+          url: 'https://drive.example/file/abc',
+          date: '2026-03-01',
+        },
+      ],
+    };
+    saveDeal(withUrl);
+    expect(getDeal(deal.id)?.documents[0]?.url).toBe('https://drive.example/file/abc');
+  });
 });
