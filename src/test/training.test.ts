@@ -176,3 +176,29 @@ describe('training progress iron rule', () => {
     expect(overallStats(readTrainingProgress()).completed).toBe(1);
   });
 });
+
+describe('training certificate summary', () => {
+  it('builds empty progress summary without being fully complete', async () => {
+    const { buildCertificateSummary, completedModuleIds } = await import(
+      '@/lib/training-certificate'
+    );
+    const summary = buildCertificateSummary(readTrainingProgress());
+    expect(summary.total).toBe(TRAINING_MODULES.length);
+    expect(summary.completed).toBe(0);
+    expect(summary.fullyComplete).toBe(false);
+    expect(summary.stages.length).toBe(TRAINING_STAGES.length);
+    expect(completedModuleIds()).toEqual([]);
+  });
+
+  it('lists completed modules after finishing one', async () => {
+    const { buildCertificateSummary, completedModuleIds } = await import(
+      '@/lib/training-certificate'
+    );
+    completeModuleInApp('0.1');
+    const summary = buildCertificateSummary(readTrainingProgress());
+    expect(summary.fullyComplete).toBe(false);
+    expect(summary.completed).toBe(1);
+    expect(completedModuleIds()).toContain('0.1');
+    expect(summary.completedModules.some((m) => m.code === '0.1')).toBe(true);
+  });
+});

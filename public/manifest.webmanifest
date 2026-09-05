@@ -1,0 +1,27 @@
+{
+  "name": "סולו נדלן",
+  "short_name": "סולו נדלן",
+  "description": "ניהול עסקאות נדל״ן והכשרה מקצועית לעורכי דין — זמין גם מהמסך הראשי בשטח",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f766e",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

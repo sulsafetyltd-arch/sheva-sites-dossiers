@@ -26,8 +26,8 @@ const nav = [
   { to: '/real-estate/training', label: 'הכשרה', icon: GraduationCap, end: false },
   { to: '/real-estate/clients', label: 'לקוחות', icon: Users, end: false },
   { to: '/real-estate/alerts', label: 'התראות', icon: Bell, end: false },
-  { to: '/real-estate/users', label: 'משתמשים', icon: UserCog, end: false },
-  { to: '/real-estate/packages', label: 'חבילות', icon: Package, end: false },
+  { to: '/real-estate/users', label: 'צוות מתיקים', icon: UserCog, end: false },
+  { to: '/real-estate/packages', label: 'יכולות', icon: Package, end: false },
   { to: '/real-estate/help', label: 'עזרה', icon: CircleHelp, end: false },
 ];
 
@@ -39,12 +39,11 @@ const TITLES: Array<{ test: (path: string) => boolean; title: string }> = [
   { test: (p) => p.startsWith('/real-estate/training'), title: 'תכנית הכשרה' },
   { test: (p) => p.startsWith('/real-estate/clients'), title: 'לקוחות' },
   { test: (p) => p.startsWith('/real-estate/alerts'), title: 'התראות' },
-  { test: (p) => p.startsWith('/real-estate/users'), title: 'משתמשים' },
-  { test: (p) => p.startsWith('/real-estate/packages'), title: 'חבילות' },
+  { test: (p) => p.startsWith('/real-estate/users'), title: 'צוות מתיקים' },
+  { test: (p) => p.startsWith('/real-estate/packages'), title: 'יכולות המערכת' },
   { test: (p) => p.startsWith('/real-estate/help'), title: 'עזרה' },
   { test: (p) => p.startsWith('/real-estate/calendar'), title: 'יומן מועדים' },
 ];
-
 function SoloLogo() {
   return (
     <div className="flex flex-col items-center text-white select-none gap-1">
