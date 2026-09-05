@@ -337,9 +337,7 @@ export async function createReport(
         .single()
     : { data: null };
   throwIfError(profileError ?? null);
-  if (!issuerProfile?.full_name) {
-    throw new Error('יש להשלים שם מלא בפרופיל האישי לפני יצירת דוח');
-  }
+  const auditorName = issuerProfile?.full_name || 'סול בטיחות';
   const { data: allocatedNumber, error: numberError } = partial.reportNumber
     ? { data: partial.reportNumber, error: null }
     : await supabase.rpc('allocate_safety_report_number', { p_report_type: reportType });
@@ -361,7 +359,7 @@ export async function createReport(
       parcel: partial.parcel ?? null,
       contractor: partial.contractor ?? null,
       audit_date: partial.auditDate ?? today(),
-      auditor: partial.auditor ?? issuerProfile?.full_name ?? null,
+      auditor: partial.auditor ?? auditorName,
       auditor_role: partial.auditorRole ?? issuerProfile?.job_title ?? null,
       auditor_phone: partial.auditorPhone ?? issuerProfile?.phone ?? null,
       attendees: partial.attendees ?? null,

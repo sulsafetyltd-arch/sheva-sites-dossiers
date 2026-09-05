@@ -1,21 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('protected safety routes redirect to login', async ({ page }) => {
-  await page.goto('/safety/profile');
-  await expect(page).toHaveURL(/\/safety\/login$/);
-  await expect(page.getByRole('heading', { name: 'כניסה למערכת' })).toBeVisible();
-});
-
-test('employee registration form validates required details', async ({ page }) => {
+test('login route redirects into the safety app', async ({ page }) => {
   await page.goto('/safety/login');
-  await page.getByRole('button', { name: /עובד חדש/ }).click();
-  await expect(page.getByRole('heading', { name: 'פתיחת חשבון עובד' })).toBeVisible();
-
-  const submit = page.getByRole('button', { name: /שלח קישור לפתיחת חשבון/ });
-  await expect(submit).toBeDisabled();
-  await page.getByPlaceholder('שם מלא').fill('עובד בדיקה');
-  await page.getByPlaceholder('name@company.com').fill('worker@example.com');
-  await expect(submit).toBeEnabled();
+  await expect(page).toHaveURL(/\/safety\/?$/);
 });
 
 test('PWA manifest icons are available', async ({ request }) => {

@@ -146,7 +146,7 @@ export async function createTrainingSession(
         .single()
     : { data: null, error: null };
   fail(profileError);
-  if (!profile?.full_name) throw new Error('יש להשלים שם מלא בפרופיל לפני יצירת הדרכה');
+  const instructorName = profile?.full_name || 'סול בטיחות';
   const { data: client, error: clientError } = await supabase
     .from('safety_audit_clients')
     .select('name,address,phone')
@@ -170,18 +170,18 @@ export async function createTrainingSession(
       location: location || null,
       topic: TRAINING_CATEGORY_DETAILS[category].defaultTopic,
       language: 'עברית',
-      instructor_name: profile.full_name,
-      instructor_role: profile.job_title,
-      instructor_phone: profile.phone,
-      instructor_signature_data_url: profile.signature_data_url,
-      instructor_signed_at: profile.signature_data_url ? new Date().toISOString() : null,
+      instructor_name: instructorName,
+      instructor_role: profile?.job_title || 'ממונה בטיחות',
+      instructor_phone: profile?.phone || null,
+      instructor_signature_data_url: profile?.signature_data_url || null,
+      instructor_signed_at: profile?.signature_data_url ? new Date().toISOString() : null,
       form_details: {
         companyName: client?.name,
         companyAddress: client?.address,
         companyPhone: client?.phone,
         siteAddress: location || client?.address,
         instructorOrganization: 'סול בטיחות בע״מ',
-        instructorStampDataUrl: profile.stamp_data_url,
+        instructorStampDataUrl: profile?.stamp_data_url,
         ...(category === 'general'
           ? { generalSelectedTopics: [...GENERAL_TRAINING_TOPICS] }
           : category === 'work_at_height'
@@ -200,7 +200,7 @@ export async function createTrainingSession(
                 }
               : {}),
       },
-      created_by: authData.user?.id,
+      created_by: authData.user?.id ?? null,
     })
     .select('*')
     .single();

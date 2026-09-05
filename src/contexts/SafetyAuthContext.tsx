@@ -31,6 +31,17 @@ interface SafetyAuthValue {
 
 const SafetyAuthContext = createContext<SafetyAuthValue | null>(null);
 
+/** Local guest profile so the UI works with the temporary no-login bypass. */
+const GUEST_ADMIN_PROFILE: SafetyProfile = {
+  id: '00000000-0000-0000-0000-000000000000',
+  email: 'guest@local',
+  fullName: 'סול בטיחות',
+  jobTitle: 'ממונה בטיחות',
+  role: 'admin',
+  isActive: true,
+  createdAt: new Date(0).toISOString(),
+};
+
 function mapProfile(row: Record<string, unknown>): SafetyProfile {
   return {
     id: String(row.id),
@@ -121,19 +132,22 @@ export function SafetyAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<SafetyAuthValue>(
-    () => ({
-      session,
-      user: session?.user ?? null,
-      profile,
-      loading,
-      profileError,
-      isAdmin: profile?.role === 'admin' && profile.isActive,
-      refreshProfile: () => loadProfile(),
-      signOut: async () => {
-        clearSafetyFileCache();
-        await supabase.auth.signOut();
-      },
-    }),
+    () => {
+      const effectiveProfile = profile ?? (session ? null : GUEST_ADMIN_PROFILE);
+      return {
+        session,
+        user: session?.user ?? null,
+        profile: effectiveProfile,
+        loading,
+        profileError: session ? profileError : null,
+        isAdmin: Boolean(effectiveProfile?.role === 'admin' && effectiveProfile.isActive),
+        refreshProfile: () => loadProfile(),
+        signOut: async () => {
+          clearSafetyFileCache();
+          await supabase.auth.signOut();
+        },
+      };
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [session, profile, loading, profileError],
   );
