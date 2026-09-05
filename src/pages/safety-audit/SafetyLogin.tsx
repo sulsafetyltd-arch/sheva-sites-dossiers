@@ -1,10 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { HardHat, Mail, UserRoundPlus } from 'lucide-react';
+import { HardHat, KeyRound, Mail, UserRoundPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+
+/** Stable callback URL for magic-link / OTP redirects (must be allowlisted in Supabase). */
+function authCallbackUrl(): string {
+  const base = (import.meta.env.BASE_URL || '/').endsWith('/')
+    ? (import.meta.env.BASE_URL || '/')
+    : `${import.meta.env.BASE_URL || '/'}/`;
+  return new URL(`${base}safety/login`, window.location.origin).toString();
+}
+
+function readAuthRedirectError(): string | null {
+  const fromHash = window.location.hash.startsWith('#')
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+  const params = new URLSearchParams(fromHash || window.location.search);
+  const description = params.get('error_description') || params.get('error');
+  if (!description) return null;
+  return decodeURIComponent(description.replace(/\+/g, ' '));
+}
 
 export default function SafetyLogin() {
   const navigate = useNavigate();
@@ -13,13 +31,28 @@ export default function SafetyLogin() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const destination = (location.state as { from?: string } | null)?.from || '/safety';
-  const safetyUrl = new URL(`${import.meta.env.BASE_URL}safety`, window.location.origin).toString();
+  const callbackUrl = useMemo(() => authCallbackUrl(), []);
+
+  useEffect(() => {
+    const redirectError = readAuthRedirectError();
+    if (redirectError) {
+      setError(
+        redirectError.includes('redirect') || redirectError.includes('Redirect')
+          ? `כתובת החזרה לא מאושרת ב־Supabase. יש להוסיף תחת Authentication → URL Configuration את: ${window.location.origin}/**`
+          : redirectError,
+      );
+      // Clear broken hash/query so refresh does not re-show the same error forever.
+      window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search.split('#')[0]}`.replace(/\?$/, ''));
+    }
+  }, []);
 
   useEffect(() => {
     if (!loading && session) navigate(destination, { replace: true });
@@ -36,7 +69,7 @@ export default function SafetyLogin() {
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: safetyUrl,
+          emailRedirectTo: callbackUrl,
           shouldCreateUser: mode === 'register',
           data: mode === 'register' ? { full_name: fullName.trim() } : undefined,
         },
@@ -45,8 +78,8 @@ export default function SafetyLogin() {
       setLinkSent(true);
       setMessage(
         mode === 'register'
-          ? 'נשלח אליך קישור למייל. לחץ עליו כדי לפתוח את החשבון (ימתין לאישור מנהל).'
-          : 'נשלח אליך קישור כניסה למייל. לחץ עליו כדי להיכנס למערכת.',
+          ? 'נשלח אליך מייל עם קישור וקוד. אם הקישור לא נפתח — הזן את הקוד למטה.'
+          : 'נשלח אליך מייל עם קישור וקוד. אם הקישור לא נפתח — הזן את הקוד למטה.',
       );
     } catch (cause) {
       const rawMessage = cause instanceof Error ? cause.message : '';
@@ -61,6 +94,24 @@ export default function SafetyLogin() {
     }
   };
 
+  const verifyEmailCode = async () => {
+    setVerifying(true);
+    setError(null);
+    try {
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: otpCode.trim(),
+        type: 'email',
+      });
+      if (verifyError) throw verifyError;
+      navigate(destination, { replace: true });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'אימות הקוד נכשל');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   const resendMagicLink = async () => {
     setResending(true);
     setError(null);
@@ -68,13 +119,13 @@ export default function SafetyLogin() {
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: safetyUrl,
+          emailRedirectTo: callbackUrl,
           shouldCreateUser: mode === 'register',
           data: mode === 'register' ? { full_name: fullName.trim() } : undefined,
         },
       });
       if (otpError) throw otpError;
-      setMessage('קישור חדש נשלח למייל. יש לבדוק גם בתיקיית הספאם.');
+      setMessage('מייל חדש נשלח. יש לבדוק גם בספאם. אם הקישור שבור — השתמש בקוד מהמייל.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'שליחת קישור חדש נכשלה');
     } finally {
@@ -97,7 +148,7 @@ export default function SafetyLogin() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             {mode === 'login'
-              ? 'הזן מייל ונשלח אליך קישור כניסה — ללא סיסמה'
+              ? 'הזן מייל ונשלח אליך קישור או קוד כניסה — ללא סיסמה'
               : 'חשבון עובד חדש ימתין לאישור מנהל'}
           </p>
         </div>
@@ -140,7 +191,7 @@ export default function SafetyLogin() {
                 disabled={resending || !email.trim()}
                 onClick={() => void resendMagicLink()}
               >
-                {resending ? 'שולח…' : 'שלח שוב קישור'}
+                {resending ? 'שולח…' : 'שלח שוב מייל'}
               </Button>
             )}
           </div>
@@ -155,9 +206,36 @@ export default function SafetyLogin() {
           {submitting
             ? 'שולח…'
             : mode === 'login'
-              ? 'שלח קישור כניסה למייל'
+              ? 'שלח קישור / קוד למייל'
               : 'שלח קישור לפתיחת חשבון'}
         </Button>
+
+        {(linkSent || otpCode) && (
+          <div className="rounded-xl border bg-slate-50 p-4 space-y-3">
+            <div className="text-sm font-medium">כניסה עם קוד מהמייל</div>
+            <div className="relative">
+              <KeyRound className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                dir="ltr"
+                className="pr-9 text-left tracking-[0.3em]"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                maxLength={8}
+                value={otpCode}
+                onChange={(event) => setOtpCode(event.target.value.replace(/\s/g, ''))}
+              />
+            </div>
+            <Button
+              className="w-full"
+              variant="secondary"
+              disabled={verifying || !email.trim() || otpCode.trim().length < 6}
+              onClick={() => void verifyEmailCode()}
+            >
+              {verifying ? 'מאמת…' : 'אמת קוד והיכנס'}
+            </Button>
+          </div>
+        )}
 
         <button
           type="button"
@@ -167,6 +245,7 @@ export default function SafetyLogin() {
             setError(null);
             setMessage(null);
             setLinkSent(false);
+            setOtpCode('');
           }}
         >
           {mode === 'login' ? 'עובד חדש? פתיחת חשבון' : 'כבר יש חשבון? כניסה'}
