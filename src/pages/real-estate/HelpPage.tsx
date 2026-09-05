@@ -1,3 +1,5 @@
+import { BackupControls } from '@/components/real-estate/BackupControls';
+
 const faqs = [
   {
     q: 'איך פותחים עסקה חדשה?',
@@ -13,7 +15,7 @@ const faqs = [
   },
   {
     q: 'האם הנתונים נשמרים בענן?',
-    a: 'בגרסה זו התיקים נשמרים בדפדפן המקומי. חבילת פרימיום מיועדת לגיבוי ענן בהמשך.',
+    a: 'בגרסה זו התיקים וההתקדמות בהכשרה נשמרים בדפדפן המקומי בלבד. השתמשו בייצוא/ייבוא גיבוי למטה, או בחבילת פרימיום לגיבוי ענן בהמשך.',
   },
 ];
 
@@ -26,6 +28,10 @@ const HelpPage = () => {
           <p className="text-sm text-muted-foreground leading-relaxed">{item.a}</p>
         </section>
       ))}
+
+      <section className="re-card p-5 border-primary/30">
+        <BackupControls />
+      </section>
     </div>
   );
 };

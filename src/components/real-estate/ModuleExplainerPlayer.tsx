@@ -24,11 +24,22 @@ interface Props {
 }
 
 function pickHebrewVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
-  return (
-    voices.find((v) => v.lang.toLowerCase().startsWith('he')) ??
-    voices.find((v) => /hebrew|ivrit|עברית/i.test(v.name)) ??
-    null
+  const hebrew = voices.filter(
+    (v) => v.lang.toLowerCase().startsWith('he') || /hebrew|ivrit|עברית/i.test(v.name),
   );
+  if (!hebrew.length) return null;
+  return (
+    hebrew.find((v) =>
+      /carmel|noa|hila|google|premium|enhanced|natural|neural/i.test(`${v.name} ${v.lang}`),
+    ) ?? hebrew[0]
+  );
+}
+
+function splitNarration(text: string): string[] {
+  return text
+    .split(/(?<=[.!?…])\s+|(?<=[.!?])(?=[א-תA-Za-z״"'])/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 1);
 }
 
 export function ModuleExplainerPlayer({ module, watched, onWatched }: Props) {
@@ -37,20 +48,22 @@ export function ModuleExplainerPlayer({ module, watched, onWatched }: Props) {
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [slideProgress, setSlideProgress] = useState(0);
+  const [voiceReady, setVoiceReady] = useState(false);
   const timerRef = useRef<number | null>(null);
-  const startRef = useRef<number>(0);
-  const durationRef = useRef<number>(0);
-  const speakingRef = useRef(false);
+  const startRef = useRef(0);
+  const durationRef = useRef(0);
+  const playGenRef = useRef(0);
+  const advancedRef = useRef(false);
 
   const slide: ExplainerSlide = slides[index] ?? slides[0];
   const durationLabel = explainerDurationLabel(slides);
+  const speechSupported =
+    typeof window !== 'undefined' && typeof window.speechSynthesis !== 'undefined';
 
   const stopSpeech = useCallback(() => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-    speakingRef.current = false;
-  }, []);
+    playGenRef.current += 1;
+    if (speechSupported) window.speechSynthesis.cancel();
+  }, [speechSupported]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current != null) {
@@ -63,6 +76,7 @@ export function ModuleExplainerPlayer({ module, watched, onWatched }: Props) {
     (nextIndex: number, autoplay: boolean) => {
       stopSpeech();
       clearTimer();
+      advancedRef.current = false;
       setSlideProgress(0);
       setIndex(Math.max(0, Math.min(slides.length - 1, nextIndex)));
       setPlaying(autoplay);
@@ -79,6 +93,8 @@ export function ModuleExplainerPlayer({ module, watched, onWatched }: Props) {
   }, [clearTimer, onWatched, stopSpeech]);
 
   const advance = useCallback(() => {
+    if (advancedRef.current) return;
+    advancedRef.current = true;
     if (index >= slides.length - 1) {
       finishExplainer();
       return;
@@ -87,39 +103,84 @@ export function ModuleExplainerPlayer({ module, watched, onWatched }: Props) {
   }, [finishExplainer, goTo, index, slides.length]);
 
   useEffect(() => {
+    if (!speechSupported) return;
+    const sync = () => setVoiceReady(window.speechSynthesis.getVoices().length > 0);
+    sync();
+    window.speechSynthesis.addEventListener('voiceschanged', sync);
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', sync);
+  }, [speechSupported]);
+
+  useEffect(() => {
     if (!playing) {
       stopSpeech();
       clearTimer();
       return;
     }
 
-    const seconds = Math.max(8, slide.seconds);
-    durationRef.current = seconds * 1000;
+    advancedRef.current = false;
+    const seconds = Math.max(10, slide.seconds);
+    // When narrating, allow speech to finish; timer is a safety net (1.6× slide length)
+    const useSpeech = speechSupported && !muted;
+    durationRef.current = (useSpeech ? seconds * 1.6 : seconds) * 1000;
     startRef.current = Date.now();
     setSlideProgress(0);
 
-    const speak = () => {
-      if (muted || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-      stopSpeech();
-      const utter = new SpeechSynthesisUtterance(slide.narration);
-      utter.lang = 'he-IL';
-      utter.rate = 1.02;
+    const gen = playGenRef.current + 1;
+    playGenRef.current = gen;
+
+    const speakNatural = () => {
+      if (!useSpeech) return;
+      window.speechSynthesis.cancel();
       const voice = pickHebrewVoice(window.speechSynthesis.getVoices());
-      if (voice) utter.voice = voice;
-      utter.onend = () => {
-        speakingRef.current = false;
+      const parts = splitNarration(slide.narration);
+      if (!parts.length) {
+        advance();
+        return;
+      }
+
+      let i = 0;
+      const next = () => {
+        if (playGenRef.current !== gen) return;
+        if (i >= parts.length) {
+          clearTimer();
+          window.setTimeout(() => {
+            if (playGenRef.current === gen) advance();
+          }, 220);
+          return;
+        }
+        const utter = new SpeechSynthesisUtterance(parts[i]);
+        utter.lang = 'he-IL';
+        utter.rate = 0.92;
+        utter.pitch = 1.05;
+        utter.volume = 1;
+        if (voice) utter.voice = voice;
+        utter.onend = () => {
+          i += 1;
+          window.setTimeout(next, 160);
+        };
+        utter.onerror = () => {
+          i += 1;
+          window.setTimeout(next, 60);
+        };
+        window.speechSynthesis.speak(utter);
       };
-      speakingRef.current = true;
-      window.speechSynthesis.speak(utter);
+      next();
     };
 
-    // Voices often load async
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    if (useSpeech) {
       const voices = window.speechSynthesis.getVoices();
       if (voices.length === 0) {
-        window.speechSynthesis.onvoiceschanged = () => speak();
+        const onVoices = () => {
+          window.speechSynthesis.removeEventListener('voiceschanged', onVoices);
+          if (playGenRef.current === gen) speakNatural();
+        };
+        window.speechSynthesis.addEventListener('voiceschanged', onVoices);
+        // Fallback if voices never fire
+        window.setTimeout(() => {
+          if (playGenRef.current === gen) speakNatural();
+        }, 400);
       } else {
-        speak();
+        window.setTimeout(speakNatural, 100);
       }
     }
 
@@ -137,9 +198,8 @@ export function ModuleExplainerPlayer({ module, watched, onWatched }: Props) {
       clearTimer();
       stopSpeech();
     };
-  }, [advance, clearTimer, muted, playing, slide, stopSpeech]);
+  }, [advance, clearTimer, muted, playing, slide, speechSupported, stopSpeech]);
 
-  // Reset when module changes
   useEffect(() => {
     setIndex(0);
     setPlaying(false);
@@ -151,21 +211,29 @@ export function ModuleExplainerPlayer({ module, watched, onWatched }: Props) {
   const overallPct = Math.round(((index + slideProgress / 100) / slides.length) * 100);
 
   return (
-    <section className="re-card overflow-hidden border-primary/20">
+    <section className="re-card overflow-hidden border-primary/20" aria-label="שקופיות הסבר עם קריינות">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b bg-muted/30">
         <div>
-          <p className="text-sm font-semibold">סרטון הסבר למודול</p>
+          <p className="text-sm font-semibold">שקופיות הסבר עם קריינות</p>
           <p className="text-xs text-muted-foreground">
-            {slides.length} שקפים · {durationLabel}
+            {slides.length} שקפים · {durationLabel} · מעבר שקף בסיום הדיבור
             {watched ? ' · נצפה' : ''}
           </p>
         </div>
-        {watched && (
-          <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            הושלם צפייה
-          </span>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {speechSupported && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Volume2 className="w-3.5 h-3.5" />
+              {voiceReady ? 'קריינות מוכנה' : muted ? 'מושתק' : 'טוען קול…'}
+            </span>
+          )}
+          {watched && (
+            <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              הושלם צפייה
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="relative bg-[hsl(176_45%_12%)] text-white min-h-[280px] md:min-h-[320px] flex flex-col">
@@ -187,7 +255,7 @@ export function ModuleExplainerPlayer({ module, watched, onWatched }: Props) {
         </div>
 
         <div className="relative px-4 pb-3 pt-1">
-          <p className="text-[12px] text-white/70 line-clamp-2 mb-2 leading-relaxed">
+          <p className="text-[12px] text-white/70 line-clamp-2 mb-2 leading-relaxed" aria-live="polite">
             {slide.narration}
           </p>
           <div className="h-1.5 rounded-full bg-white/15 overflow-hidden mb-3">
@@ -203,7 +271,7 @@ export function ModuleExplainerPlayer({ module, watched, onWatched }: Props) {
               onClick={() => setPlaying((p) => !p)}
             >
               {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              {playing ? 'השהה' : index === 0 && slideProgress === 0 ? 'נגן הסבר' : 'המשך'}
+              {playing ? 'השהה' : index === 0 && slideProgress === 0 ? 'הפעל הסבר מקריין' : 'המשך קריינות'}
             </Button>
             <Button
               size="sm"
@@ -239,6 +307,9 @@ export function ModuleExplainerPlayer({ module, watched, onWatched }: Props) {
             </Button>
             <span className="text-xs text-white/50 tabular-nums">{overallPct}%</span>
           </div>
+          <p className="text-[11px] text-white/45 mt-2">
+            הקריינות מפצלת משפטים וממתינה לסיום הדיבור לפני מעבר שקף (עם גיבוי טיימר).
+          </p>
         </div>
       </div>
     </section>

@@ -27,6 +27,7 @@ import { canToggleLayer, modulePercent } from '@/lib/training-utils';
 import type { TrainingLayerId } from '@/types/training';
 import { LAYER_LABEL } from '@/types/training';
 import { ModuleExplainerPlayer } from '@/components/real-estate/ModuleExplainerPlayer';
+import { ApplyTrainingToDeal } from '@/components/real-estate/ApplyTrainingToDeal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -39,7 +40,7 @@ const TrainingModulePage = () => {
   const { moduleId = '' } = useParams();
   const navigate = useNavigate();
   const mod = getModule(moduleId);
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
   const refresh = () => setTick((n) => n + 1);
   const [quizDraft, setQuizDraft] = useState<Record<string, number>>({});
   const [quizResult, setQuizResult] = useState<{ score: number; passed: boolean } | null>(null);
@@ -354,6 +355,7 @@ const TrainingModulePage = () => {
             </div>
           ))}
         </div>
+        <ApplyTrainingToDeal moduleId={moduleId} refreshKey={tick} />
       </section>
 
       <LayerCard
