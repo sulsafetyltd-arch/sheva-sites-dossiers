@@ -10,6 +10,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <script type="module" crossorigin src="/sheva-sites-dossiers/assets/index-qeU9bXTI.js"></script>
     <link rel="stylesheet" crossorigin href="/sheva-sites-dossiers/assets/index-qoB55dnP.css">
+      <script>
+      // GitHub Pages: convert path deep-links to HashRouter URLs
+      (function () {
+        var base = '/sheva-sites-dossiers';
+        var path = location.pathname;
+        if (path.indexOf(base) !== 0) return;
+        var rest = path.slice(base.length).replace(/\/+$/, '');
+        if (!rest || rest === '/' || rest === '/index.html') return;
+        if (rest.charAt(0) !== '/') rest = '/' + rest;
+        if (location.hash && location.hash.length > 1) return;
+        location.replace(base + '/#' + rest + location.search);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
