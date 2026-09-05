@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowRight, ExternalLink, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -550,7 +550,10 @@ const DealEditor = () => {
         </TabsContent>
 
         <TabsContent value="docs" className="space-y-3">
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              ניתן לצרף קישור לקובץ (Drive / OneDrive / תיקייה משרדית). הקבצים עצמם נשמרים אצלכם.
+            </p>
             <Button
               variant="outline"
               size="sm"
@@ -559,7 +562,7 @@ const DealEditor = () => {
                 update({
                   documents: [
                     ...deal.documents,
-                    { id: newId(), title: '', category: 'other', received: false, notes: '' },
+                    { id: newId(), title: '', category: 'other', received: false, notes: '', url: '' },
                   ],
                 })
               }
@@ -569,7 +572,7 @@ const DealEditor = () => {
             </Button>
           </div>
           {deal.documents.map((doc) => (
-            <div key={doc.id} className="re-card p-4 grid md:grid-cols-5 gap-3 items-end">
+            <div key={doc.id} className="re-card p-4 grid md:grid-cols-6 gap-3 items-end">
               <Field label="שם המסמך" className="md:col-span-2">
                 <Input
                   value={doc.title}
@@ -591,10 +594,14 @@ const DealEditor = () => {
                     })
                   }
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {Object.entries(DOCUMENT_CATEGORY_LABEL).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                      <SelectItem key={k} value={k}>
+                        {v}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -605,25 +612,65 @@ const DealEditor = () => {
                   value={doc.date ?? ''}
                   onChange={(e) =>
                     update({
-                      documents: deal.documents.map((d) => (d.id === doc.id ? { ...d, date: e.target.value } : d)),
+                      documents: deal.documents.map((d) =>
+                        d.id === doc.id ? { ...d, date: e.target.value } : d,
+                      ),
                     })
                   }
                 />
               </Field>
-              <div className="flex items-center justify-between gap-2 pb-1">
+              <Field label="קישור לקובץ" className="md:col-span-2">
+                <div className="flex gap-2">
+                  <Input
+                    dir="ltr"
+                    className="text-left"
+                    placeholder="https://..."
+                    value={doc.url ?? ''}
+                    onChange={(e) =>
+                      update({
+                        documents: deal.documents.map((d) =>
+                          d.id === doc.id ? { ...d, url: e.target.value } : d,
+                        ),
+                      })
+                    }
+                  />
+                  {doc.url?.trim() ? (
+                    <Button variant="outline" size="icon" asChild title="פתח קישור">
+                      <a href={doc.url} target="_blank" rel="noreferrer">
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
+              </Field>
+              <div className="flex items-center justify-between gap-2 pb-1 md:col-span-6">
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox
                     checked={doc.received}
                     onCheckedChange={(checked) =>
                       update({
                         documents: deal.documents.map((d) =>
-                          d.id === doc.id ? { ...d, received: Boolean(checked), date: d.date || todayIso() } : d,
+                          d.id === doc.id
+                            ? { ...d, received: Boolean(checked), date: d.date || todayIso() }
+                            : d,
                         ),
                       })
                     }
                   />
                   התקבל
                 </label>
+                <Input
+                  className="max-w-md"
+                  placeholder="הערות למסמך"
+                  value={doc.notes}
+                  onChange={(e) =>
+                    update({
+                      documents: deal.documents.map((d) =>
+                        d.id === doc.id ? { ...d, notes: e.target.value } : d,
+                      ),
+                    })
+                  }
+                />
                 <Button
                   variant="ghost"
                   size="icon"

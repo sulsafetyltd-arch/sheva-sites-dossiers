@@ -225,22 +225,29 @@ export function isContentRead(p: ModuleProgress, id: string): boolean {
   return Boolean(p.readIds?.includes(id));
 }
 
+/** מזהי תוכן שצריך לסמן כנקראו לשכבה נתונה */
+export function layerContentIds(moduleId: string, layer: TrainingLayerId): string[] {
+  const content = getInteractiveContent(moduleId);
+  if (layer === 'law') {
+    return [...content.lessons, ...content.statutes].map((x) => x.id);
+  }
+  if (layer === 'literature') {
+    return content.literatureDigests.map((d) => d.id);
+  }
+  if (layer === 'cases') {
+    return content.caseBriefs.map((c) => c.id);
+  }
+  return [];
+}
+
 export function layerContentReady(
   moduleId: string,
   layer: TrainingLayerId,
   p: ModuleProgress,
 ): boolean {
-  const content = getInteractiveContent(moduleId);
   const read = new Set(p.readIds ?? []);
-  if (layer === 'law') {
-    const ids = [...content.lessons, ...content.statutes].map((x) => x.id);
-    return ids.every((id) => read.has(id));
-  }
-  if (layer === 'literature') {
-    return content.literatureDigests.every((d) => read.has(d.id));
-  }
-  if (layer === 'cases') {
-    return content.caseBriefs.every((c) => read.has(c.id));
+  if (layer === 'law' || layer === 'literature' || layer === 'cases') {
+    return layerContentIds(moduleId, layer).every((id) => read.has(id));
   }
   if (layer === 'deliverable') {
     return combinedDeliverableNotes(p).length >= 8;

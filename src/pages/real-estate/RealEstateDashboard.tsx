@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, Building2, CircleDollarSign, FolderOpen } from 'lucide-react';
+import { Briefcase, Building2, CircleDollarSign, FolderOpen, GraduationCap, PlayCircle } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -29,7 +29,11 @@ import {
   propertySummary,
   statusBadgeClass,
 } from '@/lib/real-estate-utils';
+import { getModule } from '@/data/training-curriculum';
+import { readTrainingProgress } from '@/lib/training-store';
+import { nextRecommendedModule } from '@/lib/training-utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 const YEARS = [2026, 2025, 2024];
 
@@ -37,9 +41,15 @@ const RealEstateDashboard = () => {
   const navigate = useNavigate();
   const [deals, setDeals] = useState(() => getAllDeals());
   const [year, setYear] = useState(new Date().getFullYear());
+  const [nextTraining, setNextTraining] = useState(() => {
+    const id = nextRecommendedModule(readTrainingProgress());
+    return id ? getModule(id) : undefined;
+  });
 
   useEffect(() => {
     setDeals(getAllDeals());
+    const id = nextRecommendedModule(readTrainingProgress());
+    setNextTraining(id ? getModule(id) : undefined);
   }, []);
 
   const stats = useMemo(() => {
@@ -61,6 +71,32 @@ const RealEstateDashboard = () => {
 
   return (
     <div className="space-y-6">
+      {nextTraining && (
+        <section className="re-card p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground mb-0.5">המודול הבא בהכשרה</p>
+              <p className="font-semibold truncate">
+                {nextTraining.code} · {nextTraining.title}
+              </p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                המשיכו מהמקום שעצרתם — שיעורים, תרגול ומבחן בתוך האפליקציה
+              </p>
+            </div>
+          </div>
+          <Button
+            className="gap-2 shrink-0"
+            onClick={() => navigate(`/real-estate/training/${nextTraining.id}`)}
+          >
+            <PlayCircle className="w-4 h-4" />
+            המשך למידה
+          </Button>
+        </section>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Kpi
           icon={CircleDollarSign}
