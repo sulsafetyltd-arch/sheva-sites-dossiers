@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  Award,
   BookOpen,
   CheckCircle2,
   GraduationCap,
@@ -9,6 +10,8 @@ import {
   PlayCircle,
   Wrench,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { downloadTrainingCertificatePdf } from '@/lib/training-certificate';
 import {
   TRAINING_LIBRARY,
   TRAINING_META,
@@ -47,6 +50,22 @@ const TrainingOverview = () => {
   const nextId = useMemo(() => nextRecommendedModule(progress), [progress]);
   const nextMod = nextId ? getModule(nextId) : undefined;
   const weeks = weeksSinceStart(progress);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const fullyComplete = overall.completed === overall.total && overall.total > 0;
+
+  const onDownloadCertificate = async () => {
+    setPdfBusy(true);
+    try {
+      const result = await downloadTrainingCertificatePdf(progress);
+      toast.success(
+        result.fullyComplete ? 'תעודת הסיום הורדה' : 'סיכום ההתקדמות הורד כ־PDF',
+      );
+    } catch {
+      toast.error('לא ניתן לייצר PDF כרגע. נסו שוב.');
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -62,8 +81,19 @@ const TrainingOverview = () => {
             <p className="text-sm text-primary font-medium">
               כל ההכשרה מתבצעת בתוך האפליקציה — שיעורים, תקצירים, תרגול ומבחנים. אין צורך במקור לימוד חיצוני.
             </p>
-            <div className="pt-1">
+            <div className="pt-1 flex flex-wrap items-center gap-2">
               <BackupControls compact />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                disabled={pdfBusy}
+                onClick={() => void onDownloadCertificate()}
+              >
+                <Award className="w-4 h-4" />
+                {fullyComplete ? 'הורדת תעודת סיום' : 'הורדת סיכום PDF'}
+              </Button>
             </div>
           </div>
           <div className="shrink-0 re-card bg-muted/40 p-4 min-w-[180px] space-y-2">
