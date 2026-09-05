@@ -32,6 +32,7 @@ import {
   stageStats,
   weeksSinceStart,
 } from '@/lib/training-utils';
+import { BackupControls } from '@/components/real-estate/BackupControls';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -61,6 +62,9 @@ const TrainingOverview = () => {
             <p className="text-sm text-primary font-medium">
               כל ההכשרה מתבצעת בתוך האפליקציה — שיעורים, תקצירים, תרגול ומבחנים. אין צורך במקור לימוד חיצוני.
             </p>
+            <div className="pt-1">
+              <BackupControls compact />
+            </div>
           </div>
           <div className="shrink-0 re-card bg-muted/40 p-4 min-w-[180px] space-y-2">
             <p className="text-xs text-muted-foreground">התקדמות כוללת</p>
