@@ -15,14 +15,18 @@ create table if not exists public.profiles (
 -- Bootstrap accounts that existed before this migration. Only the oldest one
 -- becomes admin.
 with ranked_users as (
-  select id, coalesce(email, ''), raw_user_meta_data, created_at,
-         row_number() over (order by created_at, id) as position
+  select
+    id,
+    coalesce(email, '') as email,
+    raw_user_meta_data,
+    created_at,
+    row_number() over (order by created_at, id) as position
   from auth.users
 )
 insert into public.profiles (id, email, full_name, role, is_active, created_at)
 select
   id,
-  coalesce,
+  email,
   raw_user_meta_data ->> 'full_name',
   case when position = 1 then 'admin' else 'member' end,
   position = 1,
