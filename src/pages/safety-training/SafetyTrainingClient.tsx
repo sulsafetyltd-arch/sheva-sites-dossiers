@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, Flame, GraduationCap, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowRight, Flame, GraduationCap, Plus, ShieldCheck, Trash2, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getClient } from '@/lib/safety-audit-store';
@@ -11,14 +11,24 @@ import {
 } from '@/lib/safety-training-store';
 import type { SafetyAuditClient } from '@/types/safety-audit';
 import type { SafetyTrainingSession, TrainingCategory } from '@/types/safety-training';
-import { TRAINING_CATEGORY_DETAILS, trainingCategoryLabel } from '@/types/safety-training';
+import {
+  TRAINING_CATEGORY_DETAILS,
+  isBioradClientName,
+  trainingCategoryLabel,
+} from '@/types/safety-training';
 import { useSafetyAuth } from '@/contexts/SafetyAuthContext';
 
-const categories: Array<{ value: TrainingCategory; icon: typeof ShieldCheck }> = [
-  { value: 'general', icon: ShieldCheck },
-  { value: 'work_at_height', icon: GraduationCap },
-  { value: 'fire', icon: Flame },
+const baseCategories: Array<{ value: TrainingCategory; icon: typeof ShieldCheck; hint: string }> = [
+  { value: 'general', icon: ShieldCheck, hint: 'טופס קבוצתי וחתימות' },
+  { value: 'work_at_height', icon: GraduationCap, hint: 'טופס קבוצתי + אישורים אישיים' },
+  { value: 'fire', icon: Flame, hint: 'טופס קבוצתי וחתימות' },
 ];
+
+const rampCategory = {
+  value: 'ramp_loading' as const,
+  icon: Truck,
+  hint: 'SOL-FORM-001 · טופס אישי + יומן קבוצתי',
+};
 
 export default function SafetyTrainingClient() {
   const { clientId } = useParams();
@@ -30,6 +40,12 @@ export default function SafetyTrainingClient() {
   const [location, setLocation] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const showRampForm = isBioradClientName(client?.name);
+  const categories = useMemo(
+    () => (showRampForm ? [...baseCategories, rampCategory] : baseCategories),
+    [showRampForm],
+  );
 
   const refresh = useCallback(async () => {
     if (!clientId) return;
@@ -50,8 +66,18 @@ export default function SafetyTrainingClient() {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (!showRampForm && category === 'ramp_loading') {
+      setCategory('general');
+    }
+  }, [showRampForm, category]);
+
   const create = async () => {
     if (!clientId) return;
+    if (category === 'ramp_loading' && !isBioradClientName(client?.name)) {
+      setError('טופס הדרכת הרמפה זמין רק ללקוח ביוראד');
+      return;
+    }
     setCreating(true);
     try {
       const session = await createTrainingSession(clientId, category, location.trim());
@@ -92,8 +118,8 @@ export default function SafetyTrainingClient() {
 
         <section className="rounded-xl border bg-white p-4 space-y-4">
           <h2 className="font-semibold">פתיחת הדרכה חדשה</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {categories.map(({ value, icon: Icon }) => (
+          <div className={`grid grid-cols-1 gap-2 ${showRampForm ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
+            {categories.map(({ value, icon: Icon, hint }) => (
               <button
                 key={value}
                 type="button"
@@ -105,11 +131,16 @@ export default function SafetyTrainingClient() {
                 <Icon className="w-5 h-5 mb-2" />
                 <div className="font-semibold">{TRAINING_CATEGORY_DETAILS[value].shortLabel}</div>
                 <div className={`text-xs mt-1 ${category === value ? 'text-slate-300' : 'text-slate-500'}`}>
-                  {value === 'work_at_height' ? 'טופס קבוצתי + אישורים אישיים' : 'טופס קבוצתי וחתימות'}
+                  {hint}
                 </div>
               </button>
             ))}
           </div>
+          {showRampForm && category === 'ramp_loading' && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+              טופס SOL-FORM-001 — הדרכה ואישור עובד מורשה לעבודה בעמדת רמפה (נוהל SOL-WP-001). זמין ללקוח ביוראד בלבד.
+            </div>
+          )}
           <Input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="מיקום ההדרכה / אתר" />
           <Button onClick={() => void create()} disabled={creating} className="gap-1">
             <Plus className="w-4 h-4" /> {creating ? 'יוצר…' : 'צור הדרכה'}

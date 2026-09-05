@@ -1,9 +1,37 @@
-export type TrainingCategory = 'general' | 'fire' | 'work_at_height';
+export type TrainingCategory = 'general' | 'fire' | 'work_at_height' | 'ramp_loading';
 export type TrainingStatus = 'draft' | 'final';
 export type ParticipantIdDocumentType = 'id_card' | 'drivers_license';
 
 export type ConstructionInductionLanguage =
   | 'he' | 'ar' | 'en' | 'ru' | 'zh' | 'tr' | 'ti' | 'ro' | 'hi';
+
+export type RampWorkLanguage = 'he' | 'en' | 'ar' | 'other';
+export type RampTrainingLocationType = 'classroom' | 'on_site' | 'other';
+export type RampTrainingMethod = 'lecture' | 'practical_demo' | 'video' | 'combined';
+export type RampTrainingKind = 'initial' | 'annual' | 'after_procedure_change' | 'after_incident';
+export type RampTrainerEvaluation = 'approved' | 'needs_refresh' | 'failed';
+
+export const RAMP_FORM_META = {
+  formId: 'SOL-FORM-001',
+  version: '1.0',
+  procedureId: 'SOL-WP-001',
+  title: 'טופס הדרכה ואישור עובד מורשה',
+  subtitle: 'עבודה בעמדת רמפה לטעינה ופריקת מטענים',
+  retentionYears: 7,
+} as const;
+
+/** Client-specific form — shown only for Bio-Rad / ביוראד. */
+export function isBioradClientName(name?: string | null): boolean {
+  if (!name) return false;
+  const normalized = name.toLowerCase().replace(/[\s\-_.]/g, '');
+  return (
+    normalized.includes('biorad')
+    || normalized.includes('bio-rad'.replace(/-/g, ''))
+    || name.includes('ביוראד')
+    || name.includes('ביו ראד')
+    || name.includes('ביו-ראד')
+  );
+}
 
 export const HEIGHT_TRAINING_TOPICS = [
   'מבוא כללי',
@@ -39,6 +67,79 @@ export const GENERAL_TRAINING_TOPICS = [
   'עזרה ראשונה, נוהלי חירום ומספרי חירום',
 ] as const;
 
+/** SOL-FORM-001 Part B — topics covered in ramp-loading training. */
+export const RAMP_TRAINING_TOPICS = [
+  'מבנה עמדת הרמפה והאמצעים הקיימים (מעקה תיקני, לוח רגליים, שער מתנייע, שילוט)',
+  'הסיכונים הקיימים: נפילה לעומק, פגיעה ממטענים נופלים, התנגשות עם רכבים',
+  'נוהל הפעלה צעד-אחר-צעד: בדיקה לפני שימוש, פתיחת שער, העברת מטענים, סגירה',
+  'איסורים מוחלטים: הסעת אדם, טיפוס על המעקה, חריגה מעבר למעקה',
+  'חובת ציוד מגן אישי: נעלי בטיחות, אפוד זוהר, כפפות עבודה',
+  'נוהל חירום: מקרה של נפילת אדם, נפילת חפץ, תקלה במעקה או בשער',
+  'טלפונים לחירום: מד״א 101, כיבוי אש 102, משטרה 100',
+  'פרטי קשר עם ממונה הבטיחות ומנהל המחסן',
+  'חובת דיווח על תקלות וליקויים – למי, איך ומתי',
+  'הדגמה במקום של הפעלת השער, נעילתו, ושימוש בציוד המגן',
+  'מסירת עותק כתוב של נוהל העבודה (SOL-WP-001) לעובד',
+] as const;
+
+export const RAMP_QUIZ_QUESTIONS = [
+  {
+    id: 'q1' as const,
+    prompt: 'מהו גובהו של אזן המעקה העליון בעמדת הרמפה?',
+    options: [
+      { value: '70', label: '70 ס״מ' },
+      { value: '90', label: '90 ס״מ' },
+      { value: '100-104', label: '100–104 ס״מ' },
+      { value: '150', label: '150 ס״מ' },
+    ],
+  },
+  {
+    id: 'q2' as const,
+    prompt: 'האם מותר להעביר אנשים על משטח הרמפה?',
+    options: [
+      { value: 'forbidden', label: 'לא, אסור בהחלט' },
+      { value: 'manager_ok', label: 'כן, באישור מנהל' },
+      { value: 'emergency', label: 'כן, במקרה חירום' },
+    ],
+  },
+  {
+    id: 'q3' as const,
+    prompt: 'למי מדווחים על תקלה במעקה?',
+    options: [
+      { value: 'fix_self', label: 'מתקנים בעצמנו' },
+      { value: 'report', label: 'מדווחים לממונה הבטיחות ולמנהל המחסן' },
+      { value: 'continue', label: 'ממשיכים לעבוד' },
+    ],
+  },
+  {
+    id: 'q4' as const,
+    prompt: 'מתי מותר לפתוח את שער הרמפה?',
+    options: [
+      { value: 'other_ok', label: 'באישור עובד אחר' },
+      { value: 'vehicle_secured', label: 'רק כאשר רכב ההובלה במקום ומאובטח' },
+      { value: 'anytime', label: 'בכל עת' },
+    ],
+  },
+  {
+    id: 'q5' as const,
+    prompt: 'איזה ציוד מגן חובה ללבוש בעבודה ברמפה?',
+    options: [
+      { value: 'full_ppe', label: 'נעלי בטיחות + אפוד זוהר + כפפות' },
+      { value: 'gloves_only', label: 'כפפות בלבד' },
+      { value: 'none', label: 'ללא צורך' },
+    ],
+  },
+] as const;
+
+export interface RampQuizAnswers {
+  q1?: string;
+  q2?: string;
+  q3?: string;
+  q4?: string;
+  q5?: string;
+  q6?: string;
+}
+
 export interface HeightTrainingFormDetails {
   companyName?: string;
   companyRegistrationNumber?: string;
@@ -70,6 +171,16 @@ export interface HeightTrainingFormDetails {
   generalTrainingRecordType?: 'annual_safety' | 'new_employee';
   constructionInductionLanguage?: ConstructionInductionLanguage;
   includeIdDocumentsInGroupPdf?: boolean;
+  /** SOL-FORM-001 session fields */
+  rampSelectedTopics?: string[];
+  rampDurationMinutes?: number;
+  rampLocationType?: RampTrainingLocationType;
+  rampLocationOther?: string;
+  rampMethods?: RampTrainingMethod[];
+  rampTrainingKind?: RampTrainingKind;
+  rampNextDueDate?: string;
+  warehouseManagerName?: string;
+  warehouseManagerSignatureDataUrl?: string;
 }
 
 export interface SafetyTrainingSession {
@@ -108,6 +219,18 @@ export interface SafetyTrainingParticipant {
   fatherName?: string;
   birthYear?: number;
   address?: string;
+  /** SOL-FORM-001 Part A */
+  department?: string;
+  startWorkDate?: string;
+  mobilePhone?: string;
+  workLanguage?: RampWorkLanguage;
+  workLanguageOther?: string;
+  /** SOL-FORM-001 Part D */
+  rampQuiz?: RampQuizAnswers;
+  trainerEvaluation?: RampTrainerEvaluation;
+  refreshDate?: string;
+  trainerNotes?: string;
+  signedTime?: string;
   idDocumentType?: ParticipantIdDocumentType;
   idDocumentStoragePath?: string;
   signatureStoragePath?: string;
@@ -152,6 +275,12 @@ export const TRAINING_CATEGORY_DETAILS: Record<
       'עבודה בטוחה על סולמות, גגות, פיגומים ובמות הרמה',
       'בדיקות ציוד, חילוץ ותגובה במצב חירום',
     ],
+  },
+  ramp_loading: {
+    label: 'הדרכת עמדת רמפה (SOL-FORM-001)',
+    shortLabel: 'רמפה',
+    defaultTopic: 'עבודה בעמדת רמפה לטעינה ופריקת מטענים — נוהל SOL-WP-001',
+    content: [...RAMP_TRAINING_TOPICS],
   },
 };
 

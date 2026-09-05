@@ -3,7 +3,11 @@ import {
   GENERAL_TRAINING_TOPICS,
   HEIGHT_TRAINING_PROGRAM,
   HEIGHT_TRAINING_TOPICS,
+  RAMP_FORM_META,
+  RAMP_QUIZ_QUESTIONS,
+  RAMP_TRAINING_TOPICS,
   TRAINING_CATEGORY_DETAILS,
+  isBioradClientName,
   trainingCategoryLabel,
 } from '@/types/safety-training';
 import { CONSTRUCTION_INDUCTION_DOCUMENTS } from '@/lib/construction-induction-documents';
@@ -21,6 +25,18 @@ describe('safety training categories', () => {
     expect(TRAINING_CATEGORY_DETAILS.work_at_height.defaultTopic).toContain('עבודה בגובה');
     expect(HEIGHT_TRAINING_TOPICS).toHaveLength(7);
     expect(HEIGHT_TRAINING_PROGRAM).toContain('תרגול מעשי של עבודה בגובה ולמידה מאירועים');
+  });
+
+  it('defines SOL-FORM-001 ramp loading training for Bio-Rad', () => {
+    expect(trainingCategoryLabel('ramp_loading')).toContain('רמפה');
+    expect(TRAINING_CATEGORY_DETAILS.ramp_loading.defaultTopic).toContain('SOL-WP-001');
+    expect(RAMP_TRAINING_TOPICS).toHaveLength(11);
+    expect(RAMP_QUIZ_QUESTIONS).toHaveLength(5);
+    expect(RAMP_FORM_META.formId).toBe('SOL-FORM-001');
+    expect(isBioradClientName('ביוראד')).toBe(true);
+    expect(isBioradClientName('Bio-Rad Israel')).toBe(true);
+    expect(isBioradClientName('Biorad')).toBe(true);
+    expect(isBioradClientName('לקוח אחר')).toBe(false);
   });
 
   it('offers construction induction documents in all supplied languages', () => {

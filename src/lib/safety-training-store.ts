@@ -5,7 +5,14 @@ import type {
   TrainingCategory,
 } from '@/types/safety-training';
 import { TRAINING_CATEGORY_DETAILS } from '@/types/safety-training';
-import { GENERAL_TRAINING_TOPICS, HEIGHT_TRAINING_TOPICS } from '@/types/safety-training';
+import {
+  GENERAL_TRAINING_TOPICS,
+  HEIGHT_TRAINING_TOPICS,
+  RAMP_TRAINING_TOPICS,
+  type RampQuizAnswers,
+  type RampTrainerEvaluation,
+  type RampWorkLanguage,
+} from '@/types/safety-training';
 import { resizeImageToBlob } from '@/lib/storage-utils';
 
 type Row = Record<string, unknown>;
@@ -48,8 +55,25 @@ function mapSession(row: Row): SafetyTrainingSession {
 function mapParticipant(row: Row): SafetyTrainingParticipant {
   const personalDetails =
     row.personal_details && typeof row.personal_details === 'object'
-      ? row.personal_details as Partial<SafetyTrainingParticipant>
+      ? row.personal_details as Partial<SafetyTrainingParticipant> & {
+          rampQuiz?: RampQuizAnswers;
+          trainerEvaluation?: RampTrainerEvaluation;
+          workLanguage?: RampWorkLanguage;
+        }
       : {};
+  const workLanguage =
+    personalDetails.workLanguage === 'he'
+    || personalDetails.workLanguage === 'en'
+    || personalDetails.workLanguage === 'ar'
+    || personalDetails.workLanguage === 'other'
+      ? personalDetails.workLanguage
+      : undefined;
+  const trainerEvaluation =
+    personalDetails.trainerEvaluation === 'approved'
+    || personalDetails.trainerEvaluation === 'needs_refresh'
+    || personalDetails.trainerEvaluation === 'failed'
+      ? personalDetails.trainerEvaluation
+      : undefined;
   return {
     id: String(row.id),
     sessionId: String(row.session_id),
@@ -63,6 +87,19 @@ function mapParticipant(row: Row): SafetyTrainingParticipant {
     fatherName: text(personalDetails.fatherName),
     birthYear: typeof personalDetails.birthYear === 'number' ? personalDetails.birthYear : undefined,
     address: text(personalDetails.address),
+    department: text(personalDetails.department),
+    startWorkDate: text(personalDetails.startWorkDate),
+    mobilePhone: text(personalDetails.mobilePhone),
+    workLanguage,
+    workLanguageOther: text(personalDetails.workLanguageOther),
+    rampQuiz:
+      personalDetails.rampQuiz && typeof personalDetails.rampQuiz === 'object'
+        ? personalDetails.rampQuiz
+        : undefined,
+    trainerEvaluation,
+    refreshDate: text(personalDetails.refreshDate),
+    trainerNotes: text(personalDetails.trainerNotes),
+    signedTime: text(personalDetails.signedTime),
     idDocumentType:
       row.id_document_type === 'drivers_license' ? 'drivers_license'
         : row.id_document_type === 'id_card' ? 'id_card'
@@ -149,7 +186,19 @@ export async function createTrainingSession(
           ? { generalSelectedTopics: [...GENERAL_TRAINING_TOPICS] }
           : category === 'work_at_height'
             ? { selectedTopics: [...HEIGHT_TRAINING_TOPICS] }
-            : {}),
+            : category === 'ramp_loading'
+              ? {
+                  rampSelectedTopics: [...RAMP_TRAINING_TOPICS],
+                  rampLocationType: 'on_site' as const,
+                  rampMethods: ['combined' as const],
+                  rampTrainingKind: 'initial' as const,
+                  rampNextDueDate: (() => {
+                    const next = new Date();
+                    next.setFullYear(next.getFullYear() + 1);
+                    return next.toISOString().slice(0, 10);
+                  })(),
+                }
+              : {}),
       },
       created_by: authData.user?.id,
     })
@@ -252,13 +301,28 @@ export async function updateTrainingParticipant(
   for (const [key, column] of Object.entries(names)) {
     if (key in patch) fields[column] = patch[key as keyof SafetyTrainingParticipant] ?? null;
   }
-  if (['firstName', 'lastName', 'fatherName', 'birthYear', 'address'].some((key) => key in patch)) {
+  const personalKeys = [
+    'firstName', 'lastName', 'fatherName', 'birthYear', 'address',
+    'department', 'startWorkDate', 'mobilePhone', 'workLanguage', 'workLanguageOther',
+    'rampQuiz', 'trainerEvaluation', 'refreshDate', 'trainerNotes', 'signedTime',
+  ] as const;
+  if (personalKeys.some((key) => key in patch)) {
     fields.personal_details = {
       firstName: patch.firstName,
       lastName: patch.lastName,
       fatherName: patch.fatherName,
       birthYear: patch.birthYear,
       address: patch.address,
+      department: patch.department,
+      startWorkDate: patch.startWorkDate,
+      mobilePhone: patch.mobilePhone,
+      workLanguage: patch.workLanguage,
+      workLanguageOther: patch.workLanguageOther,
+      rampQuiz: patch.rampQuiz,
+      trainerEvaluation: patch.trainerEvaluation,
+      refreshDate: patch.refreshDate,
+      trainerNotes: patch.trainerNotes,
+      signedTime: patch.signedTime,
     };
   }
   const { data, error } = await supabase

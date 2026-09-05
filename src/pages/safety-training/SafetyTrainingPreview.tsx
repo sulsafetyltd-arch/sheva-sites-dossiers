@@ -15,10 +15,12 @@ import {
   GENERAL_TRAINING_TOPICS,
   HEIGHT_TRAINING_PROGRAM,
   HEIGHT_TRAINING_TOPICS,
+  RAMP_FORM_META,
   TRAINING_CATEGORY_DETAILS,
   trainingCategoryLabel,
 } from '@/types/safety-training';
 import { CONSTRUCTION_INDUCTION_DOCUMENTS } from '@/lib/construction-induction-documents';
+import { RampGroupAnnexPrintable, RampPersonalFormPrintable } from './RampTrainingPrintable';
 
 export default function SafetyTrainingPreview() {
   const { id } = useParams();
@@ -65,10 +67,15 @@ export default function SafetyTrainingPreview() {
     [participants, searchParams],
   );
   const isCertificate = session?.category === 'work_at_height' && Boolean(selectedParticipant);
+  const isRampPersonal = session?.category === 'ramp_loading' && Boolean(selectedParticipant);
   const fileName = () => {
     const base = isCertificate
       ? `אישור-הדרכת-עבודה-בגובה-${selectedParticipant?.employeeName}`
-      : `טופס-${session ? trainingCategoryLabel(session.category) : 'הדרכה'}-${session?.sessionNumber}`;
+      : isRampPersonal
+        ? `${RAMP_FORM_META.formId}-${selectedParticipant?.employeeName}`
+        : session?.category === 'ramp_loading'
+          ? `${RAMP_FORM_META.formId}-יומן-קבוצתי-${session.sessionNumber}`
+          : `טופס-${session ? trainingCategoryLabel(session.category) : 'הדרכה'}-${session?.sessionNumber}`;
     return `${base}.pdf`.replace(/[\\/:*?"<>|]/g, '-');
   };
 
@@ -124,7 +131,15 @@ export default function SafetyTrainingPreview() {
             <Link to={`/safety/training/editor/${session.id}`} className="inline-flex items-center gap-1 text-sm text-slate-600">
               <ArrowRight className="w-4 h-4" /> חזרה לעריכה
             </Link>
-            <h1 className="text-xl font-bold">{isCertificate ? 'אישור אישי לעובד' : 'טופס הדרכה קבוצתי'}</h1>
+            <h1 className="text-xl font-bold">
+              {isCertificate
+                ? 'אישור אישי לעובד'
+                : isRampPersonal
+                  ? 'טופס אישי SOL-FORM-001'
+                  : session.category === 'ramp_loading'
+                    ? 'נספח א׳ — יומן הדרכה קבוצתית'
+                    : 'טופס הדרכה קבוצתי'}
+            </h1>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" onClick={() => void exportPdf()} disabled={exporting} className="gap-1"><Download className="w-4 h-4" /> PDF</Button>
@@ -132,11 +147,13 @@ export default function SafetyTrainingPreview() {
           </div>
         </div>
 
-        {session.category === 'work_at_height' && (
+        {(session.category === 'work_at_height' || session.category === 'ramp_loading') && (
           <div className="print:hidden rounded-xl border bg-white p-3">
             <div className="text-sm font-medium mb-2">מסמכי ההדרכה</div>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant={!selectedParticipant ? 'default' : 'outline'} onClick={() => setSearchParams({})}>טופס קבוצתי</Button>
+              <Button size="sm" variant={!selectedParticipant ? 'default' : 'outline'} onClick={() => setSearchParams({})}>
+                {session.category === 'ramp_loading' ? 'יומן קבוצתי' : 'טופס קבוצתי'}
+              </Button>
               {participants.map((participant) => (
                 <Button
                   key={participant.id}
@@ -144,7 +161,8 @@ export default function SafetyTrainingPreview() {
                   variant={selectedParticipant?.id === participant.id ? 'default' : 'outline'}
                   onClick={() => setSearchParams({ participant: participant.id })}
                 >
-                  אישור: {participant.employeeName}
+                  {session.category === 'ramp_loading' ? 'טופס: ' : 'אישור: '}
+                  {participant.employeeName}
                 </Button>
               ))}
             </div>
@@ -158,6 +176,28 @@ export default function SafetyTrainingPreview() {
             className="report-sheet bg-white text-slate-900 shadow-lg print:shadow-none overflow-hidden mx-auto"
             style={{ fontFamily: 'Heebo, Arial, sans-serif', width: 794, minWidth: 794, minHeight: 1123 }}
           >
+            {session.category === 'ramp_loading' ? (
+              isRampPersonal && selectedParticipant ? (
+                <RampPersonalFormPrintable
+                  session={session}
+                  participant={selectedParticipant}
+                  clientName={client?.name}
+                  signatureUrl={
+                    selectedParticipant.signatureStoragePath
+                      ? signatureUrls[selectedParticipant.signatureStoragePath]
+                      : undefined
+                  }
+                />
+              ) : (
+                <RampGroupAnnexPrintable
+                  session={session}
+                  participants={participants}
+                  clientName={client?.name}
+                  signatureUrls={signatureUrls}
+                />
+              )
+            ) : (
+              <>
             <header className="bg-[#0f2744] text-white px-8 py-6 flex justify-between gap-4">
               <div>
                 <div className="text-xs tracking-[0.2em] text-slate-300">סול בטיחות בע״מ</div>
@@ -408,6 +448,8 @@ export default function SafetyTrainingPreview() {
                   {session.category === 'general' && <p className="text-[10px] text-slate-500">יש לחזור על ההדרכה בהתאם לצורך ולפחות אחת לשנה, ולתעד את קיומה בפנקס ההדרכה.</p>}
                 </section>
               </div>
+            )}
+              </>
             )}
           </article>
         </div>

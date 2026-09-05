@@ -18,10 +18,21 @@ import {
   updateTrainingSession,
 } from '@/lib/safety-training-store';
 import { syncTrainingSessionToEmployeeRegistry } from '@/lib/safety-employee-store';
-import type { SafetyTrainingParticipant, SafetyTrainingSession } from '@/types/safety-training';
+import type {
+  RampTrainingKind,
+  RampTrainingLocationType,
+  RampTrainingMethod,
+  RampTrainerEvaluation,
+  RampWorkLanguage,
+  SafetyTrainingParticipant,
+  SafetyTrainingSession,
+} from '@/types/safety-training';
 import {
   GENERAL_TRAINING_TOPICS,
   HEIGHT_TRAINING_TOPICS,
+  RAMP_FORM_META,
+  RAMP_QUIZ_QUESTIONS,
+  RAMP_TRAINING_TOPICS,
   TRAINING_CATEGORY_DETAILS,
   trainingCategoryLabel,
 } from '@/types/safety-training';
@@ -104,6 +115,25 @@ export default function SafetyTrainingEditor() {
         }
         if (participants.some((participant) => !participant.idDocumentStoragePath)) {
           setError('יש לצרף צילום תעודת זהות או רישיון נהיגה לכל עובד לפני סיום ההדרכה');
+          return false;
+        }
+      }
+      if (session.category === 'ramp_loading') {
+        const details = session.formDetails;
+        if (!(details?.rampSelectedTopics?.length)) {
+          setError('יש לסמן לפחות נושא אחד שנכלל בהדרכת הרמפה');
+          return false;
+        }
+        if (!details.rampNextDueDate) {
+          setError('יש להזין את מועד ההדרכה הבאה (עד 12 חודשים)');
+          return false;
+        }
+        if (participants.some((participant) => !participant.employeeIdNumber || !participant.jobTitle)) {
+          setError('בטופס SOL-FORM-001 חובה להשלים תעודת זהות ותפקיד לכל עובד');
+          return false;
+        }
+        if (participants.some((participant) => !participant.trainerEvaluation)) {
+          setError('יש להשלים את הערכת מבצע ההדרכה לכל עובד');
           return false;
         }
       }
@@ -339,6 +369,151 @@ export default function SafetyTrainingEditor() {
           </section>
         )}
 
+        {session.category === 'ramp_loading' && (
+          <section className="rounded-xl border bg-white p-4 space-y-4">
+            <div>
+              <h2 className="font-semibold">{RAMP_FORM_META.title}</h2>
+              <p className="text-sm text-slate-600">{RAMP_FORM_META.subtitle}</p>
+              <p className="text-xs text-slate-500 mt-1">
+                מס׳ טופס {RAMP_FORM_META.formId} · גרסה {RAMP_FORM_META.version} · נוהל {RAMP_FORM_META.procedureId}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="text-sm">שעת התחלה
+                <Input type="time" value={heightDetails.startTime || ''} onChange={(event) => setHeightDetails({ startTime: event.target.value })} />
+              </label>
+              <label className="text-sm">שעת סיום
+                <Input type="time" value={heightDetails.endTime || ''} onChange={(event) => setHeightDetails({ endTime: event.target.value })} />
+              </label>
+              <Input
+                type="number"
+                value={heightDetails.rampDurationMinutes ?? ''}
+                onChange={(event) => setHeightDetails({ rampDurationMinutes: event.target.value ? Number(event.target.value) : undefined })}
+                placeholder="משך כולל בדקות"
+              />
+              <label className="text-sm">ההדרכה הבאה עד
+                <Input type="date" value={heightDetails.rampNextDueDate || ''} onChange={(event) => setHeightDetails({ rampNextDueDate: event.target.value })} />
+              </label>
+              <Input
+                value={heightDetails.instructorIdNumber || ''}
+                onChange={(event) => setHeightDetails({ instructorIdNumber: event.target.value })}
+                placeholder="ת.ז. מבצע ההדרכה"
+              />
+              <Input
+                value={heightDetails.warehouseManagerName || ''}
+                onChange={(event) => setHeightDetails({ warehouseManagerName: event.target.value })}
+                placeholder="שם מנהל המחסן"
+              />
+            </div>
+            <div>
+              <h3 className="font-medium mb-2">מיקום ההדרכה</h3>
+              <div className="flex flex-wrap gap-3 text-sm">
+                {([
+                  ['classroom', 'בכיתת לימוד'],
+                  ['on_site', 'באתר (עמדת הרמפה)'],
+                  ['other', 'אחר'],
+                ] as Array<[RampTrainingLocationType, string]>).map(([value, label]) => (
+                  <label key={value} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="ramp-location"
+                      checked={(heightDetails.rampLocationType ?? 'on_site') === value}
+                      onChange={() => setHeightDetails({ rampLocationType: value })}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              {(heightDetails.rampLocationType ?? '') === 'other' && (
+                <Input
+                  className="mt-2"
+                  value={heightDetails.rampLocationOther || ''}
+                  onChange={(event) => setHeightDetails({ rampLocationOther: event.target.value })}
+                  placeholder="פירוט מיקום אחר"
+                />
+              )}
+            </div>
+            <div>
+              <h3 className="font-medium mb-2">שיטת ההדרכה</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                {([
+                  ['lecture', 'הרצאה'],
+                  ['practical_demo', 'הדגמה מעשית'],
+                  ['video', 'סרטון הדרכה'],
+                  ['combined', 'שילוב'],
+                ] as Array<[RampTrainingMethod, string]>).map(([value, label]) => {
+                  const selected = (heightDetails.rampMethods ?? []).includes(value);
+                  return (
+                    <label key={value} className="flex items-center gap-2 rounded-lg border p-2">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => setHeightDetails({
+                          rampMethods: selected
+                            ? (heightDetails.rampMethods ?? []).filter((item) => item !== value)
+                            : [...(heightDetails.rampMethods ?? []), value],
+                        })}
+                      />
+                      {label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <h3 className="font-medium mb-2">סוג ההדרכה</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                {([
+                  ['initial', 'ראשונית'],
+                  ['annual', 'תקופתית (שנתית)'],
+                  ['after_procedure_change', 'ריענון לאחר שינוי בנוהל'],
+                  ['after_incident', 'אחרי תקלה'],
+                ] as Array<[RampTrainingKind, string]>).map(([value, label]) => (
+                  <label key={value} className="flex items-center gap-2 rounded-lg border p-2">
+                    <input
+                      type="radio"
+                      name="ramp-kind"
+                      checked={(heightDetails.rampTrainingKind ?? 'initial') === value}
+                      onChange={() => setHeightDetails({ rampTrainingKind: value })}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3 className="font-medium mb-2">חלק ב׳ — נושאים שנכללו בהדרכה</h3>
+              <div className="space-y-2">
+                {RAMP_TRAINING_TOPICS.map((topic, index) => {
+                  const selected = (heightDetails.rampSelectedTopics ?? RAMP_TRAINING_TOPICS).includes(topic);
+                  return (
+                    <label key={topic} className="flex items-start gap-2 rounded-lg border p-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={selected}
+                        onChange={() => setHeightDetails({
+                          rampSelectedTopics: selected
+                            ? (heightDetails.rampSelectedTopics ?? [...RAMP_TRAINING_TOPICS]).filter((item) => item !== topic)
+                            : [...(heightDetails.rampSelectedTopics ?? []), topic],
+                        })}
+                      />
+                      <span><span className="text-slate-500 ml-1">{index + 1}.</span>{topic}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <h3 className="font-medium mb-2">חתימת מנהל המחסן — הסמכה כעובד מורשה</h3>
+              <SignaturePad
+                value={heightDetails.warehouseManagerSignatureDataUrl}
+                onChange={(dataUrl) => setHeightDetails({ warehouseManagerSignatureDataUrl: dataUrl || undefined })}
+              />
+            </div>
+          </section>
+        )}
+
         {session.category === 'work_at_height' && (
           <section className="rounded-xl border bg-white p-4 space-y-4">
             <h2 className="font-semibold">פרטי טופס ואישור עבודה בגובה</h2>
@@ -450,6 +625,72 @@ export default function SafetyTrainingEditor() {
                 <Input value={participant.employeeIdNumber || ''} onChange={(event) => changeParticipant(participant.id, { employeeIdNumber: event.target.value })} onBlur={() => void persistParticipant(participant)} placeholder="תעודת זהות / דרכון" />
                 <Input value={participant.employer || ''} onChange={(event) => changeParticipant(participant.id, { employer: event.target.value })} onBlur={() => void persistParticipant(participant)} placeholder="מעסיק / קבלן" />
                 <Input value={participant.jobTitle || ''} onChange={(event) => changeParticipant(participant.id, { jobTitle: event.target.value })} onBlur={() => void persistParticipant(participant)} placeholder="תפקיד" />
+                {session.category === 'ramp_loading' && (
+                  <>
+                    <Input
+                      value={participant.department || ''}
+                      onChange={(event) => changeParticipant(participant.id, { department: event.target.value })}
+                      onBlur={() => void persistParticipant({ ...participant, department: (participants.find((item) => item.id === participant.id) || participant).department })}
+                      placeholder="מחלקה / אגף"
+                    />
+                    <label className="text-sm">תאריך תחילת עבודה
+                      <Input
+                        type="date"
+                        value={participant.startWorkDate || ''}
+                        onChange={(event) => changeParticipant(participant.id, { startWorkDate: event.target.value })}
+                        onBlur={() => void persistParticipant(participants.find((item) => item.id === participant.id) || participant)}
+                      />
+                    </label>
+                    <Input
+                      value={participant.mobilePhone || ''}
+                      onChange={(event) => changeParticipant(participant.id, { mobilePhone: event.target.value })}
+                      onBlur={() => void persistParticipant(participants.find((item) => item.id === participant.id) || participant)}
+                      placeholder="טלפון נייד"
+                    />
+                    <label className="text-sm">שעת חתימה
+                      <Input
+                        type="time"
+                        value={participant.signedTime || ''}
+                        onChange={(event) => changeParticipant(participant.id, { signedTime: event.target.value })}
+                        onBlur={() => void persistParticipant(participants.find((item) => item.id === participant.id) || participant)}
+                      />
+                    </label>
+                    <div className="sm:col-span-2">
+                      <div className="text-sm font-medium mb-2">שפת עבודה</div>
+                      <div className="flex flex-wrap gap-3 text-sm">
+                        {([
+                          ['he', 'עברית'],
+                          ['en', 'אנגלית'],
+                          ['ar', 'ערבית'],
+                          ['other', 'אחר'],
+                        ] as Array<[RampWorkLanguage, string]>).map(([value, label]) => (
+                          <label key={value} className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name={`work-lang-${participant.id}`}
+                              checked={(participant.workLanguage ?? 'he') === value}
+                              onChange={() => {
+                                const updated = { ...participant, workLanguage: value };
+                                changeParticipant(participant.id, updated);
+                                void persistParticipant(updated);
+                              }}
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                      {participant.workLanguage === 'other' && (
+                        <Input
+                          className="mt-2"
+                          value={participant.workLanguageOther || ''}
+                          onChange={(event) => changeParticipant(participant.id, { workLanguageOther: event.target.value })}
+                          onBlur={() => void persistParticipant(participants.find((item) => item.id === participant.id) || participant)}
+                          placeholder="שפה אחרת"
+                        />
+                      )}
+                    </div>
+                  </>
+                )}
                 {session.category === 'work_at_height' && (
                   <>
                     <Input value={participant.fatherName || ''} onChange={(event) => changeParticipant(participant.id, { fatherName: event.target.value })} onBlur={() => void persistParticipant(participant)} placeholder="שם האב" />
@@ -458,6 +699,89 @@ export default function SafetyTrainingEditor() {
                   </>
                 )}
               </div>
+              {session.category === 'ramp_loading' && (
+                <div className="rounded-lg border bg-slate-50 p-3 space-y-3">
+                  <h3 className="font-medium text-sm">חלק ד׳ — בדיקת הבנה</h3>
+                  {RAMP_QUIZ_QUESTIONS.map((question) => (
+                    <div key={question.id} className="space-y-1">
+                      <div className="text-sm font-medium">{question.prompt}</div>
+                      <div className="grid grid-cols-1 gap-1 text-sm">
+                        {question.options.map((option) => (
+                          <label key={option.value} className="flex items-center gap-2 rounded border bg-white p-2">
+                            <input
+                              type="radio"
+                              name={`${participant.id}-${question.id}`}
+                              checked={(participant.rampQuiz?.[question.id] ?? '') === option.value}
+                              onChange={() => {
+                                const updated = {
+                                  ...participant,
+                                  rampQuiz: { ...participant.rampQuiz, [question.id]: option.value },
+                                };
+                                changeParticipant(participant.id, updated);
+                                void persistParticipant(updated);
+                              }}
+                            />
+                            {option.label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <label className="text-sm block">
+                    שאלה 6: תאר במילים שלך מה תעשה במקרה של נפילת עובד מהרמפה
+                    <Textarea
+                      className="mt-1"
+                      value={participant.rampQuiz?.q6 || ''}
+                      onChange={(event) => changeParticipant(participant.id, {
+                        rampQuiz: { ...participant.rampQuiz, q6: event.target.value },
+                      })}
+                      onBlur={() => void persistParticipant(participants.find((item) => item.id === participant.id) || participant)}
+                    />
+                  </label>
+                  <div>
+                    <div className="text-sm font-medium mb-2">הערכת מבצע ההדרכה</div>
+                    <div className="space-y-2 text-sm">
+                      {([
+                        ['approved', 'העובד ענה נכון על כל השאלות וגילה הבנה מלאה – מאושר כעובד מורשה'],
+                        ['needs_refresh', 'העובד טעה בחלק מהשאלות – נדרש ריענון לפני אישור'],
+                        ['failed', 'העובד לא הצליח לעבור את ההדרכה – לא מאושר לעבודה ברמפה'],
+                      ] as Array<[RampTrainerEvaluation, string]>).map(([value, label]) => (
+                        <label key={value} className="flex items-start gap-2 rounded border bg-white p-2">
+                          <input
+                            type="radio"
+                            className="mt-1"
+                            name={`eval-${participant.id}`}
+                            checked={participant.trainerEvaluation === value}
+                            onChange={() => {
+                              const updated = { ...participant, trainerEvaluation: value };
+                              changeParticipant(participant.id, updated);
+                              void persistParticipant(updated);
+                            }}
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                    {participant.trainerEvaluation === 'needs_refresh' && (
+                      <label className="text-sm block mt-2">תאריך ריענון
+                        <Input
+                          type="date"
+                          value={participant.refreshDate || ''}
+                          onChange={(event) => changeParticipant(participant.id, { refreshDate: event.target.value })}
+                          onBlur={() => void persistParticipant(participants.find((item) => item.id === participant.id) || participant)}
+                        />
+                      </label>
+                    )}
+                    <Textarea
+                      className="mt-2"
+                      value={participant.trainerNotes || ''}
+                      onChange={(event) => changeParticipant(participant.id, { trainerNotes: event.target.value })}
+                      onBlur={() => void persistParticipant(participants.find((item) => item.id === participant.id) || participant)}
+                      placeholder="הערות נוספות של המדריך"
+                    />
+                  </div>
+                </div>
+              )}
               {session.category === 'work_at_height' && (
                 <div className="rounded-lg border bg-slate-50 p-3 space-y-3">
                   <div className="flex items-center gap-2 font-medium text-sm">

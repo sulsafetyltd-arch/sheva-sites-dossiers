@@ -182,7 +182,9 @@ export async function syncTrainingSessionToEmployeeRegistry(
       ? 'work_at_height'
       : session.category === 'general'
         ? session.formDetails?.generalTrainingRecordType ?? 'annual_safety'
-        : null;
+        : session.category === 'ramp_loading'
+          ? 'annual_safety'
+          : null;
   if (!trainingType) return;
 
   for (const participant of participants) {
