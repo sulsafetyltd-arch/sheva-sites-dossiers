@@ -142,7 +142,12 @@ export default function SafetyTrainingEditor() {
     try {
       const saved = await updateTrainingSession(session.id, { ...session, status: status ?? session.status });
       if (status === 'final') {
-        await syncTrainingSessionToEmployeeRegistry(saved, participants);
+        try {
+          await syncTrainingSessionToEmployeeRegistry(saved, participants);
+        } catch (syncError) {
+          // Don't block finalize / PDF when employee registry sync is unavailable (e.g. guest/anon).
+          console.warn('Employee registry sync skipped', syncError);
+        }
       }
       setSession(saved);
       setError(null);
