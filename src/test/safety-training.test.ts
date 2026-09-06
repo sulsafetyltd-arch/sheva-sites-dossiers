@@ -32,6 +32,7 @@ describe('safety training categories', () => {
     expect(TRAINING_CATEGORY_DETAILS.ramp_loading.defaultTopic).toContain('SOL-WP-001');
     expect(RAMP_TRAINING_TOPICS).toHaveLength(11);
     expect(RAMP_QUIZ_QUESTIONS).toHaveLength(5);
+    expect(RAMP_QUIZ_QUESTIONS[4].options.some((option) => option.label === 'כפפות + נעלי עבודה')).toBe(true);
     expect(RAMP_FORM_META.formId).toBe('SOL-FORM-001');
     expect(isBioradClientName('ביוראד')).toBe(true);
     expect(isBioradClientName('Bio-Rad Israel')).toBe(true);

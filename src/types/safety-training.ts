@@ -125,7 +125,7 @@ export const RAMP_QUIZ_QUESTIONS = [
     prompt: 'איזה ציוד מגן חובה ללבוש בעבודה ברמפה?',
     options: [
       { value: 'full_ppe', label: 'נעלי בטיחות + אפוד זוהר + כפפות' },
-      { value: 'gloves_only', label: 'כפפות בלבד' },
+      { value: 'gloves_only', label: 'כפפות + נעלי עבודה' },
       { value: 'none', label: 'ללא צורך' },
     ],
   },

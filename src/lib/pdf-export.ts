@@ -132,6 +132,12 @@ async function inlineImages(container: HTMLElement): Promise<() => void> {
         });
         originals.push({ img, src: img.src });
         img.src = dataUrl;
+        if (!img.complete) {
+          await new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          });
+        }
       } catch {
         // If fetch fails, leave original src
       }
@@ -142,39 +148,93 @@ async function inlineImages(container: HTMLElement): Promise<() => void> {
   return () => originals.forEach(({ img, src }) => (img.src = src));
 }
 
+/** Parent overflow:hidden/auto clips tall html2canvas captures — unlock during export. */
+function unlockOverflowAncestors(element: HTMLElement): () => void {
+  const touched: Array<{
+    node: HTMLElement;
+    overflow: string;
+    overflowX: string;
+    overflowY: string;
+  }> = [];
+  let node: HTMLElement | null = element;
+  while (node && node !== document.documentElement) {
+    touched.push({
+      node,
+      overflow: node.style.overflow,
+      overflowX: node.style.overflowX,
+      overflowY: node.style.overflowY,
+    });
+    node.style.overflow = 'visible';
+    node.style.overflowX = 'visible';
+    node.style.overflowY = 'visible';
+    node = node.parentElement;
+  }
+  return () => {
+    for (const item of touched) {
+      item.node.style.overflow = item.overflow;
+      item.node.style.overflowX = item.overflowX;
+      item.node.style.overflowY = item.overflowY;
+    }
+  };
+}
+
+function captureScaleForElement(element: HTMLElement): number {
+  const width = Math.max(element.scrollWidth, 1);
+  const height = Math.max(element.scrollHeight, 1);
+  // Keep under ~12MP so mobile Safari / Chrome don't reject the canvas.
+  const maxPixels = 12_000_000;
+  return Math.min(2, Math.max(1, Math.sqrt(maxPixels / (width * height))));
+}
+
+function canvasToJpegDataUrl(canvas: HTMLCanvasElement, quality = 0.9): string {
+  try {
+    return canvas.toDataURL('image/jpeg', quality);
+  } catch {
+    return canvas.toDataURL('image/jpeg', 0.7);
+  }
+}
+
 export async function createPdfBlob(contentElement: HTMLElement): Promise<Blob> {
   const body = document.body;
   body.classList.add('pdf-capturing');
+  const restoreOverflow = unlockOverflowAncestors(contentElement);
   const restoreImages = await inlineImages(contentElement);
   let restorePagination = () => {};
   let protectedRangesCss: PdfProtectedRange[] = [];
   let capturedContentHeight = 0;
   let canvas: HTMLCanvasElement;
   try {
-    await new Promise(r => setTimeout(r, 300));
+    contentElement.scrollIntoView({ block: 'start' });
+    await new Promise((r) => setTimeout(r, 300));
     restorePagination = alignKeepTogetherSections(contentElement);
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     protectedRangesCss = collectProtectedRanges(contentElement);
-    capturedContentHeight = contentElement.scrollHeight;
+    capturedContentHeight = Math.max(contentElement.scrollHeight, 1);
+    const scale = captureScaleForElement(contentElement);
     // The report is rendered at a fixed A4-friendly width. Capturing that exact
     // width prevents responsive/mobile styles from distorting table columns.
     canvas = await html2canvas(contentElement, {
-      scale: 2,
+      scale,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
+      imageTimeout: 15000,
       width: contentElement.scrollWidth,
       height: contentElement.scrollHeight,
       windowWidth: contentElement.scrollWidth,
       windowHeight: contentElement.scrollHeight,
       scrollX: 0,
-      scrollY: 0,
+      scrollY: -window.scrollY,
     });
+    if (!canvas.width || !canvas.height) {
+      throw new Error('צילום הטופס ל־PDF נכשל (קנבס ריק). נסה שוב או בחר טופס קצר יותר.');
+    }
   } finally {
     body.classList.remove('pdf-capturing');
     restorePagination();
     restoreImages();
+    restoreOverflow();
   }
 
   const imgWidth = canvas.width;
@@ -200,24 +260,28 @@ export async function createPdfBlob(contentElement: HTMLElement): Promise<Blob> 
     maxPageSourceHeight,
     protectedRanges,
   );
-  const pageCount = pageSlices.length;
+  const pageCount = Math.max(pageSlices.length, 1);
 
   const pdf = new jsPDF('p', 'mm', 'a4');
 
   for (let page = 0; page < pageCount; page++) {
     if (page > 0) pdf.addPage();
 
-    const { start: srcY, end: srcEnd } = pageSlices[page];
-    const srcH = srcEnd - srcY;
+    const slice = pageSlices[page] ?? { start: 0, end: imgHeight };
+    const { start: srcY, end: srcEnd } = slice;
+    const srcH = Math.max(srcEnd - srcY, 1);
 
     // Create a cropped canvas for this page
     const pageCanvas = document.createElement('canvas');
     pageCanvas.width = imgWidth;
     pageCanvas.height = Math.round(srcH);
-    const ctx = pageCanvas.getContext('2d')!;
+    const ctx = pageCanvas.getContext('2d');
+    if (!ctx) throw new Error('יצירת עמוד PDF נכשלה');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
     ctx.drawImage(canvas, 0, -srcY);
 
-    const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.92);
+    const pageImgData = canvasToJpegDataUrl(pageCanvas, 0.88);
     const destH = srcH * ratio;
 
     pdf.addImage(pageImgData, 'JPEG', margin, margin, usableWidth, destH);

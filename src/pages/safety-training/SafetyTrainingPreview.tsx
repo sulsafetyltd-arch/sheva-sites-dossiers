@@ -81,12 +81,21 @@ export default function SafetyTrainingPreview() {
 
   const exportPdf = async () => {
     const element = document.getElementById('training-printable');
-    if (!element) return;
+    if (!element) {
+      setError('לא נמצא תוכן לייצוא. רענן את הדף ונסה שוב.');
+      return;
+    }
     setExporting(true);
+    setError(null);
     try {
       await exportToPdf(element, fileName());
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'יצירת ה־PDF נכשלה');
+      const message = cause instanceof Error ? cause.message : 'יצירת ה־PDF נכשלה';
+      setError(
+        message.includes('canvas') || message.includes('Canvas') || message.includes('Memory')
+          ? 'ייצוא ה־PDF נכשל בגלל גודל הטופס. נסה לייצא טופס עובד בודד (לא את כל הקבוצה), או השתמש במחשב במקום בטלפון.'
+          : message,
+      );
     } finally {
       setExporting(false);
     }
@@ -94,8 +103,12 @@ export default function SafetyTrainingPreview() {
 
   const share = async () => {
     const element = document.getElementById('training-printable');
-    if (!element) return;
+    if (!element) {
+      setError('לא נמצא תוכן לשיתוף. רענן את הדף ונסה שוב.');
+      return;
+    }
     setExporting(true);
+    setError(null);
     try {
       const blob = await createPdfBlob(element);
       const file = new File([blob], fileName(), { type: 'application/pdf' });
